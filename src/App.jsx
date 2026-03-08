@@ -82,12 +82,20 @@ function Badge({ children, color = COLORS.primary }) {
   return <span style={{ display: "inline-flex", alignItems: "center", padding: "4px 10px", borderRadius: 20, background: color + "15", color, fontSize: 12, fontWeight: 600 }}>{children}</span>;
 }
 
-function Input({ placeholder, value, onChange, type = "text", style = {} }) {
+function Input({ placeholder, value, onChange, type = "text", style = {}, showPassword, togglePassword }) {
+  const isPassword = type === "password";
   return (
-    <input type={type} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)}
-      style={{ width: "100%", padding: "12px 16px", borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 15, outline: "none", transition: "border 0.2s", boxSizing: "border-box", background: COLORS.bg, ...style }}
-      onFocus={e => e.target.style.borderColor = COLORS.primary}
-      onBlur={e => e.target.style.borderColor = COLORS.border} />
+    <div style={{ position: "relative", width: "100%" }}>
+      <input type={isPassword && showPassword ? "text" : type} placeholder={placeholder} value={value} onChange={e => onChange(e.target.value)}
+        style={{ width: "100%", padding: "12px 16px", paddingRight: isPassword ? 48 : 16, borderRadius: 12, border: `1px solid ${COLORS.border}`, fontSize: 15, outline: "none", transition: "border 0.2s", boxSizing: "border-box", background: COLORS.bg, ...style }}
+        onFocus={e => e.target.style.borderColor = COLORS.primary}
+        onBlur={e => e.target.style.borderColor = COLORS.border} />
+      {isPassword && (
+        <button onClick={togglePassword} style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: COLORS.textLight, fontSize: 20, padding: 4 }}>
+          {showPassword ? "👁️" : "👁️‍🗨️"}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -118,6 +126,7 @@ function AuthPage({ setCurrentPage, onAuth }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // Calcular edad actual
   const getAge = (birthdayStr) => {
@@ -174,12 +183,22 @@ function AuthPage({ setCurrentPage, onAuth }) {
           phone,
           age,
           days_to_birthday: daysToBday
-        }
+        },
+        emailRedirectTo: `${window.location.origin}/dashboard`
       }
     });
     if (err) { setError(err.message); setLoading(false); return; }
-    setSuccess("¡Cuenta creada! Revisá tu email para confirmar.");
-    setLoading(false);
+
+    // Intentar iniciar sesión automáticamente después del registro
+    setTimeout(async () => {
+      const { data: loginData, error: loginErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (loginData.user) {
+        onAuth(loginData.user);
+      } else {
+        setSuccess("¡Cuenta creada! Revisá tu email para confirmar e inicia sesión.");
+      }
+      setLoading(false);
+    }, 1000);
   };
 
   const handleGoogleLogin = async () => {
@@ -238,7 +257,7 @@ function AuthPage({ setCurrentPage, onAuth }) {
             </>
           )}
           <Input placeholder="Email" type="email" value={email} onChange={setEmail} />
-          <Input placeholder="Contraseña" type="password" value={password} onChange={setPassword} />
+          <Input placeholder="Contraseña" type="password" value={password} onChange={setPassword} showPassword={showPassword} togglePassword={() => setShowPassword(!showPassword)} />
 
           <Button size="lg" style={{ width: "100%", marginTop: 4 }}
             disabled={loading || !email || !password || (mode === "register" && (!name || !username || !birthday || !phone))}
