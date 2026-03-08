@@ -324,6 +324,111 @@ function HomePage({ setCurrentPage, recentGifts }) {
   );
 }
 
+function DashboardPage({ profile, session, setCurrentPage }) {
+  const [pendingActions, setPendingActions] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const defaultActions = [
+    { type: "email_confirmation", label: "Confirmar email", icon: "📧", description: "Verifica tu correo electrónico" },
+    { type: "profile_photo", label: "Foto de perfil", icon: "📸", description: "Carga una foto para tu perfil" },
+    { type: "payment_alias", label: "Alias de pago", icon: "💳", description: "Configura tu alias de transferencia bancaria" },
+    { type: "identity_verification", label: "Verificación de identidad", icon: "🆔", description: "Verifica tu identidad" },
+  ];
+
+  useEffect(() => {
+    loadPendingActions();
+  }, [session?.user?.id]);
+
+  const loadPendingActions = async () => {
+    if (!session?.user?.id) return;
+
+    // Por ahora, creamos acciones por defecto (sin guardar en BD)
+    // Una vez que ejecutes el SQL, estos se guardarán en la tabla
+    const actions = defaultActions.map(action => ({
+      ...action,
+      is_completed: false
+    }));
+
+    setPendingActions(actions);
+    setLoading(false);
+  };
+
+  const completedCount = pendingActions.filter(a => a.is_completed).length;
+  const progressPercent = (completedCount / pendingActions.length) * 100;
+
+  return (
+    <div style={{ maxWidth: 1100, margin: "0 auto", padding: "20px" }}>
+      {/* Header del perfil */}
+      <Card style={{ padding: 32, marginBottom: 24, background: `linear-gradient(135deg, ${COLORS.primary}15 0%, ${COLORS.accent}10 100%)` }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
+          <Avatar initials={profile ? getInitials(profile.name) : "?"} size={80} />
+          <div style={{ flex: 1 }}>
+            <h2 style={{ margin: "0 0 4px", fontSize: 24, fontWeight: 700 }}>{profile?.name || "Usuario"}</h2>
+            <p style={{ margin: 0, color: COLORS.textLight, fontSize: 14 }}>@{profile?.username || "usuario"}</p>
+            <p style={{ margin: "8px 0 0", color: COLORS.textLight, fontSize: 13 }}>
+              📅 {profile?.age} años • 🎁 Cumpleaños en {profile?.days_to_birthday} días
+            </p>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 8 }}>{Math.round(progressPercent)}%</div>
+            <p style={{ margin: 0, fontSize: 12, color: COLORS.textLight }}>Perfil completado</p>
+          </div>
+        </div>
+
+        {/* Barra de progreso */}
+        <div style={{ marginTop: 24, height: 8, background: COLORS.border, borderRadius: 4, overflow: "hidden" }}>
+          <div style={{ height: "100%", width: `${progressPercent}%`, background: `linear-gradient(90deg, ${COLORS.primary}, ${COLORS.accent})`, transition: "width 0.3s" }} />
+        </div>
+        <p style={{ margin: "12px 0 0", fontSize: 12, color: COLORS.textLight, textAlign: "center" }}>
+          {completedCount} de {pendingActions.length} acciones completadas
+        </p>
+      </Card>
+
+      {/* Acciones pendientes */}
+      <div>
+        <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: COLORS.text }}>Acciones pendientes</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+          {pendingActions.map((action) => (
+            <Card
+              key={action.type}
+              style={{
+                padding: 20,
+                opacity: action.is_completed ? 0.6 : 1,
+                border: action.is_completed ? `2px solid ${COLORS.success}` : `1px solid ${COLORS.border}`,
+                position: "relative"
+              }}
+            >
+              {action.is_completed && (
+                <div style={{ position: "absolute", top: 12, right: 12, fontSize: 20 }}>✅</div>
+              )}
+              <div style={{ fontSize: 32, marginBottom: 12 }}>{action.icon}</div>
+              <h4 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700, textDecoration: action.is_completed ? "line-through" : "none" }}>
+                {action.label}
+              </h4>
+              <p style={{ margin: "0 0 16px", fontSize: 13, color: COLORS.textLight }}>
+                {action.description}
+              </p>
+              <Button
+                variant={action.is_completed ? "secondary" : "primary"}
+                size="sm"
+                style={{ width: "100%" }}
+                disabled={action.is_completed}
+                onClick={() => {
+                  // Aquí iría la lógica para completar cada acción
+                  // Por ahora solo mostramos mensaje
+                  alert(`Abriendo: ${action.label}`);
+                }}
+              >
+                {action.is_completed ? "✓ Completado" : "Completar"}
+              </Button>
+            </Card>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ExplorePage({ setSelectedUser, setCurrentPage }) {
   const [search, setSearch] = useState("");
   const [profiles, setProfiles] = useState([]);
@@ -450,6 +555,7 @@ export default function App() {
     switch (currentPage) {
       case "home": return <HomePage setCurrentPage={setCurrentPage} recentGifts={[]} />;
       case "explore": return <ExplorePage setSelectedUser={setSelectedUser} setCurrentPage={setCurrentPage} />;
+      case "dashboard": return session ? <DashboardPage profile={profile} session={session} setCurrentPage={setCurrentPage} /> : <AuthPage setCurrentPage={setCurrentPage} onAuth={handleAuth} />;
       case "login": case "register": return <AuthPage setCurrentPage={setCurrentPage} onAuth={handleAuth} />;
       default: return <HomePage setCurrentPage={setCurrentPage} recentGifts={[]} />;
     }
