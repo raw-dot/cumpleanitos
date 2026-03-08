@@ -8,9 +8,8 @@
  * Uso: npm install && node setup-supabase.js
  */
 
-const { Client } = require('pg');
-const path = require('path');
-const fs = require('fs');
+import pg from 'pg';
+const { Client } = pg;
 
 // Configuración
 const config = {
