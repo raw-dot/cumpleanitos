@@ -114,9 +114,30 @@ function AuthPage({ setCurrentPage, onAuth }) {
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [birthday, setBirthday] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  // Calcular edad actual
+  const getAge = (birthdayStr) => {
+    const today = new Date();
+    const bday = new Date(birthdayStr);
+    let age = today.getFullYear() - bday.getFullYear();
+    const month = today.getMonth() - bday.getMonth();
+    if (month < 0 || (month === 0 && today.getDate() < bday.getDate())) age--;
+    return age;
+  };
+
+  // Calcular días al próximo cumpleaños
+  const getDaysToBirthday = (birthdayStr) => {
+    const today = new Date();
+    const bday = new Date(birthdayStr);
+    const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
+    if (thisYear < today) thisYear.setFullYear(today.getFullYear() + 1);
+    const diff = Math.ceil((thisYear - today) / (1000 * 60 * 60 * 24));
+    return diff === 0 ? 0 : diff;
+  };
 
   const handleLogin = async () => {
     setLoading(true); setError(""); setSuccess("");
@@ -126,14 +147,35 @@ function AuthPage({ setCurrentPage, onAuth }) {
   };
 
   const handleRegister = async () => {
-    if (!name || !username || !birthday) { setError("Completá todos los campos"); return; }
+    if (!name || !username || !birthday || !phone) { setError("Completá todos los campos"); return; }
+
+    // Validar que sea mayor de 13 años (edad mínima para redes sociales)
+    const age = getAge(birthday);
+    if (age < 13) { setError("Debes tener al menos 13 años para registrarte"); return; }
+
+    // Validar teléfono (básico: al menos 10 dígitos)
+    const phoneDigits = phone.replace(/\D/g, "");
+    if (phoneDigits.length < 10) { setError("El teléfono debe tener al menos 10 dígitos"); return; }
+
     setLoading(true); setError(""); setSuccess("");
     const { data: existing } = await supabase.from("profiles").select("username").eq("username", username).single();
     if (existing) { setError("Ese nombre de usuario ya está en uso"); setLoading(false); return; }
+
+    const daysToBday = getDaysToBirthday(birthday);
+
     const { data, error: err } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name, username, birthday } }
+      options: {
+        data: {
+          name,
+          username,
+          birthday,
+          phone,
+          age,
+          days_to_birthday: daysToBday
+        }
+      }
     });
     if (err) { setError(err.message); setLoading(false); return; }
     setSuccess("¡Cuenta creada! Revisá tu email para confirmar.");
@@ -184,13 +226,22 @@ function AuthPage({ setCurrentPage, onAuth }) {
                 <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Fecha de cumpleaños</label>
                 <Input type="date" value={birthday} onChange={setBirthday} />
               </div>
+              <div>
+                <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Teléfono celular (para WhatsApp)</label>
+                <Input placeholder="Ej: +54 9 11 2345 6789" value={phone} onChange={setPhone} />
+              </div>
+              {birthday && (
+                <div style={{ padding: 12, background: COLORS.primaryLight + "15", borderRadius: 8, fontSize: 13, color: COLORS.text }}>
+                  📅 Tienes {getAge(birthday)} años | 🎁 Tu cumpleaños es en {getDaysToBirthday(birthday)} días
+                </div>
+              )}
             </>
           )}
           <Input placeholder="Email" type="email" value={email} onChange={setEmail} />
           <Input placeholder="Contraseña" type="password" value={password} onChange={setPassword} />
 
           <Button size="lg" style={{ width: "100%", marginTop: 4 }}
-            disabled={loading || !email || !password || (mode === "register" && (!name || !username || !birthday))}
+            disabled={loading || !email || !password || (mode === "register" && (!name || !username || !birthday || !phone))}
             onClick={mode === "login" ? handleLogin : handleRegister}>
             {loading ? "Cargando..." : mode === "login" ? "Iniciar sesión" : "Crear cuenta"}
           </Button>
