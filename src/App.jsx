@@ -1,304 +1,190 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
+import { COLORS, Logo, Button, Avatar, getInitials } from "./shared";
+import AuthPage from "./pages/AuthPage";
+import CelebrantDashboard from "./pages/CelebrantDashboard";
+import ManagerDashboard from "./pages/ManagerDashboard";
+import ExplorePage from "./pages/ExplorePage";
+import ProfilePage from "./pages/ProfilePage";
+import HomePage from "./pages/HomePage";
 
-// Imports de utilidades y constantes
-import { COLORS, GIFT_AMOUNTS, ROLES } from "./utils/constants";
-import { getInitials, formatUsername, isValidEmail } from "./utils/formatters";
-import {
-  getAge,
-  getDaysToBirthday,
-  daysUntilBirthday,
-  formatBirthday,
-  timeAgo,
-} from "./utils/dateHelpers";
+// ─── NAVBAR ──────────────────────────────────────────────────────────────────
+function Navbar({ page, setPage, session, profile, onLogout }) {
+  const role = profile?.role;
+  return (
+    <nav style={{ background: "rgba(255,255,255,0.96)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${COLORS.border}`, padding: "12px 0", position: "sticky", top: 0, zIndex: 100 }}>
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div onClick={() => setPage("home")} style={{ cursor: "pointer", flexShrink: 0 }}>
+          <Logo />
+        </div>
 
-// Imports de componentes UI
-import Button from "./components/ui/Button";
-import Card from "./components/ui/Card";
-import Avatar from "./components/ui/Avatar";
-import Badge from "./components/ui/Badge";
-import Input from "./components/ui/Input";
-import Textarea from "./components/ui/Textarea";
-import Alert from "./components/ui/Alert";
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => setPage("explore")}>
+            Explorar
+          </Button>
 
-// Imports de layout
-import Navbar from "./components/layout/Navbar";
-import Footer from "./components/layout/Footer";
+          {session ? (
+            <>
+              {role === "manager" ? (
+                <Button variant={page === "dashboard" ? "outline" : "ghost"} size="sm" onClick={() => setPage("dashboard")}>
+                  🎁 Mis campañas
+                </Button>
+              ) : (
+                <Button variant={page === "dashboard" ? "outline" : "ghost"} size="sm" onClick={() => setPage("dashboard")}>
+                  🎂 Mi cumple
+                </Button>
+              )}
 
-// Imports de páginas
-import AuthPage from "./components/auth/AuthPage";
-import HomePage from "./components/pages/HomePage";
-import ExplorePage from "./components/pages/ExplorePage";
-import DashboardPage from "./components/pages/DashboardPage";
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 4 }}>
+                <div onClick={() => setPage("dashboard")} style={{ cursor: "pointer" }}>
+                  <Avatar initials={profile ? getInitials(profile.name) : "?"} size={34} />
+                </div>
+                <Button variant="ghost" size="sm" onClick={onLogout} style={{ color: COLORS.error, fontSize: 12 }}>
+                  Salir
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <Button variant="ghost" size="sm" onClick={() => setPage("login")}>Iniciar sesión</Button>
+              <Button variant="accent" size="sm" onClick={() => setPage("register")}>Registrarse gratis</Button>
+            </>
+          )}
+        </div>
+      </div>
+    </nav>
+  );
+}
 
-// Páginas placeholder para fases posteriores
-import MyProfilePage from "./components/pages/MyProfilePage";
-import FriendsPage from "./components/pages/FriendsPage";
-import SettingsPage from "./components/pages/SettingsPage";
+// ─── FOOTER ──────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer style={{ borderTop: `1px solid ${COLORS.border}`, padding: "36px 20px", textAlign: "center", marginTop: 60 }}>
+      <Logo size={22} />
+      <p style={{ fontSize: 13, color: COLORS.textLight, marginTop: 12, marginBottom: 0 }}>
+        Hecho con 💜 en Argentina · © 2026 Cumpleanitos
+      </p>
+    </footer>
+  );
+}
 
-/**
- * Componente principal App
- * Maneja routing, autenticación, y estado global
- */
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function App() {
-  // State para routing
-  const [currentPage, setCurrentPage] = useState("home");
-  const [selectedUser, setSelectedUser] = useState(null);
-
-  // State para autenticación
+  const [page, setPage] = useState("home");
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [profileTarget, setProfileTarget] = useState(null);
 
-  // State para roles
-  const [currentRole, setCurrentRole] = useState(ROLES.BIRTHDAY_PERSON);
-
-  // State para UI
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-
-  /**
-   * Efecto: Verificar sesión al montar el componente
-   */
+  // ── Parse URL params on load ──
   useEffect(() => {
-    const initAuth = async () => {
-      // Obtener sesión actual
-      const {
-        data: { session: s },
-      } = await supabase.auth.getSession();
+    const params = new URLSearchParams(window.location.search);
+    const u = params.get("u");
+    const c = params.get("c");
+    if (u) { setProfileTarget({ username: u }); setPage("profile"); }
+    else if (c) { setProfileTarget({ campaignId: c }); setPage("profile"); }
+  }, []);
+
+  // ── Auth listener ──
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session: s } }) => {
       setSession(s);
-
-      if (s) {
-        await loadProfile(s.user.id);
-      }
-
+      if (s) loadProfile(s.user.id);
       setLoading(false);
-    };
+    });
 
-    initAuth();
-
-    // Suscribirse a cambios de autenticación
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s);
-
       if (s) {
-        await loadProfile(s.user.id);
-        setCurrentPage("dashboard");
+        loadProfile(s.user.id);
+        const params = new URLSearchParams(window.location.search);
+        if (!params.get("u") && !params.get("c")) setPage("dashboard");
       } else {
         setProfile(null);
-        setCurrentRole(ROLES.BIRTHDAY_PERSON);
       }
     });
 
-    return () => subscription?.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
-  /**
-   * Carga el perfil del usuario desde Supabase
-   */
   const loadProfile = async (userId) => {
-    try {
-      const { data, error: err } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .single();
-
-      if (err) throw err;
-
-      if (data) {
-        setProfile(data);
-        setCurrentRole(data.current_role || ROLES.BIRTHDAY_PERSON);
-      }
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    }
+    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (data) setProfile(data);
   };
 
-  /**
-   * Maneja el logout del usuario
-   */
-  const handleLogout = async () => {
-    try {
-      await supabase.auth.signOut();
-      setSession(null);
-      setProfile(null);
-      setCurrentRole(ROLES.BIRTHDAY_PERSON);
-      setCurrentPage("home");
-      setSuccess("Sesión cerrada correctamente");
-    } catch (error) {
-      console.error("Error on logout:", error);
-      setError("Error al cerrar sesión");
-    }
-  };
-
-  /**
-   * Maneja el cambio de rol
-   */
-  const handleRoleSwitch = async (newRole) => {
-    if (!session || !profile) return;
-
-    try {
-      const { error: err } = await supabase
-        .from("profiles")
-        .update({ current_role: newRole })
-        .eq("id", session.user.id);
-
-      if (err) throw err;
-
-      setCurrentRole(newRole);
-      setProfile({ ...profile, current_role: newRole });
-      setSuccess(`Rol cambiado a ${newRole === ROLES.GIFT_MANAGER ? "Gestor de Regalos" : "Cumpleañero"}`);
-    } catch (error) {
-      console.error("Error switching role:", error);
-      setError("Error al cambiar de rol");
-    }
-  };
-
-  /**
-   * Callback después de autenticarse
-   */
   const handleAuth = (user) => {
-    setCurrentPage("dashboard");
+    loadProfile(user.id);
+    setPage("dashboard");
   };
 
-  /**
-   * Renderiza la página actual según el estado
-   */
-  const renderPage = () => {
-    switch (currentPage) {
-      case "home":
-        return <HomePage setCurrentPage={setCurrentPage} recentGifts={[]} />;
-
-      case "explore":
-        return (
-          <ExplorePage
-            setSelectedUser={setSelectedUser}
-            setCurrentPage={setCurrentPage}
-          />
-        );
-
-      case "dashboard":
-        return session ? (
-          <DashboardPage
-            profile={profile}
-            session={session}
-            setCurrentPage={setCurrentPage}
-          />
-        ) : (
-          <AuthPage setCurrentPage={setCurrentPage} onAuth={handleAuth} />
-        );
-
-      case "myprofile":
-        return session ? (
-          <MyProfilePage profile={profile} session={session} />
-        ) : (
-          <AuthPage setCurrentPage={setCurrentPage} onAuth={handleAuth} />
-        );
-
-      case "friends":
-        return session && currentRole === ROLES.GIFT_MANAGER ? (
-          <FriendsPage session={session} />
-        ) : (
-          <HomePage setCurrentPage={setCurrentPage} recentGifts={[]} />
-        );
-
-      case "settings":
-        return session ? (
-          <SettingsPage profile={profile} session={session} />
-        ) : (
-          <AuthPage setCurrentPage={setCurrentPage} onAuth={handleAuth} />
-        );
-
-      case "login":
-      case "register":
-        return <AuthPage setCurrentPage={setCurrentPage} onAuth={handleAuth} />;
-
-      default:
-        return <HomePage setCurrentPage={setCurrentPage} recentGifts={[]} />;
-    }
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setSession(null);
+    setProfile(null);
+    setPage("home");
+    window.history.replaceState({}, "", window.location.pathname);
   };
 
+  const viewProfile = (username) => {
+    setProfileTarget({ username });
+    setPage("profile");
+  };
+
+  // ── Render ──
   if (loading) {
     return (
-      <div
-        style={{
-          fontFamily:
-            "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          minHeight: "100vh",
-          color: COLORS.textLight,
-        }}
-      >
+      <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: COLORS.textLight, fontSize: 16 }}>
         <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 32, marginBottom: 16 }}>🎂</div>
-          <div>Cargando cumpleanitos...</div>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🎂</div>
+          Cargando...
         </div>
       </div>
     );
   }
 
-  return (
-    <div
-      style={{
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        background: COLORS.bg,
-        minHeight: "100vh",
-        color: COLORS.text,
-        display: "flex",
-        flexDirection: "column",
-      }}
-    >
-      {/* Mostrar mensajes de error/success */}
-      {(error || success) && (
-        <div
-          style={{
-            position: "fixed",
-            top: 20,
-            right: 20,
-            zIndex: 2000,
-            maxWidth: 400,
-          }}
-        >
-          {error && (
-            <Alert
-              message={error}
-              type="error"
-              onDismiss={() => setError("")}
-            />
-          )}
-          {success && (
-            <Alert
-              message={success}
-              type="success"
-              onDismiss={() => setSuccess("")}
-            />
-          )}
-        </div>
-      )}
+  const renderPage = () => {
+    switch (page) {
+      case "home":
+        return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
 
-      {/* Navbar */}
+      case "explore":
+        return <ExplorePage onViewProfile={viewProfile} />;
+
+      case "login":
+      case "register":
+        return <AuthPage initialMode={page} onAuth={handleAuth} />;
+
+      case "dashboard":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (profile?.role === "manager") {
+          return <ManagerDashboard profile={profile} session={session} />;
+        }
+        return <CelebrantDashboard profile={profile} session={session} />;
+
+      case "profile":
+        return (
+          <ProfilePage
+            username={profileTarget?.username}
+            campaignId={profileTarget?.campaignId}
+            currentSession={session}
+          />
+        );
+
+      default:
+        return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
+    }
+  };
+
+  return (
+    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
       <Navbar
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        setSelectedUser={setSelectedUser}
+        page={page}
+        setPage={setPage}
         session={session}
         profile={profile}
-        currentRole={currentRole}
         onLogout={handleLogout}
-        onRoleSwitch={handleRoleSwitch}
       />
-
-      {/* Contenido principal */}
-      <main style={{ flex: 1 }}>
-        {renderPage()}
-      </main>
-
-      {/* Footer */}
+      <main>{renderPage()}</main>
       <Footer />
     </div>
   );
