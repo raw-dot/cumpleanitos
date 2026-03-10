@@ -6,7 +6,7 @@ import {
   getInitials, formatMoney, formatBirthday, daysUntilBirthday,
 } from "../shared";
 
-export default function CelebrantDashboard({ profile, session, defaultTab = "campaign" }) {
+export default function CelebrantDashboard({ profile, session, defaultTab = "campaign", onViewLanding }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [campaign, setCampaign] = useState(null);
   const [items, setItems] = useState([]);
@@ -237,6 +237,25 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                       WhatsApp
                     </Button>
                   </div>
+                </div>
+              </Card>
+
+              {/* Ver Landing */}
+              <Card
+                style={{
+                  background: `linear-gradient(135deg, ${COLORS.primary}08, ${COLORS.accent}10)`,
+                  border: `1px solid ${COLORS.primary}30`,
+                  cursor: "pointer",
+                }}
+                onClick={onViewLanding ? onViewLanding : () => window.open(`${window.location.origin}?u=${profile?.username}`, "_blank")}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                  <span style={{ fontSize: 32 }}>👁️</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 2 }}>Ver mi landing de regalo</div>
+                    <div style={{ fontSize: 13, color: COLORS.textLight }}>Así ven tu regalo tus amigos cuando abren el link</div>
+                  </div>
+                  <span style={{ fontSize: 20, color: COLORS.primary }}>→</span>
                 </div>
               </Card>
             </div>

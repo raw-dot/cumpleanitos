@@ -285,7 +285,7 @@ export default function App() {
         if (profile?.role === "manager") {
           return <ManagerDashboard profile={profile} session={session} />;
         }
-        return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" />;
+        return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} />;
 
       case "settings":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
@@ -293,7 +293,7 @@ export default function App() {
         if (profile?.role === "manager") {
           return <ManagerDashboard profile={profile} session={session} />;
         }
-        return <CelebrantDashboard profile={profile} session={session} defaultTab="settings" />;
+        return <CelebrantDashboard profile={profile} session={session} defaultTab="settings" onViewLanding={() => viewProfile(profile?.username)} />;
 
       case "profile":
         return (

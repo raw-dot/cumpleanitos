@@ -16,7 +16,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
   const [loading, setLoading] = useState(true);
   const [showContributeForm, setShowContributeForm] = useState(false);
   const [preSelectedItem, setPreSelectedItem] = useState(null);
-  const [form, setForm] = useState({ amount: "", name: "", message: "", anonymous: false });
+  const [form, setForm] = useState({ amount: "", name: "", contact: "", message: "", anonymous: false });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -129,7 +129,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
 
   const submitContribution = async () => {
     if (!form.amount || parseFloat(form.amount) <= 0) { setError("Ingresá un monto válido"); return; }
-    if (!form.name && !form.anonymous) { setError("Ingresá tu nombre o marcá la opción anónimo"); return; }
+    if (!form.name && !form.anonymous && !currentSession) { setError("Ingresá tu nombre o marcá la opción anónimo"); return; }
 
     setSubmitting(true);
     setError("");
@@ -141,6 +141,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
       campaign_id: campaign.id,
       gifter_id: currentSession?.user?.id || null,
       gifter_name: gifterName,
+      gifter_contact: form.anonymous ? null : (form.contact || null),
       amount: amount,
       message: form.message || null,
       is_anonymous: form.anonymous,
@@ -155,7 +156,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
 
     setShowContributeForm(false);
     setPreSelectedItem(null);
-    setForm({ amount: "", name: "", message: "", anonymous: false });
+    setForm({ amount: "", name: "", contact: "", message: "", anonymous: false });
     setSuccess(`¡Gracias por tu regalo! 🎉 Ahora hacé la transferencia de ${formatMoney(amount)} al alias: ${profile?.payment_alias || "pendiente de confirmar"}`);
   };
 
@@ -362,6 +363,19 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
               </div>
             )}
 
+            {!form.anonymous && (
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>
+                  Teléfono o email <span style={{ fontSize: 12, opacity: 0.7 }}>(opcional — para que el festejado pueda confirmar)</span>
+                </label>
+                <Input
+                  value={form.contact}
+                  onChange={v => setForm(p => ({ ...p, contact: v }))}
+                  placeholder="Ej: +5491155556666 o vos@email.com"
+                />
+              </div>
+            )}
+
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>Mensaje (opcional)</label>
               <Textarea value={form.message} onChange={v => setForm(p => ({ ...p, message: v }))} placeholder="Escribile algo lindo..." rows={3} />
@@ -390,7 +404,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             <Button
               size="lg"
               onClick={submitContribution}
-              disabled={submitting || !form.amount || (!form.name && !form.anonymous)}
+              disabled={submitting || !form.amount || (!form.name && !form.anonymous && !currentSession)}
               style={{ width: "100%" }}
             >
               {submitting ? "Procesando..." : "Confirmar regalo 🎁"}
