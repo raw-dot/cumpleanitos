@@ -21,6 +21,8 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [saving, setSaving] = useState(false);
+  const [imageSuggestions, setImageSuggestions] = useState([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const days = daysUntilBirthday(profile?.birthday);
   const totalRaised = contributions.reduce((s, c) => s + (c.amount || 0), 0);
@@ -134,6 +136,24 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const copyLink = () => {
     navigator.clipboard.writeText(`${window.location.origin}?u=${profile?.username}`);
     showSuccess("¡Link copiado al portapapeles!");
+  };
+
+  const fetchImageSuggestions = async () => {
+    const query = [campaignForm.title, campaignForm.description]
+      .join(' ')
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(w => w.length > 3)
+      .slice(0, 3)
+      .join(',');
+    if (!query) return;
+    setLoadingSuggestions(true);
+    const suggestions = Array.from({ length: 6 }, (_, i) => ({
+      thumb: `https://source.unsplash.com/300x200/?${encodeURIComponent(query)}&sig=${Date.now() + i}`,
+      full: `https://source.unsplash.com/800x600/?${encodeURIComponent(query)}&sig=${Date.now() + i}`,
+    }));
+    setImageSuggestions(suggestions);
+    setLoadingSuggestions(false);
   };
 
   const tabs = [
@@ -411,6 +431,70 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Descripción</label>
               <Textarea value={campaignForm.description} onChange={v => setCampaignForm(p => ({ ...p, description: v }))} placeholder="Contale a tus amigos por qué querés este regalo..." rows={4} />
             </div>
+            <div>
+              <button
+                type="button"
+                onClick={fetchImageSuggestions}
+                disabled={loadingSuggestions}
+                style={{
+                  padding: "8px 12px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  background: COLORS.bg,
+                  border: `1px solid ${COLORS.border}`,
+                  borderRadius: 8,
+                  cursor: loadingSuggestions ? "not-allowed" : "pointer",
+                  color: COLORS.text,
+                  opacity: loadingSuggestions ? 0.6 : 1,
+                }}
+              >
+                🔍 Sugerir imágenes
+              </button>
+            </div>
+            {loadingSuggestions && (
+              <div style={{ fontSize: 13, color: COLORS.textLight }}>Buscando imágenes...</div>
+            )}
+            {imageSuggestions.length > 0 && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
+                  {imageSuggestions.map((suggestion, idx) => (
+                    <div
+                      key={idx}
+                      onClick={() => {
+                        setCampaignForm(p => ({ ...p, image_url: suggestion.full }));
+                        setImageSuggestions([]);
+                      }}
+                      style={{
+                        width: "100%",
+                        height: 90,
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        overflow: "hidden",
+                        backgroundImage: `url(${suggestion.thumb})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
+                    />
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setImageSuggestions([])}
+                  style={{
+                    padding: "6px 10px",
+                    fontSize: 12,
+                    fontWeight: 500,
+                    background: "transparent",
+                    border: `1px solid ${COLORS.border}`,
+                    borderRadius: 6,
+                    cursor: "pointer",
+                    color: COLORS.textLight,
+                  }}
+                >
+                  ✕ Cerrar sugerencias
+                </button>
+              </div>
+            )}
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Meta de recaudación (ARS)</label>
               <Input type="number" value={campaignForm.goal_amount} onChange={v => setCampaignForm(p => ({ ...p, goal_amount: v }))} placeholder="Ej: 15000" min="0" />

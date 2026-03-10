@@ -90,6 +90,43 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
     setShowContributeForm(true);
   };
 
+  const handleShare = async () => {
+    const url = window.location.href;
+    const shareText = profile
+      ? `¡Ayudame a juntar para mi regalo de cumpleaños! 🎁🎂`
+      : `¡Mirá este regalo de cumpleaños!`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: campaign?.title || 'Regalo de cumpleaños',
+          text: shareText,
+          url: url,
+        });
+      } catch (e) {
+        copyToClipboard(url);
+      }
+    } else {
+      copyToClipboard(url);
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      setSuccess('¡Link copiado al portapapeles! 🔗');
+      setTimeout(() => setSuccess(''), 3000);
+    }).catch(() => {
+      const el = document.createElement('textarea');
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand('copy');
+      document.body.removeChild(el);
+      setSuccess('¡Link copiado! 🔗');
+      setTimeout(() => setSuccess(''), 3000);
+    });
+  };
+
   const submitContribution = async () => {
     if (!form.amount || parseFloat(form.amount) <= 0) { setError("Ingresá un monto válido"); return; }
     if (!form.name && !form.anonymous) { setError("Ingresá tu nombre o marcá la opción anónimo"); return; }
@@ -177,19 +214,50 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
               🎁 Aportar para el regalo
             </Button>
           </div>
+          {/* Share button */}
+          <div style={{ marginTop: 12 }}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShare}
+            >
+              🔗 Compartir regalo
+            </Button>
+          </div>
         </div>
       </div>
 
       {/* ── MAIN CONTENT ── */}
-      <div style={{ maxWidth: 700, margin: "0 auto", padding: "40px 20px 60px" }}>
+      <div style={{ maxWidth: 700, margin: "0 auto", padding: "24px 16px 60px" }}>
         {/* ── EL REGALO SECTION ── */}
         {campaign ? (
           <div style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 24, color: COLORS.text }}>El regalo 🎁</h2>
 
             {campaign.image_url && (
-              <div style={{ marginBottom: 24, borderRadius: 16, overflow: "hidden", maxWidth: "100%" }}>
-                <img src={campaign.image_url} alt={campaign.title} style={{ width: "100%", maxHeight: 400, objectFit: "cover", display: "block" }} />
+              <div style={{
+                marginBottom: 24,
+                borderRadius: 16,
+                overflow: "hidden",
+                width: "100%",
+                maxWidth: "100%",
+                background: COLORS.border,
+                aspectRatio: "16/9",
+                position: "relative",
+              }}>
+                <img
+                  src={campaign.image_url}
+                  alt={campaign.title}
+                  style={{
+                    position: "absolute",
+                    top: 0, left: 0,
+                    width: "100%",
+                    height: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    borderRadius: 16,
+                  }}
+                />
               </div>
             )}
 
