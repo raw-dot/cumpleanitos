@@ -3,7 +3,7 @@ import { COLORS, Button, Card, Badge } from "../shared";
 const FEATURES = [
   { icon: "🎂", title: "Creá tu perfil de cumpleaños", desc: "Registrate, completá tu lista de deseos y compartí tu link con tus amigos." },
   { icon: "🎁", title: "Recibí regalos de tus amigos", desc: "Tus amigos eligen qué regalarte y te transfieren directo. Sin complicaciones." },
-  { icon: "🗂️", title: "Organizá regalos para tus amigos", desc: "Como gestor, podés crear campañas de regalo para los cumpleaños de todos tus amigos." },
+  { icon: "🗂️", title: "Organizá regalos para tus amigos", desc: "Como gestor, podés crear regalos para los cumpleaños de todos tus amigos." },
 ];
 
 const STEPS = [
@@ -29,7 +29,7 @@ export default function HomePage({ onRegister, onExplore }) {
           <br />como nunca antes
         </h1>
         <p style={{ fontSize: 20, color: COLORS.textLight, maxWidth: 520, margin: "0 auto 36px", lineHeight: 1.6 }}>
-          Creá tu campaña de cumpleaños, armá tu lista de deseos y recibí regalos de tus amigos con transferencias directas. Sin comisiones ocultas.
+          Creá tu regalo de cumpleaños, armá tu lista de deseos y recibí regalos de tus amigos con transferencias directas. Sin comisiones ocultas.
         </p>
         <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
           <Button size="lg" onClick={onRegister}>Crear mi perfil gratis 🎂</Button>

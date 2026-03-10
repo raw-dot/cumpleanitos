@@ -41,7 +41,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch }) {
             <>
               {role === "manager" ? (
                 <Button variant={page === "dashboard" ? "outline" : "ghost"} size="sm" onClick={() => setPage("dashboard")}>
-                  🎁 Mis campañas
+                  🎁 Mis regalos
                 </Button>
               ) : (
                 <Button variant={page === "dashboard" ? "outline" : "ghost"} size="sm" onClick={() => setPage("dashboard")}>
@@ -301,6 +301,7 @@ export default function App() {
             username={profileTarget?.username}
             campaignId={profileTarget?.campaignId}
             currentSession={session}
+            currentProfile={profile}
           />
         );
 

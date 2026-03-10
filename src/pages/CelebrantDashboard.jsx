@@ -64,7 +64,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const createCampaign = async () => {
     const { data } = await supabase.from("gift_campaigns").insert({
       title: "Mi Regalo",
-      description: `¡Hola! Soy ${profile?.name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por visitar mi campaña! 🎂`,
+      description: `¡Hola! Soy ${profile?.name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por visitar mi regalo! 🎂`,
       birthday_person_id: session.user.id,
       created_by: session.user.id,
       goal_amount: 10000,
@@ -72,7 +72,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       status: "active",
       birthday_person_name: profile?.name,
     }).select().single();
-    if (data) { setCampaign(data); showSuccess("¡Campaña creada!"); }
+    if (data) { setCampaign(data); showSuccess("¡Regalo creado!"); }
   };
 
   const uploadImage = async (file) => {
@@ -100,7 +100,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       .eq("id", campaign.id)
       .select().single();
     setSaving(false);
-    if (!err && data) { setCampaign(data); setShowEditCampaign(false); showSuccess("Campaña actualizada"); }
+    if (!err && data) { setCampaign(data); setShowEditCampaign(false); showSuccess("Regalo actualizado"); }
   };
 
   const addItem = async () => {
@@ -144,7 +144,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   ];
 
   if (loading) {
-    return <div style={{ textAlign: "center", padding: 80, color: COLORS.textLight, fontSize: 16 }}>Cargando tu campaña...</div>;
+    return <div style={{ textAlign: "center", padding: 80, color: COLORS.textLight, fontSize: 16 }}>Cargando tu regalo...</div>;
   }
 
   return (
@@ -206,7 +206,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                 <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 28 }}>🔗</span>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 700, marginBottom: 2 }}>Tu link de campaña</div>
+                    <div style={{ fontWeight: 700, marginBottom: 2 }}>Tu link del regalo</div>
                     <div style={{ fontSize: 13, color: COLORS.textLight, wordBreak: "break-all" }}>
                       {window.location.origin}?u={profile?.username}
                     </div>
@@ -223,9 +223,9 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
           ) : (
             <Card style={{ textAlign: "center", padding: 60 }}>
               <div style={{ fontSize: 56, marginBottom: 16 }}>🎂</div>
-              <h3 style={{ margin: "0 0 8px", fontSize: 20 }}>No tenés una campaña activa</h3>
-              <p style={{ color: COLORS.textLight, marginBottom: 24 }}>Creá tu campaña para empezar a recibir regalos de cumpleaños</p>
-              <Button size="lg" onClick={createCampaign}>Crear mi campaña</Button>
+              <h3 style={{ margin: "0 0 8px", fontSize: 20 }}>No tenés un regalo activo</h3>
+              <p style={{ color: COLORS.textLight, marginBottom: 24 }}>Creá tu regalo para empezar a recibir regalos de cumpleaños</p>
+              <Button size="lg" onClick={createCampaign}>Crear mi regalo</Button>
             </Card>
           )}
         </div>
@@ -241,7 +241,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
           {!campaign ? (
             <Card style={{ textAlign: "center", padding: 40 }}>
-              <p style={{ color: COLORS.textLight }}>Primero creá tu campaña para agregar items a tu lista.</p>
+              <p style={{ color: COLORS.textLight }}>Primero creá tu regalo para agregar items a tu lista.</p>
             </Card>
           ) : items.length === 0 ? (
             <Card style={{ textAlign: "center", padding: 60 }}>
@@ -324,7 +324,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
             <Card style={{ textAlign: "center", padding: 60 }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>💝</div>
               <p style={{ color: COLORS.textLight, marginBottom: 20 }}>Todavía nadie regaló. ¡Compartí tu link para que se enteren!</p>
-              <Button onClick={copyLink}>🔗 Compartir mi campaña</Button>
+              <Button onClick={copyLink}>🔗 Compartir mi regalo</Button>
             </Card>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -382,7 +382,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
           </Card>
 
           <Card>
-            <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700 }}>🔗 Compartir campaña</h3>
+            <h3 style={{ margin: "0 0 8px", fontSize: 18, fontWeight: 700 }}>🔗 Compartir regalo</h3>
             <p style={{ color: COLORS.textLight, fontSize: 14, margin: "0 0 14px" }}>
               Compartí este link con tus amigos para que puedan regalarte.
             </p>
@@ -391,7 +391,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
             </div>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <Button onClick={copyLink}>📋 Copiar link</Button>
-              <Button variant="success" onClick={() => window.open(`https://wa.me/?text=¡Te invito a ver mi campaña de cumpleaños! 🎂 ${window.location.origin}?u=${profile?.username}`, "_blank")}>
+              <Button variant="success" onClick={() => window.open(`https://wa.me/?text=¡Te invito a ver mi regalo de cumpleaños! 🎂 ${window.location.origin}?u=${profile?.username}`, "_blank")}>
                 WhatsApp
               </Button>
             </div>
@@ -399,13 +399,13 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
         </div>
       )}
 
-      {/* ── Modal: Editar Campaña ── */}
+      {/* ── Modal: Editar Regalo ── */}
       {showEditCampaign && (
-        <Modal title="Editar tu campaña" onClose={() => setShowEditCampaign(false)}>
+        <Modal title="Editar tu regalo" onClose={() => setShowEditCampaign(false)}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Título</label>
-              <Input value={campaignForm.title} onChange={v => setCampaignForm(p => ({ ...p, title: v }))} placeholder="Título de tu campaña" />
+              <Input value={campaignForm.title} onChange={v => setCampaignForm(p => ({ ...p, title: v }))} placeholder="Título de tu regalo" />
             </div>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Descripción</label>

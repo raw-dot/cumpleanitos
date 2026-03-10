@@ -8,7 +8,7 @@ import {
 
 const PRESET_AMOUNTS = [200, 500, 1050, 2000, 5000];
 
-export default function ProfilePage({ username, campaignId, currentSession }) {
+export default function ProfilePage({ username, campaignId, currentSession, currentProfile }) {
   const [profile, setProfile] = useState(null);
   const [campaign, setCampaign] = useState(null);
   const [items, setItems] = useState([]);
@@ -21,10 +21,33 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // Pre-fill form with logged-in user data when component mounts or session changes
+  useEffect(() => {
+    if (currentSession && currentProfile) {
+      setForm(p => ({ ...p, name: currentProfile?.name || currentSession.user.email }));
+    }
+  }, [currentSession, currentProfile]);
+
   const totalRaised = contributions.reduce((s, c) => s + (c.amount || 0), 0);
   const days = profile?.birthday ? daysUntilBirthday(profile.birthday) : campaign?.birthday_date ? daysUntilBirthday(campaign.birthday_date) : null;
 
   useEffect(() => { loadData(); }, [username, campaignId]);
+
+  // Real-time subscription for new contributions
+  useEffect(() => {
+    if (!campaign?.id) return;
+    const channel = supabase
+      .channel(`contributions-${campaign.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'contributions', filter: `campaign_id=eq.${campaign.id}` }, (payload) => {
+        setContributions(prev => {
+          // add new contribution if not already present
+          if (prev.find(c => c.id === payload.new.id)) return prev;
+          return [payload.new, ...prev];
+        });
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [campaign?.id]);
 
   const loadData = async () => {
     setLoading(true);
@@ -75,10 +98,12 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
     setError("");
 
     const amount = parseFloat(form.amount);
+    // If logged in and not anonymous, use logged-in user's name; otherwise use form name
+    const gifterName = form.anonymous ? null : (currentSession ? (currentProfile?.name || currentSession.user.email) : form.name);
     const { error: err } = await supabase.from("contributions").insert({
       campaign_id: campaign.id,
       gifter_id: currentSession?.user?.id || null,
-      gifter_name: form.anonymous ? null : form.name,
+      gifter_name: gifterName,
       amount: amount,
       message: form.message || null,
       is_anonymous: form.anonymous,
@@ -106,7 +131,7 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
       <div style={{ textAlign: "center", padding: 80 }}>
         <div style={{ fontSize: 56, marginBottom: 16 }}>😕</div>
         <h2 style={{ margin: "0 0 8px" }}>Perfil no encontrado</h2>
-        <p style={{ color: COLORS.textLight }}>El usuario o campaña que buscás no existe.</p>
+        <p style={{ color: COLORS.textLight }}>El usuario o regalo que buscás no existe.</p>
       </div>
     );
   }
@@ -205,7 +230,7 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
         ) : (
           <Card style={{ textAlign: "center", padding: 40, marginBottom: 40 }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🎁</div>
-            <p style={{ color: COLORS.textLight }}>Este usuario todavía no tiene una campaña activa.</p>
+            <p style={{ color: COLORS.textLight }}>Este usuario todavía no tiene un regalo activo.</p>
           </Card>
         )}
 
@@ -262,7 +287,7 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
               />
             </div>
 
-            {!form.anonymous && (
+            {!form.anonymous && !currentSession && (
               <div style={{ marginBottom: 16 }}>
                 <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>Tu nombre</label>
                 <Input value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Nombre completo" />

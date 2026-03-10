@@ -22,6 +22,7 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
     description: "",
     birthday_date: "",
     goal_amount: "",
+    birthday_person_contact: "",
   });
   const [newItem, setNewItem] = useState({ name: "", description: "", price: "" });
   const [error, setError] = useState("");
@@ -83,10 +84,12 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
       title: createForm.title,
       description: createForm.description || null,
       created_by: session.user.id,
+      birthday_person_id: session.user.id,
       goal_amount: parseFloat(createForm.goal_amount) || 0,
       birthday_date: createForm.birthday_date,
       status: "active",
       birthday_person_name: createForm.birthday_person_name,
+      birthday_person_contact: createForm.birthday_person_contact || null,
     }).select().single();
 
     setSaving(false);
@@ -95,19 +98,20 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
     setCampaignContributions(prev => ({ ...prev, [data.id]: 0 }));
     setCampaignItems(prev => ({ ...prev, [data.id]: 0 }));
     setShowCreate(false);
-    setCreateForm({ birthday_person_name: "", title: "", description: "", birthday_date: "", goal_amount: "" });
-    showMsg("¡Campaña creada exitosamente!");
+    setCreateForm({ birthday_person_name: "", title: "", description: "", birthday_date: "", goal_amount: "", birthday_person_contact: "" });
+    const contactMsg = createForm.birthday_person_contact ? ` Avisale a ${createForm.birthday_person_name} que tiene un regalo esperándolo en test.cumpleanitos.com 🎁` : "";
+    showMsg(`¡Regalo creado!${contactMsg}`);
   };
 
   const deleteCampaign = async (id) => {
-    if (!confirm("¿Eliminar esta campaña? Esta acción no se puede deshacer.")) return;
+    if (!confirm("¿Eliminar este regalo? Esta acción no se puede deshacer.")) return;
     await Promise.all([
       supabase.from("gift_items").delete().eq("campaign_id", id),
       supabase.from("contributions").delete().eq("campaign_id", id),
     ]);
     await supabase.from("gift_campaigns").delete().eq("id", id);
     setCampaigns(prev => prev.filter(c => c.id !== id));
-    showMsg("Campaña eliminada");
+    showMsg("Regalo eliminado");
   };
 
   const addItemToCampaign = async () => {
@@ -144,7 +148,7 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
   }).length;
 
   if (loading) {
-    return <div style={{ textAlign: "center", padding: 80, color: COLORS.textLight, fontSize: 16 }}>Cargando campañas...</div>;
+    return <div style={{ textAlign: "center", padding: 80, color: COLORS.textLight, fontSize: 16 }}>Cargando regalos...</div>;
   }
 
   // ── CAMPAIGN DETAIL VIEW ──
@@ -158,7 +162,7 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
           onClick={() => setView("campaigns")}
           style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.primary, fontSize: 15, fontWeight: 600, marginBottom: 20, display: "flex", alignItems: "center", gap: 6, padding: 0 }}
         >
-          ← Volver a mis campañas
+          ← Volver a mis regalos
         </button>
 
         <Card style={{ marginBottom: 24, background: `linear-gradient(135deg, #05966910 0%, ${COLORS.primary}08 100%)` }}>
@@ -266,7 +270,7 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
         <div style={{ maxWidth: 900, margin: "0 auto", padding: "24px 20px 0" }}>
           <div style={{ display: "flex", gap: 0, marginBottom: 0, borderBottom: `2px solid ${COLORS.border}` }}>
             {[
-              { id: "campaigns", label: "🎁 Mis Campañas" },
+              { id: "campaigns", label: "🎁 Mis Regalos" },
               { id: "my-birthday", label: "🎂 Mi Cumpleaños" },
             ].map(tab => (
               <button
@@ -293,7 +297,7 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
       {/* Tab switcher */}
       <div style={{ display: "flex", gap: 0, marginBottom: 24, borderBottom: `2px solid ${COLORS.border}` }}>
         {[
-          { id: "campaigns", label: "🎁 Mis Campañas" },
+          { id: "campaigns", label: "🎁 Mis Regalos" },
           { id: "my-birthday", label: "🎂 Mi Cumpleaños" },
         ].map(tab => (
           <button
@@ -317,33 +321,33 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
             </div>
             <p style={{ margin: "0 0 10px", color: COLORS.textLight, fontSize: 14 }}>@{profile?.username}</p>
             <p style={{ margin: 0, fontSize: 14, color: COLORS.text }}>
-              Gestionás <strong>{campaigns.length}</strong> campaña{campaigns.length !== 1 ? "s" : ""} ·{" "}
+              Gestionás <strong>{campaigns.length}</strong> regalo{campaigns.length !== 1 ? "s" : ""} ·{" "}
               <strong style={{ color: COLORS.success }}>{formatMoney(totalRaisedAll)}</strong> recaudados en total
             </p>
           </div>
-          <Button variant="manager" onClick={() => setShowCreate(true)}>+ Nueva campaña</Button>
+          <Button variant="manager" onClick={() => setShowCreate(true)}>+ Nuevo regalo</Button>
         </div>
       </Card>
 
       {/* ── Stats ── */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 16, marginBottom: 24 }}>
-        <StatCard icon="🎁" value={campaigns.length} label="Campañas activas" color={COLORS.manager} />
+        <StatCard icon="🎁" value={campaigns.length} label="Regalos activos" color={COLORS.manager} />
         <StatCard icon="💰" value={formatMoney(totalRaisedAll)} label="Total recaudado" color={COLORS.success} />
         <StatCard icon="🎂" value={upcomingCount} label="Cumples próximos" color={COLORS.accent} />
       </div>
 
       {/* ── Campaign list ── */}
-      <h3 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 700 }}>Campañas que gestionás</h3>
+      <h3 style={{ margin: "0 0 16px", fontSize: 18, fontWeight: 700 }}>Regalos que gestionás</h3>
 
       {campaigns.length === 0 ? (
         <Card style={{ textAlign: "center", padding: 64 }}>
           <div style={{ fontSize: 56, marginBottom: 16 }}>🎁</div>
-          <h3 style={{ margin: "0 0 8px", fontSize: 20 }}>No gestionás ninguna campaña</h3>
+          <h3 style={{ margin: "0 0 8px", fontSize: 20 }}>No gestionás ningún regalo</h3>
           <p style={{ color: COLORS.textLight, marginBottom: 24 }}>
-            Creá tu primera campaña para organizar el regalo de cumpleaños de un amigo
+            Creá tu primer regalo para organizar el cumpleaños de un amigo
           </p>
           <Button variant="manager" size="lg" onClick={() => setShowCreate(true)}>
-            Crear primera campaña
+            Crear primer regalo
           </Button>
         </Card>
       ) : (
@@ -391,16 +395,16 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
         </div>
       )}
 
-      {/* ── Modal: Crear Campaña ── */}
+      {/* ── Modal: Crear Regalo ── */}
       {showCreate && (
-        <Modal title="Nueva campaña de regalo 🎁" onClose={() => { setShowCreate(false); setError(""); }}>
+        <Modal title="Nuevo regalo 🎁" onClose={() => { setShowCreate(false); setError(""); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Nombre del cumpleañero *</label>
               <Input value={createForm.birthday_person_name} onChange={v => setCreateForm(p => ({ ...p, birthday_person_name: v }))} placeholder="Ej: María García" />
             </div>
             <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Título de la campaña *</label>
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Título del regalo *</label>
               <Input value={createForm.title} onChange={v => setCreateForm(p => ({ ...p, title: v }))} placeholder="Ej: Regalos para el cumple de María 🎂" />
             </div>
             <div>
@@ -415,10 +419,14 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Meta de recaudación en ARS (opcional)</label>
               <Input type="number" value={createForm.goal_amount} onChange={v => setCreateForm(p => ({ ...p, goal_amount: v }))} placeholder="Ej: 25000" min="0" />
             </div>
+            <div>
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Contacto del cumpleañero (para notificarle) (opcional)</label>
+              <Input value={createForm.birthday_person_contact} onChange={v => setCreateForm(p => ({ ...p, birthday_person_contact: v }))} placeholder="Teléfono o email del cumpleañero" />
+            </div>
             <Alert message={error} type="error" />
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <Button variant="manager" onClick={createCampaign} style={{ flex: 1 }} disabled={saving}>
-                {saving ? "Creando..." : "Crear campaña"}
+                {saving ? "Creando..." : "Crear regalo"}
               </Button>
               <Button variant="secondary" onClick={() => { setShowCreate(false); setError(""); }} style={{ flex: 1 }}>Cancelar</Button>
             </div>
