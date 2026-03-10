@@ -9,7 +9,8 @@
  */
 export function daysUntilBirthday(birthdayStr) {
   const today = new Date();
-  const bday = new Date(birthdayStr);
+  // Usar T12:00:00 para evitar el desfase de zona horaria (UTC-3 Argentina)
+  const bday = new Date(birthdayStr + "T12:00:00");
   const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
   if (thisYear < today) thisYear.setFullYear(today.getFullYear() + 1);
   const diff = Math.ceil((thisYear - today) / (1000 * 60 * 60 * 24));
@@ -26,7 +27,7 @@ export function formatBirthday(birthdayStr) {
     "enero", "febrero", "marzo", "abril", "mayo", "junio",
     "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
   ];
-  const d = new Date(birthdayStr);
+  const d = new Date(birthdayStr + "T12:00:00");
   return `${d.getDate()} de ${months[d.getMonth()]}`;
 }
 
@@ -37,7 +38,7 @@ export function formatBirthday(birthdayStr) {
  */
 export function getAge(birthdayStr) {
   const today = new Date();
-  const bday = new Date(birthdayStr);
+  const bday = new Date(birthdayStr + "T12:00:00");
   let age = today.getFullYear() - bday.getFullYear();
   const month = today.getMonth() - bday.getMonth();
   if (month < 0 || (month === 0 && today.getDate() < bday.getDate())) age--;
@@ -51,7 +52,7 @@ export function getAge(birthdayStr) {
  */
 export function getDaysToBirthday(birthdayStr) {
   const today = new Date();
-  const bday = new Date(birthdayStr);
+  const bday = new Date(birthdayStr + "T12:00:00");
   const thisYear = new Date(today.getFullYear(), bday.getMonth(), bday.getDate());
   if (thisYear < today) thisYear.setFullYear(today.getFullYear() + 1);
   const diff = Math.ceil((thisYear - today) / (1000 * 60 * 60 * 24));

@@ -6,8 +6,8 @@ import {
   getInitials, formatMoney, formatBirthday, daysUntilBirthday,
 } from "../shared";
 
-export default function CelebrantDashboard({ profile, session }) {
-  const [activeTab, setActiveTab] = useState("campaign");
+export default function CelebrantDashboard({ profile, session, defaultTab = "campaign" }) {
+  const [activeTab, setActiveTab] = useState(defaultTab);
   const [campaign, setCampaign] = useState(null);
   const [items, setItems] = useState([]);
   const [contributions, setContributions] = useState([]);
@@ -57,8 +57,8 @@ export default function CelebrantDashboard({ profile, session }) {
 
   const createCampaign = async () => {
     const { data } = await supabase.from("gift_campaigns").insert({
-      title: `Regalos para el cumple de ${profile?.name}`,
-      description: "¡Hola! Estoy juntando regalitos para mi cumpleaños. ¡Gracias por visitar mi campaña!",
+      title: "Mi Cumpleaños",
+      description: `¡Hola! Soy ${profile?.name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por visitar mi campaña! 🎂`,
       birthday_person_id: session.user.id,
       created_by: session.user.id,
       goal_amount: 10000,
@@ -227,24 +227,66 @@ export default function CelebrantDashboard({ profile, session }) {
               <Button onClick={() => setShowAddItem(true)}>+ Agregar primer item</Button>
             </Card>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {items.map(item => (
-                <Card key={item.id} style={{ padding: 20, position: "relative" }}>
-                  {item.is_fulfilled && (
-                    <Badge color={COLORS.success} style={{ position: "absolute", top: 16, right: 16 }}>✓ Cumplido</Badge>
-                  )}
-                  <h4 style={{ margin: "0 0 6px", fontSize: 16, fontWeight: 700 }}>{item.name}</h4>
-                  {item.description && <p style={{ margin: "0 0 10px", fontSize: 13, color: COLORS.textLight }}>{item.description}</p>}
-                  {item.price && (
-                    <div style={{ fontSize: 20, fontWeight: 700, color: COLORS.primary, marginBottom: 12 }}>{formatMoney(item.price)}</div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => deleteItem(item.id)}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.error, fontSize: 13, padding: 0, fontWeight: 500 }}
-                  >
-                    Eliminar
-                  </button>
+                <Card key={item.id} style={{ padding: 0, overflow: "hidden" }}>
+                  <div style={{ display: "flex" }}>
+                    {/* Columna izquierda: precio */}
+                    <div style={{
+                      background: item.is_fulfilled
+                        ? COLORS.successLight
+                        : `linear-gradient(160deg, ${COLORS.primary}14, ${COLORS.accent}0A)`,
+                      padding: "24px 18px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 110,
+                      borderRight: `1px solid ${COLORS.border}`,
+                      gap: 6,
+                    }}>
+                      <span style={{ fontSize: 30 }}>🎁</span>
+                      {item.price ? (
+                        <div style={{ fontSize: 17, fontWeight: 800, color: item.is_fulfilled ? COLORS.success : COLORS.primary, textAlign: "center" }}>
+                          {formatMoney(item.price)}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 12, color: COLORS.textLight, textAlign: "center", fontWeight: 500 }}>Precio libre</div>
+                      )}
+                    </div>
+
+                    {/* Columna derecha: info + acciones */}
+                    <div style={{ flex: 1, padding: "18px 22px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.text }}>{item.name}</h4>
+                            {item.is_fulfilled && <Badge color={COLORS.success}>✓ Ya regalado</Badge>}
+                          </div>
+                          {item.description && (
+                            <p style={{ margin: 0, fontSize: 13, color: COLORS.textLight, lineHeight: 1.5 }}>{item.description}</p>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deleteItem(item.id)}
+                          style={{
+                            background: "none",
+                            border: `1px solid ${COLORS.border}`,
+                            borderRadius: 8,
+                            cursor: "pointer",
+                            color: COLORS.error,
+                            fontSize: 12,
+                            padding: "5px 10px",
+                            fontWeight: 600,
+                            flexShrink: 0,
+                          }}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 </Card>
               ))}
             </div>

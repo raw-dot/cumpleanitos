@@ -117,8 +117,16 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
   return (
     <div style={{ maxWidth: 720, margin: "0 auto", padding: "40px 20px" }}>
       {success && (
-        <Card style={{ background: COLORS.successLight, border: `1px solid #6EE7B7`, marginBottom: 20, padding: 20 }}>
-          <div style={{ fontSize: 16, color: "#065F46" }}>{success}</div>
+        <Card style={{ background: COLORS.successLight, border: `2px solid #6EE7B7`, marginBottom: 24, padding: 24 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 14 }}>
+            <span style={{ fontSize: 36 }}>🎉</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16, color: "#065F46", marginBottom: 4 }}>
+                ¡Regalo registrado con éxito!
+              </div>
+              <div style={{ fontSize: 14, color: "#065F46", lineHeight: 1.6 }}>{success}</div>
+            </div>
+          </div>
         </Card>
       )}
 
@@ -191,29 +199,102 @@ export default function ProfilePage({ username, campaignId, currentSession }) {
         </Card>
       )}
 
-      {/* ── Wishlist ── */}
+      {/* ── Wishlist estilo Indiegogo ── */}
       {items.length > 0 && (
         <div style={{ marginBottom: 24 }}>
-          <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Lista de deseos 🎁</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          <div style={{ marginBottom: 18 }}>
+            <h3 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 4px" }}>Lista de deseos 🎁</h3>
+            <p style={{ margin: 0, fontSize: 14, color: COLORS.textLight }}>
+              Elegí qué regalarle a {displayName} o regalá el monto que quieras
+            </p>
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {items.map(item => (
-              <Card key={item.id} style={{ padding: 20 }}>
-                {item.is_fulfilled && (
-                  <Badge color={COLORS.success} style={{ marginBottom: 8 }}>✓ Ya regalado</Badge>
-                )}
-                <h4 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700 }}>{item.name}</h4>
-                {item.description && <p style={{ margin: "0 0 8px", fontSize: 13, color: COLORS.textLight }}>{item.description}</p>}
-                {item.price && (
-                  <div style={{ fontSize: 17, fontWeight: 700, color: COLORS.primary, marginBottom: 12 }}>{formatMoney(item.price)}</div>
-                )}
-                {!item.is_fulfilled && campaign && (
-                  <Button size="sm" style={{ width: "100%" }} onClick={() => openContributeForItem(item)}>
-                    Regalar este
-                  </Button>
-                )}
+              <Card key={item.id} style={{ padding: 0, overflow: "hidden", opacity: item.is_fulfilled ? 0.75 : 1 }}>
+                <div style={{ display: "flex" }}>
+                  {/* Columna izquierda: precio destacado */}
+                  <div style={{
+                    background: item.is_fulfilled
+                      ? COLORS.successLight
+                      : `linear-gradient(160deg, ${COLORS.primary}16, ${COLORS.accent}0C)`,
+                    padding: "28px 18px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 120,
+                    borderRight: `1px solid ${COLORS.border}`,
+                    gap: 8,
+                  }}>
+                    <span style={{ fontSize: 32 }}>🎁</span>
+                    {item.price ? (
+                      <div style={{
+                        fontSize: 18,
+                        fontWeight: 900,
+                        color: item.is_fulfilled ? COLORS.success : COLORS.primary,
+                        textAlign: "center",
+                        lineHeight: 1.1,
+                      }}>
+                        {formatMoney(item.price)}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 11, color: COLORS.textLight, textAlign: "center", fontWeight: 600 }}>
+                        Monto<br/>libre
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Columna derecha: info + CTA */}
+                  <div style={{ flex: 1, padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
+                        <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.text }}>{item.name}</h4>
+                        {item.is_fulfilled && <Badge color={COLORS.success}>✓ Ya regalado</Badge>}
+                      </div>
+                      {item.description && (
+                        <p style={{ margin: 0, fontSize: 13, color: COLORS.textLight, lineHeight: 1.55 }}>
+                          {item.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {!item.is_fulfilled && campaign && (
+                      <Button
+                        size="sm"
+                        onClick={() => openContributeForItem(item)}
+                        style={{ flexShrink: 0 }}
+                      >
+                        🎁 Regalar este
+                      </Button>
+                    )}
+                  </div>
+                </div>
               </Card>
             ))}
           </div>
+
+          {/* Botón de monto libre */}
+          {campaign && (
+            <div style={{ textAlign: "center", marginTop: 16 }}>
+              <button
+                type="button"
+                onClick={() => { setPreSelectedItem(null); setShowContribute(true); }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: COLORS.primary,
+                  fontSize: 14,
+                  textDecoration: "underline",
+                  fontWeight: 600,
+                  padding: "8px 0",
+                }}
+              >
+                O regalá un monto libre →
+              </button>
+            </div>
+          )}
         </div>
       )}
 

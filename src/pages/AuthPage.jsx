@@ -100,8 +100,8 @@ export default function AuthPage({ initialMode = "login", onAuth }) {
 
           if (!camp) {
             await supabase.from("gift_campaigns").insert({
-              title: `Regalos para el cumple de ${name}`,
-              description: `¡Hola! Me llamo ${name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por entrar a mi campaña!`,
+              title: "Mi Cumpleaños",
+              description: `¡Hola! Soy ${name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por entrar a mi campaña! 🎂`,
               birthday_person_id: loginData.user.id,
               created_by: loginData.user.id,
               goal_amount: 10000,

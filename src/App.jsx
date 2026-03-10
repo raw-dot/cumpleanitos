@@ -10,7 +10,21 @@ import HomePage from "./pages/HomePage";
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
 function Navbar({ page, setPage, session, profile, onLogout }) {
+  const [showMenu, setShowMenu] = useState(false);
   const role = profile?.role;
+
+  const copyProfileLink = () => {
+    navigator.clipboard.writeText(`${window.location.origin}?u=${profile?.username}`);
+    setShowMenu(false);
+  };
+
+  const menuItems = [
+    { icon: "⚙️", label: "Configuración de cuenta", action: () => { setPage("settings"); setShowMenu(false); } },
+    { icon: "🔗", label: "Compartir mi cumpleaños",  action: copyProfileLink },
+    { icon: "🎂", label: "Gestionar cumpleaños",      action: () => { setPage("dashboard"); setShowMenu(false); } },
+    { icon: "🚪", label: "Cerrar sesión",              action: () => { onLogout(); setShowMenu(false); }, color: COLORS.error },
+  ];
+
   return (
     <nav style={{ background: "rgba(255,255,255,0.96)", backdropFilter: "blur(12px)", borderBottom: `1px solid ${COLORS.border}`, padding: "12px 0", position: "sticky", top: 0, zIndex: 100 }}>
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 20px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
@@ -35,13 +49,78 @@ function Navbar({ page, setPage, session, profile, onLogout }) {
                 </Button>
               )}
 
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: 4 }}>
-                <div onClick={() => setPage("dashboard")} style={{ cursor: "pointer" }}>
-                  <Avatar initials={profile ? getInitials(profile.name) : "?"} size={34} />
+              {/* ── Avatar con dropdown ── */}
+              <div style={{ position: "relative", marginLeft: 4 }}>
+                <div
+                  onClick={() => setShowMenu(v => !v)}
+                  style={{
+                    cursor: "pointer",
+                    borderRadius: "50%",
+                    border: showMenu ? `2px solid ${COLORS.primary}` : "2px solid transparent",
+                    transition: "border 0.15s",
+                  }}
+                >
+                  <Avatar initials={profile ? getInitials(profile.name) : "?"} size={36} />
                 </div>
-                <Button variant="ghost" size="sm" onClick={onLogout} style={{ color: COLORS.error, fontSize: 12 }}>
-                  Salir
-                </Button>
+
+                {showMenu && (
+                  <>
+                    {/* Backdrop para cerrar */}
+                    <div style={{ position: "fixed", inset: 0, zIndex: 199 }} onClick={() => setShowMenu(false)} />
+
+                    {/* Menú */}
+                    <div style={{
+                      position: "absolute",
+                      right: 0,
+                      top: "calc(100% + 10px)",
+                      background: "#fff",
+                      borderRadius: 16,
+                      border: `1px solid ${COLORS.border}`,
+                      boxShadow: "0 10px 40px rgba(0,0,0,0.14)",
+                      minWidth: 230,
+                      zIndex: 200,
+                      overflow: "hidden",
+                    }}>
+                      {/* Header del menú */}
+                      <div style={{ padding: "16px 18px 12px", borderBottom: `1px solid ${COLORS.border}`, display: "flex", alignItems: "center", gap: 12 }}>
+                        <Avatar initials={profile ? getInitials(profile.name) : "?"} size={38} />
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text }}>{profile?.name}</div>
+                          <div style={{ fontSize: 12, color: COLORS.textLight }}>@{profile?.username}</div>
+                        </div>
+                      </div>
+
+                      {/* Items */}
+                      {menuItems.map((item, i) => (
+                        <button
+                          key={i}
+                          onClick={item.action}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 12,
+                            width: "100%",
+                            padding: "13px 18px",
+                            border: "none",
+                            borderBottom: i < menuItems.length - 1 ? `1px solid ${COLORS.border}` : "none",
+                            background: "none",
+                            cursor: "pointer",
+                            fontSize: 14,
+                            color: item.color || COLORS.text,
+                            textAlign: "left",
+                            fontWeight: 500,
+                            transition: "background 0.1s",
+                          }}
+                          onMouseEnter={e => e.currentTarget.style.background = COLORS.bg}
+                          onMouseLeave={e => e.currentTarget.style.background = "none"}
+                        >
+                          <span style={{ fontSize: 18, width: 22, textAlign: "center" }}>{item.icon}</span>
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
               </div>
             </>
           ) : (
@@ -159,7 +238,14 @@ export default function App() {
         if (profile?.role === "manager") {
           return <ManagerDashboard profile={profile} session={session} />;
         }
-        return <CelebrantDashboard profile={profile} session={session} />;
+        return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" />;
+
+      case "settings":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (profile?.role === "manager") {
+          return <ManagerDashboard profile={profile} session={session} />;
+        }
+        return <CelebrantDashboard profile={profile} session={session} defaultTab="settings" />;
 
       case "profile":
         return (
