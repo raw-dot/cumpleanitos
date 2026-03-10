@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
-import { COLORS, Logo, Button, Avatar, getInitials } from "./shared";
+import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
 import AuthPage from "./pages/AuthPage";
 import CelebrantDashboard from "./pages/CelebrantDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
@@ -9,7 +9,7 @@ import ProfilePage from "./pages/ProfilePage";
 import HomePage from "./pages/HomePage";
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
-function Navbar({ page, setPage, session, profile, onLogout }) {
+function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch }) {
   const [showMenu, setShowMenu] = useState(false);
   const role = profile?.role;
 
@@ -87,6 +87,38 @@ function Navbar({ page, setPage, session, profile, onLogout }) {
                         <div>
                           <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text }}>{profile?.name}</div>
                           <div style={{ fontSize: 12, color: COLORS.textLight }}>@{profile?.username}</div>
+                        </div>
+                      </div>
+
+                      {/* Role Switcher */}
+                      <div style={{ padding: "12px 18px", borderBottom: `1px solid ${COLORS.border}` }}>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textLight, marginBottom: 10, textTransform: "uppercase" }}>Mi Rol</div>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {Object.entries(ROLES).map(([roleKey, roleData]) => (
+                            <button
+                              key={roleKey}
+                              onClick={() => { onRoleSwitch(roleKey); setShowMenu(false); }}
+                              style={{
+                                flex: 1,
+                                padding: "8px 10px",
+                                borderRadius: 8,
+                                border: `2px solid ${role === roleKey ? roleData.color : COLORS.border}`,
+                                background: role === roleKey ? roleData.color + "15" : "transparent",
+                                color: role === roleKey ? roleData.color : COLORS.textLight,
+                                cursor: "pointer",
+                                fontSize: 12,
+                                fontWeight: role === roleKey ? 700 : 500,
+                                transition: "all 0.2s",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 4,
+                              }}
+                            >
+                              <span style={{ fontSize: 16 }}>{roleData.icon}</span>
+                              <span>{roleData.label}</span>
+                            </button>
+                          ))}
                         </div>
                       </div>
 
@@ -209,6 +241,14 @@ export default function App() {
     setPage("profile");
   };
 
+  const handleRoleSwitch = async (newRole) => {
+    const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", session.user.id);
+    if (!error) {
+      setProfile(prev => ({ ...prev, role: newRole }));
+      setPage("dashboard");
+    }
+  };
+
   // ── Render ──
   if (loading) {
     return (
@@ -231,10 +271,17 @@ export default function App() {
 
       case "login":
       case "register":
+        if (session) {
+          // Already logged in — go to dashboard
+          if (profile?.role === "manager") return <ManagerDashboard profile={profile} session={session} />;
+          if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
+          return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" />;
+        }
         return <AuthPage initialMode={page} onAuth={handleAuth} />;
 
       case "dashboard":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
         if (profile?.role === "manager") {
           return <ManagerDashboard profile={profile} session={session} />;
         }
@@ -242,6 +289,7 @@ export default function App() {
 
       case "settings":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
         if (profile?.role === "manager") {
           return <ManagerDashboard profile={profile} session={session} />;
         }
@@ -269,6 +317,7 @@ export default function App() {
         session={session}
         profile={profile}
         onLogout={handleLogout}
+        onRoleSwitch={handleRoleSwitch}
       />
       <main>{renderPage()}</main>
       <Footer />

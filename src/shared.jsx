@@ -29,19 +29,19 @@ export const ROLES = {
     label: "Cumpleañero",
     icon: "🎂",
     color: "#7C3AED",
-    description: "Creá tu lista de deseos y recibí regalos de tus amigos el día de tu cumpleaños.",
-  },
-  manager: {
-    label: "Gestor de Regalos",
-    icon: "🎁",
-    color: "#F59E0B",
-    description: "Organizá regalos grupales para los cumpleaños de todos tus amigos.",
+    description: "Creá tu lista de regalos y recibí aportes de tus amigos.",
   },
   gifter: {
     label: "Regalador",
     icon: "💝",
     color: "#10B981",
     description: "Explorá perfiles y regalale algo especial a quien quieras.",
+  },
+  manager: {
+    label: "Gestor",
+    icon: "🎁",
+    color: "#F59E0B",
+    description: "Organizá regalos grupales para los cumpleaños de tus amigos.",
   },
 };
 

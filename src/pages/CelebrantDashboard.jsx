@@ -15,7 +15,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditCampaign, setShowEditCampaign] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", description: "", price: "" });
-  const [campaignForm, setCampaignForm] = useState({ title: "", description: "", goal_amount: "" });
+  const [campaignForm, setCampaignForm] = useState({ title: "", description: "", goal_amount: "", image_url: "", product_link: "" });
   const [paymentAlias, setPaymentAlias] = useState(profile?.payment_alias || "");
   const [bio, setBio] = useState(profile?.bio || "");
   const [error, setError] = useState("");
@@ -41,7 +41,13 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
     if (camp) {
       setCampaign(camp);
-      setCampaignForm({ title: camp.title, description: camp.description || "", goal_amount: camp.goal_amount || "" });
+      setCampaignForm({
+        title: camp.title,
+        description: camp.description || "",
+        goal_amount: camp.goal_amount || "",
+        image_url: camp.image_url || "",
+        product_link: camp.product_link || ""
+      });
 
       const [{ data: itemsData }, { data: contribData }] = await Promise.all([
         supabase.from("gift_items").select("*").eq("campaign_id", camp.id).order("created_at"),
@@ -57,7 +63,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const createCampaign = async () => {
     const { data } = await supabase.from("gift_campaigns").insert({
-      title: "Mi Cumpleaños",
+      title: "Mi Regalo",
       description: `¡Hola! Soy ${profile?.name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por visitar mi campaña! 🎂`,
       birthday_person_id: session.user.id,
       created_by: session.user.id,
@@ -69,11 +75,28 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
     if (data) { setCampaign(data); showSuccess("¡Campaña creada!"); }
   };
 
+  const uploadImage = async (file) => {
+    if (!file) return;
+    const ext = file.name.split('.').pop();
+    const path = `campaigns/${session.user.id}/${Date.now()}.${ext}`;
+    const { data, error } = await supabase.storage.from('cumple-images').upload(path, file, { upsert: true });
+    if (error) { setError('Error subiendo imagen: ' + error.message); return; }
+    const { data: { publicUrl } } = supabase.storage.from('cumple-images').getPublicUrl(path);
+    setCampaignForm(prev => ({ ...prev, image_url: publicUrl }));
+    showSuccess('Imagen subida!');
+  };
+
   const saveCampaign = async () => {
     setSaving(true);
     const { data, error: err } = await supabase
       .from("gift_campaigns")
-      .update({ title: campaignForm.title, description: campaignForm.description, goal_amount: parseFloat(campaignForm.goal_amount) || 0 })
+      .update({
+        title: campaignForm.title,
+        description: campaignForm.description,
+        goal_amount: parseFloat(campaignForm.goal_amount) || 0,
+        image_url: campaignForm.image_url || null,
+        product_link: campaignForm.product_link || null,
+      })
       .eq("id", campaign.id)
       .select().single();
     setSaving(false);
@@ -114,7 +137,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   };
 
   const tabs = [
-    { id: "campaign", label: "Mi Campaña", icon: "🎂" },
+    { id: "campaign", label: "Mi Regalo", icon: "🎁" },
     { id: "wishlist", label: `Lista de Deseos (${items.length})`, icon: "🎁" },
     { id: "contributors", label: `Regaladores (${contributions.length})`, icon: "💝" },
     { id: "settings", label: "Configuración", icon: "⚙️" },
@@ -386,11 +409,35 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
             </div>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Descripción</label>
-              <Textarea value={campaignForm.description} onChange={v => setCampaignForm(p => ({ ...p, description: v }))} placeholder="Contale a tus amigos qué te gustaría recibir..." rows={4} />
+              <Textarea value={campaignForm.description} onChange={v => setCampaignForm(p => ({ ...p, description: v }))} placeholder="Contale a tus amigos por qué querés este regalo..." rows={4} />
             </div>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Meta de recaudación (ARS)</label>
               <Input type="number" value={campaignForm.goal_amount} onChange={v => setCampaignForm(p => ({ ...p, goal_amount: v }))} placeholder="Ej: 15000" min="0" />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Foto del regalo</label>
+              {campaignForm.image_url && (
+                <div style={{ marginBottom: 10 }}>
+                  <img src={campaignForm.image_url} alt="Preview" style={{ maxWidth: "100%", maxHeight: 200, borderRadius: 10 }} />
+                </div>
+              )}
+              <input
+                type="file"
+                accept="image/*"
+                onChange={e => e.target.files && uploadImage(e.target.files[0])}
+                style={{ display: "none" }}
+                id="campaign-image-upload"
+              />
+              <label htmlFor="campaign-image-upload">
+                <div style={{ padding: "10px 14px", background: COLORS.bg, borderRadius: 10, border: `1px solid ${COLORS.border}`, cursor: "pointer", textAlign: "center", fontSize: 14, fontWeight: 500, color: COLORS.text }}>
+                  📷 Subir foto del regalo
+                </div>
+              </label>
+            </div>
+            <div>
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Link del producto</label>
+              <Input value={campaignForm.product_link} onChange={v => setCampaignForm(p => ({ ...p, product_link: v }))} placeholder="Link de MercadoLibre, tienda, etc." />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <Button onClick={saveCampaign} style={{ flex: 1 }} disabled={saving}>{saving ? "Guardando..." : "Guardar cambios"}</Button>
