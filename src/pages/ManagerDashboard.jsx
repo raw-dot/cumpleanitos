@@ -10,6 +10,7 @@ import CelebrantDashboard from "./CelebrantDashboard";
 export default function ManagerDashboard({ profile, session, onNavigate }) {
   const [view, setView] = useState("campaigns"); // "campaigns" | "my-birthday" | "campaign-detail"
   const [campaigns, setCampaigns] = useState([]);
+  const [birthdayProfiles, setBirthdayProfiles] = useState({}); // map: userId → profile
   const [selectedCampaign, setSelectedCampaign] = useState(null);
   const [campaignContributions, setCampaignContributions] = useState({});
   const [campaignItems, setCampaignItems] = useState({});
@@ -24,6 +25,12 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
     goal_amount: "",
     birthday_person_contact: "",
   });
+  // User search in create modal
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [userSearchResult, setUserSearchResult] = useState(null); // profile | null | "not_found"
+  const [searchingUser, setSearchingUser] = useState(false);
+  const [resolvedBirthdayPersonId, setResolvedBirthdayPersonId] = useState(null);
+
   const [newItem, setNewItem] = useState({ name: "", description: "", price: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
@@ -45,6 +52,22 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
 
     if (camps) {
       setCampaigns(camps);
+
+      // Fetch profiles for linked birthday persons (those that are different from creator)
+      const linkedIds = [...new Set(
+        camps
+          .map(c => c.birthday_person_id)
+          .filter(id => id && id !== session.user.id)
+      )];
+      if (linkedIds.length > 0) {
+        const { data: bProfiles } = await supabase
+          .from("profiles")
+          .select("*")
+          .in("id", linkedIds);
+        const map = {};
+        (bProfiles || []).forEach(p => { map[p.id] = p; });
+        setBirthdayProfiles(map);
+      }
 
       // Load contributions and items counts for each campaign
       await Promise.all(camps.map(async (camp) => {
@@ -73,6 +96,43 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
     setView("campaign-detail");
   };
 
+  // Search for existing user by username or name
+  const searchForUser = async () => {
+    const q = userSearchQuery.trim();
+    if (!q) return;
+    setSearchingUser(true);
+    setUserSearchResult(null);
+    setResolvedBirthdayPersonId(null);
+
+    // Try exact username match first, then partial name
+    const { data: byUsername } = await supabase
+      .from("profiles")
+      .select("*")
+      .ilike("username", q)
+      .neq("id", session.user.id)
+      .limit(1);
+
+    const { data: byName } = await supabase
+      .from("profiles")
+      .select("*")
+      .ilike("name", `%${q}%`)
+      .neq("id", session.user.id)
+      .limit(1);
+
+    const found = (byUsername?.[0]) || (byName?.[0]) || null;
+    setSearchingUser(false);
+    if (found) {
+      setUserSearchResult(found);
+      setResolvedBirthdayPersonId(found.id);
+      // Auto-fill name from profile
+      if (!createForm.birthday_person_name) {
+        setCreateForm(p => ({ ...p, birthday_person_name: found.name || found.username }));
+      }
+    } else {
+      setUserSearchResult("not_found");
+    }
+  };
+
   const createCampaign = async () => {
     if (!createForm.birthday_person_name || !createForm.title || !createForm.birthday_date) {
       setError("Completá nombre del cumpleañero, título y fecha.");
@@ -80,11 +140,15 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
     }
     setSaving(true);
     setError("");
+
+    // birthday_person_id: linked user (if found), OR null (pending / no account yet)
+    const birthdayPersonId = resolvedBirthdayPersonId || null;
+
     const { data, error: err } = await supabase.from("gift_campaigns").insert({
       title: createForm.title,
       description: createForm.description || null,
       created_by: session.user.id,
-      birthday_person_id: session.user.id,
+      birthday_person_id: birthdayPersonId,
       goal_amount: parseFloat(createForm.goal_amount) || 0,
       birthday_date: createForm.birthday_date,
       status: "active",
@@ -94,13 +158,23 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
 
     setSaving(false);
     if (err) { setError(err.message); return; }
+
     setCampaigns(prev => [data, ...prev]);
     setCampaignContributions(prev => ({ ...prev, [data.id]: 0 }));
     setCampaignItems(prev => ({ ...prev, [data.id]: 0 }));
+    // Cache linked profile if found
+    if (birthdayPersonId && userSearchResult && userSearchResult !== "not_found") {
+      setBirthdayProfiles(prev => ({ ...prev, [birthdayPersonId]: userSearchResult }));
+    }
+
     setShowCreate(false);
     setCreateForm({ birthday_person_name: "", title: "", description: "", birthday_date: "", goal_amount: "", birthday_person_contact: "" });
-    const contactMsg = createForm.birthday_person_contact ? ` Avisale a ${createForm.birthday_person_name} que tiene un regalo esperándolo en test.cumpleanitos.com 🎁` : "";
-    showMsg(`¡Regalo creado!${contactMsg}`);
+    setUserSearchQuery("");
+    setUserSearchResult(null);
+    setResolvedBirthdayPersonId(null);
+
+    const pendingMsg = !birthdayPersonId ? ` (sin cuenta aún, podés compartir el link directo)` : "";
+    showMsg(`¡Regalo creado para ${createForm.birthday_person_name}!${pendingMsg}`);
   };
 
   const deleteCampaign = async (id) => {
@@ -357,34 +431,82 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
             const itemCount = campaignItems[camp.id] || 0;
             const days = camp.birthday_date ? daysUntilBirthday(camp.birthday_date) : null;
             const isUrgent = days === "¡Hoy!" || (typeof days === "number" && days <= 7);
+
+            // Resolve birthday person display info
+            const isForMe = camp.birthday_person_id === session.user.id;
+            const linkedProfile = !isForMe && camp.birthday_person_id ? birthdayProfiles[camp.birthday_person_id] : null;
+            const isPending = !camp.birthday_person_id;
+
+            const bpName = isForMe
+              ? (profile?.name || "Yo")
+              : (linkedProfile?.name || linkedProfile?.username || camp.birthday_person_name || "—");
+            const bpUsername = isForMe ? profile?.username : (linkedProfile?.username || null);
+
             return (
               <Card
                 key={camp.id}
                 onClick={() => loadCampaignDetail(camp)}
-                style={{ padding: 24, cursor: "pointer", borderLeft: isUrgent ? `4px solid ${COLORS.error}` : `4px solid ${COLORS.manager}` }}
+                style={{ padding: 0, cursor: "pointer", overflow: "hidden", borderLeft: isUrgent ? `4px solid ${COLORS.error}` : isForMe ? `4px solid ${COLORS.primary}` : `4px solid ${COLORS.manager}` }}
               >
-                <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                  <div style={{ width: 52, height: 52, borderRadius: 14, background: `linear-gradient(135deg, ${COLORS.accent}40, ${COLORS.primary}30)`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>🎂</div>
-                  <div style={{ flex: 1, minWidth: 200 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
-                      <span style={{ fontWeight: 700, fontSize: 17 }}>{camp.title}</span>
+                <div style={{ display: "flex", minHeight: 110 }}>
+                  {/* Left: campaign image or emoji */}
+                  {camp.image_url ? (
+                    <div style={{
+                      width: 110, flexShrink: 0,
+                      backgroundImage: `url(${camp.image_url})`,
+                      backgroundSize: "cover", backgroundPosition: "center",
+                    }} />
+                  ) : (
+                    <div style={{
+                      width: 80, display: "flex", alignItems: "center", justifyContent: "center",
+                      background: isForMe
+                        ? `linear-gradient(135deg, ${COLORS.primary}20, ${COLORS.accent}15)`
+                        : `linear-gradient(135deg, ${COLORS.manager}20, ${COLORS.accent}15)`,
+                      flexShrink: 0, fontSize: 32,
+                    }}>
+                      {isForMe ? "🎂" : "🎁"}
+                    </div>
+                  )}
+
+                  {/* Center: info */}
+                  <div style={{ flex: 1, padding: "14px 18px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 5 }}>
+                    {/* Campaign title */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <span style={{ fontWeight: 700, fontSize: 16, color: "#1F2937" }}>{camp.title}</span>
                       {days !== null && (
                         <Badge color={isUrgent ? COLORS.error : COLORS.primary}>
-                          {days === "¡Hoy!" ? "¡Hoy!" : `${days} días`}
+                          {days === "¡Hoy!" ? "🎉 ¡Hoy!" : `📅 ${days} días`}
                         </Badge>
                       )}
                     </div>
-                    <p style={{ margin: "0 0 10px", fontSize: 13, color: COLORS.textLight }}>
-                      🎂 {camp.birthday_person_name}
-                      {camp.birthday_date && ` · ${formatBirthday(camp.birthday_date)}`}
-                    </p>
-                    <ProgressBar value={raised} max={camp.goal_amount || 1} color={COLORS.manager} />
-                    <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap" }}>
-                      <span style={{ fontSize: 13, color: COLORS.textLight }}>💰 {formatMoney(raised)} recaudados</span>
-                      <span style={{ fontSize: 13, color: COLORS.textLight }}>🎁 {itemCount} items</span>
+
+                    {/* Birthday person row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <Avatar initials={getInitials(bpName)} size={22} bg={isForMe ? `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.accent})` : undefined} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{bpName}</span>
+                      {bpUsername && <span style={{ fontSize: 12, color: COLORS.textLight }}>@{bpUsername}</span>}
+                      {camp.birthday_date && <span style={{ fontSize: 12, color: COLORS.textLight }}>· {formatBirthday(camp.birthday_date)}</span>}
+                    </div>
+
+                    {/* Status badges */}
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {isForMe && <Badge color={COLORS.primary} style={{ fontSize: 11 }}>🎂 Mi cumpleaños</Badge>}
+                      {!isForMe && linkedProfile && <Badge color="#059669" style={{ fontSize: 11 }}>✅ Tiene cuenta</Badge>}
+                      {isPending && <Badge color={COLORS.textLight} style={{ fontSize: 11 }}>⏳ Sin cuenta aún</Badge>}
+                    </div>
+
+                    {/* Progress */}
+                    <div style={{ marginTop: 2 }}>
+                      <ProgressBar value={raised} max={camp.goal_amount || 1} color={isForMe ? COLORS.primary : COLORS.manager} />
+                      <div style={{ display: "flex", gap: 16, marginTop: 6, flexWrap: "wrap" }}>
+                        <span style={{ fontSize: 12, color: COLORS.textLight }}>💰 {formatMoney(raised)} recaudados</span>
+                        <span style={{ fontSize: 12, color: COLORS.textLight }}>🎁 {itemCount} items</span>
+                      </div>
                     </div>
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }} onClick={e => e.stopPropagation()}>
+
+                  {/* Right: actions */}
+                  <div style={{ padding: "14px 14px", display: "flex", flexDirection: "column", gap: 8, justifyContent: "center", flexShrink: 0 }} onClick={e => e.stopPropagation()}>
                     <Button size="sm" variant="outline" onClick={() => copyLink(camp)}>🔗 Link</Button>
                     <Button size="sm" variant="ghost" style={{ color: COLORS.error }} onClick={() => deleteCampaign(camp.id)}>Eliminar</Button>
                   </div>
@@ -397,8 +519,53 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
 
       {/* ── Modal: Crear Regalo ── */}
       {showCreate && (
-        <Modal title="Nuevo regalo 🎁" onClose={() => { setShowCreate(false); setError(""); }}>
+        <Modal title="Nuevo regalo 🎁" onClose={() => { setShowCreate(false); setError(""); setUserSearchQuery(""); setUserSearchResult(null); setResolvedBirthdayPersonId(null); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+
+            {/* Step 1: Search existing user */}
+            <div style={{ background: `${COLORS.primary}08`, border: `1px solid ${COLORS.primary}20`, borderRadius: 12, padding: 14 }}>
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.primary, display: "block", marginBottom: 8 }}>
+                🔍 ¿Ya tiene cuenta en cumpleanitos?
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Input
+                  value={userSearchQuery}
+                  onChange={v => { setUserSearchQuery(v); if (!v) { setUserSearchResult(null); setResolvedBirthdayPersonId(null); }}}
+                  placeholder="Buscá por @usuario o nombre..."
+                  style={{ flex: 1 }}
+                  onKeyDown={e => e.key === "Enter" && searchForUser()}
+                />
+                <Button size="sm" onClick={searchForUser} disabled={searchingUser || !userSearchQuery.trim()}>
+                  {searchingUser ? "..." : "Buscar"}
+                </Button>
+              </div>
+
+              {/* Search result */}
+              {userSearchResult === "not_found" && (
+                <div style={{ marginTop: 10, padding: "10px 14px", background: "#FEF3C720", border: "1px solid #FCD34D", borderRadius: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 18 }}>⏳</span>
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 13, color: "#92400E" }}>No tiene cuenta aún</div>
+                    <div style={{ fontSize: 12, color: "#B45309" }}>El regalo se creará como pendiente. Podés compartir el link con un botón de "reclamar" para cuando se registre.</div>
+                  </div>
+                </div>
+              )}
+              {userSearchResult && userSearchResult !== "not_found" && (
+                <div style={{ marginTop: 10, padding: "10px 14px", background: "#D1FAE520", border: "1px solid #6EE7B7", borderRadius: 10, display: "flex", alignItems: "center", gap: 10 }}>
+                  <Avatar initials={getInitials(userSearchResult.name || userSearchResult.username)} size={36} bg="linear-gradient(135deg, #34D399, #059669)" />
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: 14, color: "#065F46" }}>{userSearchResult.name}</div>
+                    <div style={{ fontSize: 12, color: "#047857" }}>@{userSearchResult.username} · ✅ Usuario registrado</div>
+                  </div>
+                  <button
+                    onClick={() => { setUserSearchResult(null); setResolvedBirthdayPersonId(null); setUserSearchQuery(""); }}
+                    style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: COLORS.textLight }}
+                  >×</button>
+                </div>
+              )}
+            </div>
+
+            {/* Fields */}
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Nombre del cumpleañero *</label>
               <Input value={createForm.birthday_person_name} onChange={v => setCreateForm(p => ({ ...p, birthday_person_name: v }))} placeholder="Ej: María García" />
@@ -419,16 +586,21 @@ export default function ManagerDashboard({ profile, session, onNavigate }) {
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Meta de recaudación en ARS (opcional)</label>
               <Input type="number" value={createForm.goal_amount} onChange={v => setCreateForm(p => ({ ...p, goal_amount: v }))} placeholder="Ej: 25000" min="0" />
             </div>
-            <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Contacto del cumpleañero (para notificarle) (opcional)</label>
-              <Input value={createForm.birthday_person_contact} onChange={v => setCreateForm(p => ({ ...p, birthday_person_contact: v }))} placeholder="Teléfono o email del cumpleañero" />
-            </div>
+            {!resolvedBirthdayPersonId && (
+              <div>
+                <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>
+                  Contacto del cumpleañero (para notificarle) (opcional)
+                </label>
+                <Input value={createForm.birthday_person_contact} onChange={v => setCreateForm(p => ({ ...p, birthday_person_contact: v }))} placeholder="Teléfono o email del cumpleañero" />
+              </div>
+            )}
+
             <Alert message={error} type="error" />
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <Button variant="manager" onClick={createCampaign} style={{ flex: 1 }} disabled={saving}>
-                {saving ? "Creando..." : "Crear regalo"}
+                {saving ? "Creando..." : resolvedBirthdayPersonId ? "Crear regalo vinculado" : "Crear regalo"}
               </Button>
-              <Button variant="secondary" onClick={() => { setShowCreate(false); setError(""); }} style={{ flex: 1 }}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => { setShowCreate(false); setError(""); setUserSearchQuery(""); setUserSearchResult(null); setResolvedBirthdayPersonId(null); }} style={{ flex: 1 }}>Cancelar</Button>
             </div>
           </div>
         </Modal>
