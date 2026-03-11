@@ -8,6 +8,7 @@ import {
 
 export default function CelebrantDashboard({ profile, session, defaultTab = "campaign", onViewLanding }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [campaigns, setCampaigns] = useState([]);
   const [campaign, setCampaign] = useState(null);
   const [items, setItems] = useState([]);
   const [contributions, setContributions] = useState([]);
@@ -15,6 +16,9 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditCampaign, setShowEditCampaign] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "" });
+  const [fetchingMeta, setFetchingMeta] = useState(false);
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [editItemForm, setEditItemForm] = useState({ name: "", description: "", price: "", item_url: "" });
   const [campaignForm, setCampaignForm] = useState({ title: "", description: "", goal_amount: "", image_url: "", product_link: "" });
   const [paymentAlias, setPaymentAlias] = useState(profile?.payment_alias || "");
   const [bio, setBio] = useState(profile?.bio || "");
@@ -29,17 +33,20 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   useEffect(() => { loadData(); }, [session?.user?.id]);
 
-  const loadData = async () => {
+  const loadData = async (selectId = null) => {
     if (!session?.user?.id) return;
     setLoading(true);
 
-    const { data: camp } = await supabase
+    const { data: allCamps } = await supabase
       .from("gift_campaigns")
       .select("*")
       .eq("birthday_person_id", session.user.id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .single();
+      .order("created_at", { ascending: false });
+
+    const campList = allCamps || [];
+    setCampaigns(campList);
+
+    const camp = selectId ? campList.find(c => c.id === selectId) : campList[0];
 
     if (camp) {
       setCampaign(camp);
@@ -144,19 +151,62 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
     showSuccess("¡Link copiado al portapapeles!");
   };
 
+  const switchCampaign = (campId) => loadData(campId);
+
+  // Fetch URL metadata for wish items (via Microlink)
+  const fetchItemMeta = async () => {
+    if (!newItem.item_url) return;
+    setFetchingMeta(true);
+    try {
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(newItem.item_url)}&meta=false`);
+      const json = await res.json();
+      if (json.status === "success") {
+        const d = json.data;
+        setNewItem(p => ({
+          ...p,
+          name: p.name || d.title || "",
+          description: p.description || d.description || "",
+          price: p.price || (d.price?.amount ? String(d.price.amount) : ""),
+        }));
+        showSuccess("Datos cargados del link 🎁");
+      }
+    } catch { /* silently fail */ }
+    setFetchingMeta(false);
+  };
+
+  // Edit item
+  const startEditItem = (item) => {
+    setEditingItemId(item.id);
+    setEditItemForm({ name: item.name, description: item.description || "", price: item.price ? String(item.price) : "", item_url: item.item_url || "" });
+  };
+
+  const saveItem = async (id) => {
+    const { data, error: err } = await supabase.from("gift_items").update({
+      name: editItemForm.name,
+      description: editItemForm.description || null,
+      price: editItemForm.price ? parseFloat(editItemForm.price) : null,
+      item_url: editItemForm.item_url || null,
+    }).eq("id", id).select().single();
+    if (!err && data) {
+      setItems(prev => prev.map(i => i.id === id ? data : i));
+      setEditingItemId(null);
+      showSuccess("Item actualizado");
+    }
+  };
+
   const fetchImageSuggestions = async () => {
-    const query = [campaignForm.title, campaignForm.description]
+    const keywords = [campaignForm.title, campaignForm.product_link && "product", campaignForm.description]
       .join(' ')
       .toLowerCase()
       .split(/\s+/)
       .filter(w => w.length > 3)
       .slice(0, 3)
-      .join(',');
-    if (!query) return;
+      .join(',') || 'regalo,cumpleanos';
     setLoadingSuggestions(true);
+    const base = Date.now();
     const suggestions = Array.from({ length: 6 }, (_, i) => ({
-      thumb: `https://source.unsplash.com/300x200/?${encodeURIComponent(query)}&sig=${Date.now() + i}`,
-      full: `https://source.unsplash.com/800x600/?${encodeURIComponent(query)}&sig=${Date.now() + i}`,
+      thumb: `https://picsum.photos/seed/${encodeURIComponent(keywords + '-' + (base + i))}/300/200`,
+      full:  `https://picsum.photos/seed/${encodeURIComponent(keywords + '-' + (base + i))}/800/600`,
     }));
     setImageSuggestions(suggestions);
     setLoadingSuggestions(false);
@@ -205,6 +255,33 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       {/* ── TAB: MI CAMPAÑA ── */}
       {activeTab === "campaign" && (
         <div>
+          {/* Campaign switcher — only shows if user has multiple campaigns */}
+          {campaigns.length > 1 && (
+            <Card style={{ padding: "12px 16px", marginBottom: 16, background: "#FFFBEB", border: "1px solid #FDE68A" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#92400E", marginBottom: 8 }}>🎂 Tus regalos</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                {campaigns.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => switchCampaign(c.id)}
+                    style={{
+                      padding: "6px 14px",
+                      borderRadius: 20,
+                      border: `2px solid ${c.id === campaign?.id ? COLORS.primary : COLORS.border}`,
+                      background: c.id === campaign?.id ? COLORS.primary : "#fff",
+                      color: c.id === campaign?.id ? "#fff" : COLORS.text,
+                      cursor: "pointer",
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {c.title}
+                  </button>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {campaign ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
               {/* Stats */}
@@ -307,73 +384,77 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               {items.map(item => (
                 <Card key={item.id} style={{ padding: 0, overflow: "hidden" }}>
-                  <div style={{ display: "flex" }}>
-                    {/* Columna izquierda: precio */}
-                    <div style={{
-                      background: item.is_fulfilled
-                        ? COLORS.successLight
-                        : `linear-gradient(160deg, ${COLORS.primary}14, ${COLORS.accent}0A)`,
-                      padding: "24px 18px",
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 110,
-                      borderRight: `1px solid ${COLORS.border}`,
-                      gap: 6,
-                    }}>
-                      <span style={{ fontSize: 30 }}>🎁</span>
-                      {item.price ? (
-                        <div style={{ fontSize: 17, fontWeight: 800, color: item.is_fulfilled ? COLORS.success : COLORS.primary, textAlign: "center" }}>
-                          {formatMoney(item.price)}
-                        </div>
-                      ) : (
-                        <div style={{ fontSize: 12, color: COLORS.textLight, textAlign: "center", fontWeight: 500 }}>Precio libre</div>
-                      )}
-                    </div>
-
-                    {/* Columna derecha: info + acciones */}
-                    <div style={{ flex: 1, padding: "18px 22px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                            <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.text }}>{item.name}</h4>
-                            {item.is_fulfilled && <Badge color={COLORS.success}>✓ Ya regalado</Badge>}
-                          </div>
-                          {item.description && (
-                            <p style={{ margin: 0, fontSize: 13, color: COLORS.textLight, lineHeight: 1.5 }}>{item.description}</p>
-                          )}
-                          {item.item_url && (
-                            <a
-                              href={item.item_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ fontSize: 12, color: COLORS.primary, marginTop: 4, display: "inline-block", textDecoration: "none", fontWeight: 600 }}
-                            >
-                              🔗 Ver producto →
-                            </a>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => deleteItem(item.id)}
-                          style={{
-                            background: "none",
-                            border: `1px solid ${COLORS.border}`,
-                            borderRadius: 8,
-                            cursor: "pointer",
-                            color: COLORS.error,
-                            fontSize: 12,
-                            padding: "5px 10px",
-                            fontWeight: 600,
-                            flexShrink: 0,
-                          }}
-                        >
-                          Eliminar
-                        </button>
+                  {editingItemId === item.id ? (
+                    /* ── Inline edit mode ── */
+                    <div style={{ padding: "18px 20px", display: "flex", flexDirection: "column", gap: 10 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.primary, marginBottom: 2 }}>✏️ Editando item</div>
+                      <Input value={editItemForm.name} onChange={v => setEditItemForm(p => ({ ...p, name: v }))} placeholder="Nombre del regalo *" />
+                      <Input value={editItemForm.item_url} onChange={v => setEditItemForm(p => ({ ...p, item_url: v }))} placeholder="Link del producto (opcional)" />
+                      <Input type="number" value={editItemForm.price} onChange={v => setEditItemForm(p => ({ ...p, price: v }))} placeholder="Precio ARS (opcional)" min="0" />
+                      <Textarea value={editItemForm.description} onChange={v => setEditItemForm(p => ({ ...p, description: v }))} placeholder="Descripción (opcional)" rows={2} />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <Button size="sm" onClick={() => saveItem(item.id)} disabled={!editItemForm.name} style={{ flex: 1 }}>Guardar</Button>
+                        <Button size="sm" variant="secondary" onClick={() => setEditingItemId(null)} style={{ flex: 1 }}>Cancelar</Button>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    <div style={{ display: "flex" }}>
+                      {/* Columna izquierda: precio */}
+                      <div style={{
+                        background: item.is_fulfilled
+                          ? COLORS.successLight
+                          : `linear-gradient(160deg, ${COLORS.primary}14, ${COLORS.accent}0A)`,
+                        padding: "24px 18px",
+                        display: "flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 110,
+                        borderRight: `1px solid ${COLORS.border}`,
+                        gap: 6,
+                      }}>
+                        <span style={{ fontSize: 30 }}>🎁</span>
+                        {item.price ? (
+                          <div style={{ fontSize: 17, fontWeight: 800, color: item.is_fulfilled ? COLORS.success : COLORS.primary, textAlign: "center" }}>
+                            {formatMoney(item.price)}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: 12, color: COLORS.textLight, textAlign: "center", fontWeight: 500 }}>Precio libre</div>
+                        )}
+                      </div>
+
+                      {/* Columna derecha: info + acciones */}
+                      <div style={{ flex: 1, padding: "18px 22px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+                              <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: COLORS.text }}>{item.name}</h4>
+                              {item.is_fulfilled && <Badge color={COLORS.success}>✓ Ya regalado</Badge>}
+                            </div>
+                            {item.description && (
+                              <p style={{ margin: 0, fontSize: 13, color: COLORS.textLight, lineHeight: 1.5 }}>{item.description}</p>
+                            )}
+                            {item.item_url && (
+                              <a href={item.item_url} target="_blank" rel="noopener noreferrer"
+                                style={{ fontSize: 12, color: COLORS.primary, marginTop: 4, display: "inline-block", textDecoration: "none", fontWeight: 600 }}>
+                                🔗 Ver producto →
+                              </a>
+                            )}
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                            <button type="button" onClick={() => startEditItem(item)}
+                              style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, cursor: "pointer", color: COLORS.primary, fontSize: 12, padding: "5px 10px", fontWeight: 600 }}>
+                              Editar
+                            </button>
+                            <button type="button" onClick={() => deleteItem(item.id)}
+                              style={{ background: "none", border: `1px solid ${COLORS.border}`, borderRadius: 8, cursor: "pointer", color: COLORS.error, fontSize: 12, padding: "5px 10px", fontWeight: 600 }}>
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </Card>
               ))}
             </div>
@@ -577,27 +658,35 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
       {/* ── Modal: Agregar Item ── */}
       {showAddItem && (
-        <Modal title="Agregar a tu lista de deseos" onClose={() => setShowAddItem(false)}>
+        <Modal title="Agregar a tu lista de deseos" onClose={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "" }); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {/* Step 1: URL first — auto-fetch metadata */}
+            <div>
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>
+                Link del producto <span style={{ fontSize: 11, opacity: 0.7 }}>(pegá el link y hacé clic en "Buscar datos")</span>
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Input value={newItem.item_url} onChange={v => setNewItem(p => ({ ...p, item_url: v }))} placeholder="https://www.mercadolibre.com.ar/..." />
+                <Button size="sm" variant="outline" onClick={fetchItemMeta} disabled={!newItem.item_url || fetchingMeta} style={{ flexShrink: 0 }}>
+                  {fetchingMeta ? "..." : "Buscar datos"}
+                </Button>
+              </div>
+            </div>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Nombre del regalo *</label>
               <Input value={newItem.name} onChange={v => setNewItem(p => ({ ...p, name: v }))} placeholder="Ej: Auriculares Sony WH-1000XM5" />
             </div>
             <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Descripción / Link (opcional)</label>
-              <Textarea value={newItem.description} onChange={v => setNewItem(p => ({ ...p, description: v }))} placeholder="Marca, modelo, color, link de donde comprarlo..." rows={3} />
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Descripción (opcional)</label>
+              <Textarea value={newItem.description} onChange={v => setNewItem(p => ({ ...p, description: v }))} placeholder="Marca, modelo, color, detalles..." rows={2} />
             </div>
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Precio aproximado en ARS (opcional)</label>
               <Input type="number" value={newItem.price} onChange={v => setNewItem(p => ({ ...p, price: v }))} placeholder="Ej: 25000" min="0" />
             </div>
-            <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Link del producto (opcional)</label>
-              <Input value={newItem.item_url} onChange={v => setNewItem(p => ({ ...p, item_url: v }))} placeholder="https://www.mercadolibre.com.ar/..." />
-            </div>
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <Button onClick={addItem} disabled={!newItem.name} style={{ flex: 1 }}>Agregar item</Button>
-              <Button variant="secondary" onClick={() => setShowAddItem(false)} style={{ flex: 1 }}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "" }); }} style={{ flex: 1 }}>Cancelar</Button>
             </div>
           </div>
         </Modal>

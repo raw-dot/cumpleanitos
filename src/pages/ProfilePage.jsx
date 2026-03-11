@@ -211,7 +211,10 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             </Badge>
           )}
           <div style={{ marginTop: 24 }}>
-            <Button size="lg" onClick={() => setShowContributeForm(true)}>
+            <Button size="lg" onClick={() => {
+              setShowContributeForm(true);
+              setTimeout(() => document.getElementById("contribute-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+            }}>
               🎁 Aportar para el regalo
             </Button>
           </div>
@@ -357,7 +360,10 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                         )}
                         {!item.is_fulfilled && (
                           <button
-                            onClick={() => openContributeForItem(item)}
+                            onClick={() => {
+                              openContributeForItem(item);
+                              setTimeout(() => document.getElementById("contribute-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+                            }}
                             style={{
                               padding: "6px 14px",
                               background: COLORS.primary,
@@ -386,7 +392,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
 
         {/* ── APORTAR SECTION (INLINE FORM) ── */}
         {campaign && (
-          <div style={{ marginBottom: 48 }}>
+          <div id="contribute-section" style={{ marginBottom: 48 }}>
             <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8, color: COLORS.text }}>Aportar para el regalo</h2>
             <p style={{ color: COLORS.textLight, marginBottom: 24 }}>Montos sugeridos</p>
 

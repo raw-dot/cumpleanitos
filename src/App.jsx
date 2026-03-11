@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
 import AuthPage from "./pages/AuthPage";
@@ -206,6 +206,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileTarget, setProfileTarget] = useState(null);
+  const loginNavigatedRef = useRef(false); // prevents re-navigation on tab focus
 
   // ── Parse URL params on load ──
   useEffect(() => {
@@ -227,8 +228,8 @@ export default function App() {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s) {
-        if (event === "SIGNED_IN") {
-          // post-login: load profile then navigate to landing
+        if (event === "SIGNED_IN" && !loginNavigatedRef.current) {
+          loginNavigatedRef.current = true;
           loadProfile(s.user.id).then(data => {
             const params = new URLSearchParams(window.location.search);
             if (!params.get("u") && !params.get("c")) {
@@ -242,6 +243,7 @@ export default function App() {
           loadProfile(s.user.id);
         }
       } else {
+        loginNavigatedRef.current = false;
         setProfile(null);
       }
     });
