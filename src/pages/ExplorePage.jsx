@@ -9,27 +9,54 @@ export default function ExplorePage({ onViewProfile }) {
 
   useEffect(() => {
     const load = async () => {
-      // Load all active campaigns with birthday_person profile and creator profile
-      const { data: camps } = await supabase
+      // Step 1: load active campaigns
+      const { data: camps, error } = await supabase
         .from("gift_campaigns")
-        .select("*, birthday_person:profiles!gift_campaigns_birthday_person_id_fkey(*), creator:profiles!gift_campaigns_created_by_fkey(*)")
+        .select("*")
         .eq("status", "active")
         .order("created_at", { ascending: false });
 
-      if (camps) {
-        // Deduplicate: keep only most recent campaign per birthday_person
-        const seen = new Set();
-        const deduped = camps.filter(c => {
-          if (seen.has(c.birthday_person_id)) return false;
-          seen.add(c.birthday_person_id);
-          return true;
-        });
-        setEntries(deduped.map(c => ({
-          profile: c.birthday_person,
-          campaign: c,
-          manager: c.created_by !== c.birthday_person_id ? c.creator : null,
-        })));
+      if (error || !camps || camps.length === 0) {
+        setLoading(false);
+        return;
       }
+
+      // Step 2: collect all unique profile IDs needed
+      const profileIds = new Set();
+      camps.forEach(c => {
+        if (c.birthday_person_id) profileIds.add(c.birthday_person_id);
+        if (c.created_by) profileIds.add(c.created_by);
+      });
+
+      // Step 3: load all needed profiles in one query
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("*")
+        .in("id", [...profileIds]);
+
+      const profileMap = {};
+      (profiles || []).forEach(p => { profileMap[p.id] = p; });
+
+      // Step 4: deduplicate — keep only most recent campaign per birthday_person
+      const seen = new Set();
+      const deduped = camps.filter(c => {
+        if (seen.has(c.birthday_person_id)) return false;
+        seen.add(c.birthday_person_id);
+        return true;
+      });
+
+      const result = deduped.map(c => {
+        const profile = profileMap[c.birthday_person_id] || null;
+        const creator = profileMap[c.created_by] || null;
+        const isManaged = c.created_by && c.created_by !== c.birthday_person_id;
+        return {
+          profile,
+          campaign: c,
+          manager: isManaged ? creator : null,
+        };
+      });
+
+      setEntries(result);
       setLoading(false);
     };
     load();
@@ -63,7 +90,8 @@ export default function ExplorePage({ onViewProfile }) {
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           {filtered.map(({ profile, campaign, manager }) => {
-            const days = daysUntilBirthday(profile?.birthday || campaign?.birthday_date);
+            const birthdayDate = profile?.birthday || campaign?.birthday_date;
+            const days = daysUntilBirthday(birthdayDate);
             const isToday = days === "¡Hoy!";
             const isSoon = typeof days === "number" && days <= 7;
             const username = profile?.username;
@@ -76,12 +104,11 @@ export default function ExplorePage({ onViewProfile }) {
                 onMouseEnter={e => e.currentTarget.style.boxShadow = "0 4px 20px rgba(124,58,237,0.12)"}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = ""}
               >
-                <div style={{ display: "flex" }}>
+                <div style={{ display: "flex", minHeight: 110 }}>
                   {/* Campaign image */}
                   {campaign.image_url ? (
                     <div style={{
-                      width: 120,
-                      minHeight: 100,
+                      width: 130,
                       flexShrink: 0,
                       backgroundImage: `url(${campaign.image_url})`,
                       backgroundSize: "cover",
@@ -93,46 +120,63 @@ export default function ExplorePage({ onViewProfile }) {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      background: `linear-gradient(135deg, ${COLORS.primary}15, ${COLORS.accent}10)`,
+                      background: `linear-gradient(135deg, ${COLORS.primary}18, ${COLORS.accent}12)`,
                       flexShrink: 0,
-                      fontSize: 36,
+                      fontSize: 40,
                     }}>
                       🎂
                     </div>
                   )}
 
-                  {/* Info */}
-                  <div style={{ flex: 1, padding: "16px 20px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                      <Avatar initials={getInitials(profile?.name)} size={36} />
+                  {/* Main info */}
+                  <div style={{ flex: 1, padding: "14px 18px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 5 }}>
+                    {/* Person row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      <Avatar initials={getInitials(profile?.name)} size={32} />
                       <div>
-                        <div style={{ fontWeight: 700, fontSize: 16, color: "#1F2937" }}>{profile?.name}</div>
-                        <div style={{ fontSize: 12, color: COLORS.textLight }}>@{profile?.username}</div>
+                        <span style={{ fontWeight: 700, fontSize: 15, color: "#1F2937" }}>{profile?.name || "—"}</span>
+                        <span style={{ fontSize: 12, color: COLORS.textLight, marginLeft: 6 }}>@{profile?.username}</span>
                       </div>
+                    </div>
+
+                    {/* Gift title */}
+                    <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.primary, marginTop: 2 }}>
+                      🎁 {campaign.title}
+                    </div>
+
+                    {/* Manager & goal row */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       {manager && (
                         <Badge color={COLORS.accent} style={{ fontSize: 11 }}>
                           Gestionado por {manager.name || manager.username}
                         </Badge>
                       )}
+                      {campaign.goal_amount > 0 && (
+                        <span style={{ fontSize: 12, color: COLORS.textLight }}>
+                          Meta: <strong style={{ color: COLORS.text }}>{formatMoney(campaign.goal_amount)}</strong>
+                        </span>
+                      )}
                     </div>
-
-                    <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>{campaign.title}</div>
-
-                    {campaign.goal_amount > 0 && (
-                      <div style={{ fontSize: 13, color: COLORS.textLight }}>
-                        Meta: <strong style={{ color: COLORS.primary }}>{formatMoney(campaign.goal_amount)}</strong>
-                      </div>
-                    )}
                   </div>
 
-                  {/* Days badge */}
-                  <div style={{ padding: "16px 14px", display: "flex", flexDirection: "column", alignItems: "flex-end", justifyContent: "center", gap: 4, flexShrink: 0 }}>
-                    <Badge color={isToday ? COLORS.accent : isSoon ? COLORS.error : COLORS.primary}>
-                      🎂 {isToday ? "¡Hoy!" : isSoon ? `¡${days} días!` : `${days} días`}
+                  {/* Days badge column */}
+                  <div style={{
+                    padding: "14px 16px",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    justifyContent: "center",
+                    gap: 4,
+                    flexShrink: 0,
+                  }}>
+                    <Badge color={isToday ? COLORS.accent : isSoon ? "#EF4444" : COLORS.primary}>
+                      {isToday ? "🎉 ¡Hoy!" : isSoon ? `⚡ ${days} días` : `📅 ${days} días`}
                     </Badge>
-                    <div style={{ fontSize: 11, color: COLORS.textLight }}>
-                      {formatBirthday(profile?.birthday || campaign?.birthday_date)}
-                    </div>
+                    {birthdayDate && (
+                      <div style={{ fontSize: 11, color: COLORS.textLight, marginTop: 2 }}>
+                        {formatBirthday(birthdayDate)}
+                      </div>
+                    )}
                   </div>
                 </div>
               </Card>
@@ -141,10 +185,17 @@ export default function ExplorePage({ onViewProfile }) {
 
           {filtered.length === 0 && (
             <div style={{ textAlign: "center", padding: 60, color: COLORS.textLight }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>😕</div>
-              {entries.length === 0
-                ? "Todavía no hay regalos. ¡Sé el primero en registrarte!"
-                : "No se encontraron regalos con esa búsqueda."}
+              <div style={{ fontSize: 48, marginBottom: 12 }}>😕</div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 6 }}>
+                {entries.length === 0
+                  ? "Todavía no hay regalos"
+                  : "No se encontraron regalos"}
+              </div>
+              <div style={{ fontSize: 14 }}>
+                {entries.length === 0
+                  ? "¡Sé el primero en registrarte!"
+                  : "Probá con otro nombre o título."}
+              </div>
             </div>
           )}
         </div>
