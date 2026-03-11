@@ -14,7 +14,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [loading, setLoading] = useState(true);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditCampaign, setShowEditCampaign] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", description: "", price: "" });
+  const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "" });
   const [campaignForm, setCampaignForm] = useState({ title: "", description: "", goal_amount: "", image_url: "", product_link: "" });
   const [paymentAlias, setPaymentAlias] = useState(profile?.payment_alias || "");
   const [bio, setBio] = useState(profile?.bio || "");
@@ -102,7 +102,12 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       .eq("id", campaign.id)
       .select().single();
     setSaving(false);
-    if (!err && data) { setCampaign(data); setShowEditCampaign(false); showSuccess("Regalo actualizado"); }
+    if (!err && data) {
+      setCampaign(data);
+      setShowEditCampaign(false);
+      showSuccess("Regalo actualizado");
+      onViewLanding?.();
+    }
   };
 
   const addItem = async () => {
@@ -112,10 +117,11 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       name: newItem.name,
       description: newItem.description || null,
       price: newItem.price ? parseFloat(newItem.price) : null,
+      item_url: newItem.item_url || null,
     }).select().single();
     if (!err && data) {
       setItems(prev => [...prev, data]);
-      setNewItem({ name: "", description: "", price: "" });
+      setNewItem({ name: "", description: "", price: "", item_url: "" });
       setShowAddItem(false);
       showSuccess("Item agregado a tu lista");
     }
@@ -216,9 +222,18 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                     <h3 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700 }}>{campaign.title}</h3>
                     <p style={{ margin: 0, color: COLORS.textLight, fontSize: 14, lineHeight: 1.5 }}>{campaign.description}</p>
                   </div>
-                  <Button variant="outline" size="sm" onClick={() => setShowEditCampaign(true)}>Editar</Button>
+                  <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                    <Button variant="ghost" size="sm" onClick={onViewLanding} title="Ver como lo ven tus amigos">👁 Ver</Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowEditCampaign(true)}>Editar</Button>
+                  </div>
                 </div>
                 <ProgressBar value={totalRaised} max={campaign.goal_amount || 1} />
+                {campaign.goal_amount > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textLight, marginTop: 6 }}>
+                    <span style={{ color: COLORS.success, fontWeight: 600 }}>{Math.round((totalRaised / campaign.goal_amount) * 100)}% recaudado</span>
+                    <span>Faltan {formatMoney(Math.max(0, campaign.goal_amount - totalRaised))}</span>
+                  </div>
+                )}
               </Card>
 
               {/* Share Link */}
@@ -327,6 +342,16 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                           </div>
                           {item.description && (
                             <p style={{ margin: 0, fontSize: 13, color: COLORS.textLight, lineHeight: 1.5 }}>{item.description}</p>
+                          )}
+                          {item.item_url && (
+                            <a
+                              href={item.item_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ fontSize: 12, color: COLORS.primary, marginTop: 4, display: "inline-block", textDecoration: "none", fontWeight: 600 }}
+                            >
+                              🔗 Ver producto →
+                            </a>
                           )}
                         </div>
                         <button
@@ -565,6 +590,10 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Precio aproximado en ARS (opcional)</label>
               <Input type="number" value={newItem.price} onChange={v => setNewItem(p => ({ ...p, price: v }))} placeholder="Ej: 25000" min="0" />
+            </div>
+            <div>
+              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Link del producto (opcional)</label>
+              <Input value={newItem.item_url} onChange={v => setNewItem(p => ({ ...p, item_url: v }))} placeholder="https://www.mercadolibre.com.ar/..." />
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <Button onClick={addItem} disabled={!newItem.name} style={{ flex: 1 }}>Agregar item</Button>

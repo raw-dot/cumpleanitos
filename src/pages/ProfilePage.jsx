@@ -269,6 +269,12 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             </p>
 
             <ProgressBar value={totalRaised} max={campaign.goal_amount || 1} />
+            {campaign.goal_amount > 0 && (
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, color: COLORS.textLight, marginTop: 6 }}>
+                <span style={{ color: COLORS.success, fontWeight: 700 }}>{Math.round((totalRaised / campaign.goal_amount) * 100)}% recaudado</span>
+                <span>Faltan {formatMoney(Math.max(0, campaign.goal_amount - totalRaised))}</span>
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 20, margin: "16px 0 24px", flexWrap: "wrap", fontSize: 14 }}>
               <div>
@@ -301,6 +307,81 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             <div style={{ fontSize: 40, marginBottom: 12 }}>🎁</div>
             <p style={{ color: COLORS.textLight }}>Este usuario todavía no tiene un regalo activo.</p>
           </Card>
+        )}
+
+        {/* ── WISHLIST SECTION ── */}
+        {items.length > 0 && (
+          <div style={{ marginBottom: 48 }}>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20, color: COLORS.text }}>Lista de deseos 🎁</h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {items.map(item => (
+                <Card key={item.id} style={{ padding: 0, overflow: "hidden" }}>
+                  <div style={{ display: "flex" }}>
+                    {/* Precio */}
+                    <div style={{
+                      background: item.is_fulfilled ? "#F0FDF4" : `linear-gradient(160deg, ${COLORS.primary}12, ${COLORS.accent}08)`,
+                      padding: "20px 16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      minWidth: 100,
+                      borderRight: `1px solid ${COLORS.border}`,
+                      gap: 4,
+                    }}>
+                      <span style={{ fontSize: 26 }}>🎁</span>
+                      {item.price ? (
+                        <div style={{ fontSize: 15, fontWeight: 800, color: item.is_fulfilled ? COLORS.success : COLORS.primary, textAlign: "center" }}>
+                          {formatMoney(item.price)}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 11, color: COLORS.textLight, textAlign: "center" }}>Precio libre</div>
+                      )}
+                    </div>
+                    {/* Info + acciones */}
+                    <div style={{ flex: 1, padding: "16px 18px", display: "flex", flexDirection: "column", justifyContent: "center", gap: 6 }}>
+                      <div style={{ fontWeight: 700, fontSize: 15, color: COLORS.text }}>{item.name}</div>
+                      {item.description && (
+                        <div style={{ fontSize: 13, color: COLORS.textLight, lineHeight: 1.4 }}>{item.description}</div>
+                      )}
+                      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginTop: 4 }}>
+                        {item.item_url && (
+                          <a
+                            href={item.item_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 13, color: COLORS.primary, textDecoration: "none", fontWeight: 600 }}
+                          >
+                            🔗 Ver producto
+                          </a>
+                        )}
+                        {!item.is_fulfilled && (
+                          <button
+                            onClick={() => openContributeForItem(item)}
+                            style={{
+                              padding: "6px 14px",
+                              background: COLORS.primary,
+                              color: "#fff",
+                              border: "none",
+                              borderRadius: 8,
+                              cursor: "pointer",
+                              fontSize: 13,
+                              fontWeight: 700,
+                            }}
+                          >
+                            Aportar para esto
+                          </button>
+                        )}
+                        {item.is_fulfilled && (
+                          <span style={{ fontSize: 12, color: COLORS.success, fontWeight: 700 }}>✓ Ya regalado</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
         )}
 
         {/* ── APORTAR SECTION (INLINE FORM) ── */}

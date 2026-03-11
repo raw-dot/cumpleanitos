@@ -9,7 +9,7 @@ import ProfilePage from "./pages/ProfilePage";
 import HomePage from "./pages/HomePage";
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
-function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch }) {
+function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onViewLanding }) {
   const [showMenu, setShowMenu] = useState(false);
   const role = profile?.role;
 
@@ -44,24 +44,44 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch }) {
                   🎁 Mis regalos
                 </Button>
               ) : (
-                <Button variant={page === "dashboard" ? "outline" : "ghost"} size="sm" onClick={() => setPage("dashboard")}>
+                <Button variant={page === "profile" ? "outline" : "ghost"} size="sm" onClick={onViewLanding}>
                   🎂 Mi cumple
                 </Button>
               )}
 
               {/* ── Avatar con dropdown ── */}
-              <div style={{ position: "relative", marginLeft: 4 }}>
+              <div style={{ position: "relative", marginLeft: 4, display: "flex", alignItems: "center", gap: 2 }}>
+                {/* Avatar → va a editar perfil */}
                 <div
-                  onClick={() => setShowMenu(v => !v)}
+                  onClick={() => { setPage("settings"); setShowMenu(false); }}
+                  title="Editar mi perfil"
                   style={{
                     cursor: "pointer",
                     borderRadius: "50%",
-                    border: showMenu ? `2px solid ${COLORS.primary}` : "2px solid transparent",
+                    border: `2px solid transparent`,
                     transition: "border 0.15s",
                   }}
+                  onMouseEnter={e => e.currentTarget.style.border = `2px solid ${COLORS.primary}`}
+                  onMouseLeave={e => e.currentTarget.style.border = `2px solid transparent`}
                 >
                   <Avatar initials={profile ? getInitials(profile.name) : "?"} size={36} />
                 </div>
+                {/* Chevron → abre el menú */}
+                <button
+                  onClick={() => setShowMenu(v => !v)}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    padding: "4px 2px",
+                    color: COLORS.textLight,
+                    fontSize: 11,
+                    lineHeight: 1,
+                    borderRadius: 4,
+                    transition: "color 0.15s",
+                  }}
+                  title="Menú"
+                >▾</button>
 
                 {showMenu && (
                   <>
@@ -204,12 +224,19 @@ export default function App() {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s);
       if (s) {
-        loadProfile(s.user.id);
-        const params = new URLSearchParams(window.location.search);
-        if (!params.get("u") && !params.get("c")) setPage("dashboard");
+        const data = await loadProfile(s.user.id);
+        if (event === "SIGNED_IN") {
+          const params = new URLSearchParams(window.location.search);
+          if (!params.get("u") && !params.get("c")) {
+            if (data?.role === "manager") { setPage("dashboard"); }
+            else if (data?.role === "gifter") { setPage("explore"); }
+            else if (data?.username) { viewProfile(data.username); }
+            else { setPage("dashboard"); }
+          }
+        }
       } else {
         setProfile(null);
       }
@@ -221,11 +248,14 @@ export default function App() {
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (data) setProfile(data);
+    return data;
   };
 
-  const handleAuth = (user) => {
-    loadProfile(user.id);
-    setPage("dashboard");
+  const handleAuth = async (user) => {
+    const data = await loadProfile(user.id);
+    if (data?.role === "manager") { setPage("dashboard"); return; }
+    if (data?.role === "gifter")  { setPage("explore");   return; }
+    if (data?.username) { viewProfile(data.username); } else { setPage("dashboard"); }
   };
 
   const handleLogout = async () => {
@@ -319,6 +349,7 @@ export default function App() {
         profile={profile}
         onLogout={handleLogout}
         onRoleSwitch={handleRoleSwitch}
+        onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")}
       />
       <main>{renderPage()}</main>
       <Footer />
