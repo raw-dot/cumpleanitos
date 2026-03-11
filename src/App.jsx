@@ -222,20 +222,24 @@ export default function App() {
       setSession(s);
       if (s) loadProfile(s.user.id);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
       if (s) {
-        const data = await loadProfile(s.user.id);
         if (event === "SIGNED_IN") {
-          const params = new URLSearchParams(window.location.search);
-          if (!params.get("u") && !params.get("c")) {
-            if (data?.role === "manager") { setPage("dashboard"); }
-            else if (data?.role === "gifter") { setPage("explore"); }
-            else if (data?.username) { viewProfile(data.username); }
-            else { setPage("dashboard"); }
-          }
+          // post-login: load profile then navigate to landing
+          loadProfile(s.user.id).then(data => {
+            const params = new URLSearchParams(window.location.search);
+            if (!params.get("u") && !params.get("c")) {
+              if (data?.role === "manager") { setPage("dashboard"); }
+              else if (data?.role === "gifter") { setPage("explore"); }
+              else if (data?.username) { viewProfile(data.username); }
+              else { setPage("dashboard"); }
+            }
+          });
+        } else {
+          loadProfile(s.user.id);
         }
       } else {
         setProfile(null);
