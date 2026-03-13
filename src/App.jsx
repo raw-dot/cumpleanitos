@@ -18,6 +18,7 @@ function useIsMobile() {
   return isMobile;
 }
 
+// ─── NAVBAR ──────────────────────────────────────────────────────────────────
 function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onViewLanding }) {
   const [showMenu, setShowMenu] = useState(false);
   const isMobile = useIsMobile();
@@ -29,9 +30,9 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
   };
 
   const menuItems = [
-    { icon: "⚙️", label: "Configuración de cuenta", action: () => { setPage("settings"); setShowMenu(false); } },
-    { icon: "🔗", label: "Compartir mi cumpleaños", action: copyProfileLink },
-    { icon: "🎂", label: "Gestionar cumpleaños", action: () => { setPage("dashboard"); setShowMenu(false); } },
+    { icon: "🎂", label: "Mi regalo", action: () => { setPage("dashboard"); setShowMenu(false); } },
+    { icon: "⚙️", label: "Configuración", action: () => { setPage("settings"); setShowMenu(false); } },
+    { icon: "🔗", label: "Compartir mi perfil", action: copyProfileLink },
     { icon: "🚪", label: "Cerrar sesión", action: () => { onLogout(); setShowMenu(false); }, color: COLORS.error },
   ];
 
@@ -50,6 +51,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
           <Logo size={isMobile ? 20 : 24} />
         </div>
 
+        {/* Desktop nav */}
         {!isMobile && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => setPage("explore")}>Explorar</Button>
@@ -68,8 +70,9 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
                     <Avatar initials={profile ? getInitials(profile.name) : "?"} size={36} />
                   </div>
                   <button onClick={() => setShowMenu(v => !v)} style={{
-                    background: "none", border: "none", cursor: "pointer", padding: "4px 2px",
-                    color: COLORS.textLight, fontSize: 11, lineHeight: 1, borderRadius: 4,
+                    background: "none", border: "none", cursor: "pointer", padding: "4px 6px",
+                    color: COLORS.textLight, fontSize: 14, lineHeight: 1, borderRadius: 4,
+                    fontWeight: 700,
                   }}>▾</button>
                   {showMenu && (
                     <>
@@ -86,17 +89,17 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
                             <div style={{ fontSize: 12, color: COLORS.textLight }}>@{profile?.username}</div>
                           </div>
                         </div>
-                        <div style={{ padding: "12px 18px", borderBottom: "1px solid " + COLORS.border }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: COLORS.textLight, marginBottom: 10, textTransform: "uppercase" }}>Mi Rol</div>
+                        <div style={{ padding: "10px 14px 12px", borderBottom: "1px solid " + COLORS.border }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textLight, marginBottom: 8, textTransform: "uppercase" }}>Cambiar rol</div>
                           <div style={{ display: "flex", gap: 6 }}>
                             {Object.entries(ROLES).map(([roleKey, roleData]) => (
                               <button key={roleKey} onClick={() => { onRoleSwitch(roleKey); setShowMenu(false); }} style={{
-                                flex: 1, padding: "8px 10px", borderRadius: 8,
+                                flex: 1, padding: "8px 6px", borderRadius: 8,
                                 border: "2px solid " + (role === roleKey ? roleData.color : COLORS.border),
                                 background: role === roleKey ? roleData.color + "15" : "transparent",
                                 color: role === roleKey ? roleData.color : COLORS.textLight,
-                                cursor: "pointer", fontSize: 12, fontWeight: role === roleKey ? 700 : 500,
-                                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                                cursor: "pointer", fontSize: 11, fontWeight: role === roleKey ? 700 : 500,
+                                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
                               }}>
                                 <span style={{ fontSize: 16 }}>{roleData.icon}</span>
                                 <span>{roleData.label}</span>
@@ -132,10 +135,11 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
           </div>
         )}
 
+        {/* Mobile nav — compacto */}
         {isMobile && (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {session ? (
-              <div onClick={() => setPage("settings")} style={{ cursor: "pointer" }}>
+              <div onClick={() => setPage("perfil")} style={{ cursor: "pointer" }}>
                 <Avatar initials={profile ? getInitials(profile.name) : "?"} size={34} />
               </div>
             ) : (
@@ -159,6 +163,147 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
   );
 }
 
+// ─── PANTALLA PERFIL MOBILE ────────────────────────────────────────────────
+function ProfileScreen({ profile, session, setPage, onLogout, onViewLanding }) {
+  const role = profile?.role;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(window.location.origin + "?u=" + profile?.username);
+  };
+
+  const spaceCards = [
+    {
+      icon: "🎂", title: "Mi regalo", sub: "Mi campaña de cumpleaños",
+      color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding(),
+    },
+    {
+      icon: "📋", title: "Lista de deseos", sub: "Cosas que me pueden regalar",
+      color: COLORS.accent, bg: "#FFFBEB", action: () => setPage("dashboard"),
+    },
+    {
+      icon: "🎁", title: "Regalos que hice", sub: "A quienes les regalé",
+      color: "#10B981", bg: "#F0FDF9", action: () => setPage("dashboard"),
+    },
+    {
+      icon: "🛍️", title: "Gestionar regalos", sub: "Cumpleaños que organizo",
+      color: "#3B82F6", bg: "#EFF6FF", action: () => setPage("dashboard"),
+    },
+  ];
+
+  const accountItems = [
+    { icon: "⚙️", label: "Configuración", sub: "Editar perfil y datos", bg: "#F3F4F6", action: () => setPage("settings") },
+    { icon: "🔗", label: "Compartir mi perfil", sub: "Link de cumpleaños público", bg: "#F3F4F6", action: copyLink },
+    { icon: "🚪", label: "Cerrar sesión", sub: null, bg: "#FEF2F2", danger: true, action: onLogout },
+  ];
+
+  const roleLabel = role === "manager" ? "Gestor" : role === "gifter" ? "Regalador" : "Cumpleañero";
+  const roleIcon = role === "manager" ? "🛍️" : role === "gifter" ? "🎁" : "🎂";
+
+  return (
+    <div style={{ background: "#F5F5F7", minHeight: "100vh", paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={{
+        background: "linear-gradient(160deg, #EDE9FF 0%, #F5F0FF 100%)",
+        padding: "28px 20px 20px", textAlign: "center",
+      }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: "50%",
+          background: "linear-gradient(135deg, " + COLORS.primary + ", " + COLORS.primaryDark + ")",
+          color: "#fff", fontSize: 26, fontWeight: 700,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          margin: "0 auto 12px", border: "3px solid #fff",
+          boxShadow: "0 4px 16px rgba(124,58,237,0.25)",
+        }}>
+          {profile ? getInitials(profile.name) : "?"}
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{profile?.name}</div>
+        <div style={{ fontSize: 13, color: COLORS.textLight, margin: "3px 0 10px" }}>@{profile?.username}</div>
+        <div style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "5px 14px", background: COLORS.primary + "18",
+          borderRadius: 20, fontSize: 12, fontWeight: 700, color: COLORS.primary,
+        }}>
+          {roleIcon} {roleLabel}
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: "flex", background: "#fff", borderBottom: "1px solid " + COLORS.border }}>
+        {[
+          { n: "$0", l: "Recibido" },
+          { n: "0", l: "Aportes" },
+          { n: "0", l: "Seguidores" },
+        ].map((s, i) => (
+          <div key={i} style={{
+            flex: 1, padding: "12px 4px", textAlign: "center",
+            borderRight: i < 2 ? "1px solid " + COLORS.border : "none",
+          }}>
+            <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{s.n}</div>
+            <div style={{ fontSize: 10, color: COLORS.textLight }}>{s.l}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* MI ESPACIO — Cards 2x2 */}
+      <div style={{ padding: "16px 14px 4px" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
+          Mi espacio
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+          {spaceCards.map((card, i) => (
+            <button key={i} onClick={card.action} style={{
+              background: "#fff", borderRadius: 16, padding: "16px 14px 12px",
+              border: "1px solid " + COLORS.border,
+              borderBottom: "3px solid " + card.color,
+              cursor: "pointer", display: "flex", flexDirection: "column",
+              alignItems: "flex-start", gap: 6, textAlign: "left",
+              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+            }}>
+              <div style={{
+                width: 44, height: 44, borderRadius: 12,
+                background: card.bg, display: "flex",
+                alignItems: "center", justifyContent: "center", fontSize: 22,
+              }}>{card.icon}</div>
+              <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.text, lineHeight: 1.2 }}>{card.title}</div>
+              <div style={{ fontSize: 11, color: COLORS.textLight, lineHeight: 1.3 }}>{card.sub}</div>
+              <div style={{ fontSize: 12, color: card.color, alignSelf: "flex-end", fontWeight: 700 }}>›</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* CUENTA */}
+      <div style={{ padding: "16px 14px 4px" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+          Cuenta
+        </div>
+        <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: "1px solid " + COLORS.border }}>
+          {accountItems.map((item, i) => (
+            <button key={i} onClick={item.action} style={{
+              display: "flex", alignItems: "center", gap: 12, width: "100%",
+              padding: "14px 16px",
+              borderBottom: i < accountItems.length - 1 ? "1px solid #F3F4F6" : "none",
+              background: "none", cursor: "pointer", border: "none",
+              borderBottom: i < accountItems.length - 1 ? "1px solid #F3F4F6" : "none",
+            }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 9, background: item.bg,
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0,
+              }}>{item.icon}</div>
+              <div style={{ flex: 1, textAlign: "left" }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: item.danger ? COLORS.error : COLORS.text }}>{item.label}</div>
+                {item.sub && <div style={{ fontSize: 11, color: COLORS.textLight }}>{item.sub}</div>}
+              </div>
+              <div style={{ fontSize: 16, color: "#D1D5DB" }}>›</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── BOTTOM NAV ───────────────────────────────────────────────────────────────
 function BottomNav({ page, setPage, profile, onViewLanding }) {
   const isMobile = useIsMobile();
   if (!isMobile) return null;
@@ -167,8 +312,8 @@ function BottomNav({ page, setPage, profile, onViewLanding }) {
     { icon: "🏠", label: "Inicio", key: "home", action: () => setPage("home") },
     { icon: "🔍", label: "Explorar", key: "explore", action: () => setPage("explore") },
     { icon: "🎁", label: "Mis listas", key: "dashboard", action: () => role === "manager" ? setPage("dashboard") : onViewLanding() },
-    { icon: "🔔", label: "Notif.", key: "notif", action: () => {} },
-    { icon: "👤", label: "Perfil", key: "settings", action: () => setPage("settings") },
+    { icon: "🔔", label: "Notif.", key: "notif", action: () => setPage("notif") },
+    { icon: "👤", label: "Perfil", key: "perfil", action: () => setPage("perfil") },
   ];
   return (
     <nav style={{
@@ -197,6 +342,7 @@ function BottomNav({ page, setPage, profile, onViewLanding }) {
   );
 }
 
+// ─── FOOTER ──────────────────────────────────────────────────────────────────
 function Footer({ isMobile }) {
   return (
     <footer style={{
@@ -213,6 +359,7 @@ function Footer({ isMobile }) {
   );
 }
 
+// ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState("home");
   const [session, setSession] = useState(null);
@@ -302,6 +449,22 @@ export default function App() {
     switch (page) {
       case "home": return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
+      case "perfil":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        return (
+          <ProfileScreen
+            profile={profile} session={session} setPage={setPage}
+            onLogout={handleLogout}
+            onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")}
+          />
+        );
+      case "notif":
+        return (
+          <div style={{ padding: "20px", textAlign: "center", color: COLORS.textLight, paddingBottom: 80 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔔</div>
+            <p>No tenés notificaciones nuevas</p>
+          </div>
+        );
       case "login":
       case "register":
         if (session) {
@@ -337,7 +500,7 @@ export default function App() {
       <main style={{ paddingBottom: isMobile && session ? 70 : 0 }}>
         {renderPage()}
       </main>
-      <Footer isMobile={isMobile} />
+      {page !== "perfil" && <Footer isMobile={isMobile} />}
       {session && (
         <BottomNav
           page={page} setPage={setPage} profile={profile}
