@@ -168,40 +168,73 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats, onAva
 
   return (
     <div style={{ background: "#F5F5F7", minHeight: "100vh", paddingBottom: 80 }}>
-      {/* Portada */}
+      {/* Portada — banner ancho y proporcional */}
       <div style={{ position: "relative" }}>
         <div style={{
-          height: 100,
-          background: profile?.cover_url ? "url(" + profile.cover_url + ") center/cover" : "linear-gradient(135deg, #7C3AED, #F59E0B)",
+          height: 160,
+          background: profile?.cover_url
+            ? "url(" + profile.cover_url + ") center/cover no-repeat"
+            : "linear-gradient(135deg, #7C3AED 0%, #9C27B0 40%, #F59E0B 100%)",
+          width: "100%",
         }}>
-          <label htmlFor="cover-upload" style={{ position: "absolute", top: 8, right: 10, background: "rgba(0,0,0,0.45)", color: "#fff", borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+          <label htmlFor="cover-upload" style={{
+            position: "absolute", bottom: 10, right: 12,
+            background: "rgba(0,0,0,0.50)", color: "#fff",
+            borderRadius: 20, padding: "5px 12px",
+            fontSize: 11, fontWeight: 700, cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 4,
+            backdropFilter: "blur(4px)",
+          }}>
             ✏️ Portada
           </label>
           <input id="cover-upload" type="file" accept="image/*" style={{ display: "none" }} onChange={onCoverUpload} />
         </div>
-        {/* Avatar sobre portada */}
-        <div style={{ position: "absolute", bottom: -36, left: "50%", transform: "translateX(-50%)" }}>
+
+        {/* Avatar centrado, mitad sobre la portada */}
+        <div style={{ position: "absolute", bottom: -44, left: "50%", transform: "translateX(-50%)" }}>
           <div style={{ position: "relative" }}>
             {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt="avatar" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }} />
-              : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg, #7C3AED, #5B21B6)", color: "#fff", fontSize: 26, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }}>{profile ? getInitials(profile.name) : "?"}</div>
+              ? <img src={profile.avatar_url} alt="avatar" style={{
+                  width: 88, height: 88, borderRadius: "50%",
+                  objectFit: "cover", border: "4px solid #fff",
+                  boxShadow: "0 4px 20px rgba(0,0,0,0.18)", display: "block",
+                }} />
+              : <div style={{
+                  width: 88, height: 88, borderRadius: "50%",
+                  background: "linear-gradient(135deg, #7C3AED, #5B21B6)",
+                  color: "#fff", fontSize: 32, fontWeight: 700,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.18)",
+                }}>{profile ? getInitials(profile.name) : "?"}</div>
             }
-            <label htmlFor="avatar-upload" style={{ position: "absolute", bottom: 0, right: 0, width: 22, height: 22, borderRadius: "50%", background: "#7C3AED", color: "#fff", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff", cursor: "pointer" }}>
-              ✏️
-            </label>
+            <label htmlFor="avatar-upload" style={{
+              position: "absolute", bottom: 2, right: 2,
+              width: 26, height: 26, borderRadius: "50%",
+              background: COLORS.primary, color: "#fff",
+              fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
+              border: "2.5px solid #fff", cursor: "pointer",
+              boxShadow: "0 2px 6px rgba(124,58,237,0.4)",
+            }}>✏️</label>
             <input id="avatar-upload" type="file" accept="image/*" style={{ display: "none" }} onChange={onAvatarUpload} />
           </div>
         </div>
       </div>
-      {/* Nombre + username con espacio para avatar */}
-      <div style={{ background: "#F5F5F7", paddingTop: 44, paddingBottom: 16, textAlign: "center" }}>
-        <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{profile?.name}</div>
+
+      {/* Nombre + username — espacio para el avatar que sobresale */}
+      <div style={{ background: "#F5F5F7", paddingTop: 54, paddingBottom: 14, textAlign: "center" }}>
+        <div style={{ fontSize: 21, fontWeight: 800, color: COLORS.text, letterSpacing: -0.5 }}>{profile?.name}</div>
         <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 3 }}>@{profile?.username}</div>
       </div>
 
       <div style={{ display: "flex", background: "#fff", borderBottom: "1px solid " + COLORS.border }}>
         {[
-          { n: stats.raised > 0 ? "$" + (stats.raised >= 1000 ? (stats.raised/1000).toFixed(1)+"k" : stats.raised) : "$0", l: "Recaudado" },
+          { n: (() => {
+            const r = stats.raised;
+            if (r <= 0) return "$0";
+            if (r >= 1000000) return "$" + (r/1000000).toFixed(r % 1000000 === 0 ? 0 : 1) + "M";
+            if (r >= 1000) return "$" + Math.round(r/1000) + "k";
+            return "$" + Math.round(r).toLocaleString("es-AR");
+          })(), l: "Recaudado" },
           { n: stats.gifters, l: "Regalos" },
           { n: stats.friends, l: "Amigos" },
         ].map((s, i) => (
