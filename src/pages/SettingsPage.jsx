@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { supabase } from "../supabaseClient";
 
 const C = {
@@ -22,56 +22,16 @@ function initials(name) {
   return name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 }
 
-// Componente de reposicionamiento con drag
-function DragReposition({ onDone, children }) {
-  const ref = useRef(null);
-  const drag = useRef(null);
-
-  const getXY = (e) => {
-    const t = e.touches ? e.touches[0] : e;
-    return { x: t.clientX, y: t.clientY };
-  };
-
-  const onStart = (e) => {
-    e.preventDefault();
-    const { x, y } = getXY(e);
-    drag.current = { startX: x, startY: y };
-  };
-
-  const onMove = (e) => {
-    if (!drag.current || !ref.current) return;
-    e.preventDefault();
-    const { x, y } = getXY(e);
-    const dx = x - drag.current.startX;
-    const dy = y - drag.current.startY;
-    drag.current.startX = x;
-    drag.current.startY = y;
-    // Emit position change via custom event
-    ref.current.dispatchEvent(new CustomEvent("poschange", { detail: { dx, dy }, bubbles: true }));
-  };
-
-  const onEnd = () => { drag.current = null; };
-
+// Slider de posición — funciona en iOS
+function PosSlider({ label, value, onChange }) {
+  const num = parseFloat(value) || 50;
   return (
-    <div ref={ref} onMouseDown={onStart} onMouseMove={onMove} onMouseUp={onEnd}
-      onTouchStart={onStart} onTouchMove={onMove} onTouchEnd={onEnd}
-      style={{ position: "relative", cursor: "grab", userSelect: "none", touchAction: "none" }}>
-      {/* Overlay */}
-      <div style={{
-        position: "absolute", inset: 0, zIndex: 10,
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10,
-        background: "rgba(0,0,0,0.45)",
-        borderRadius: "inherit",
-      }}>
-        <div style={{ color: "#fff", fontSize: 13, fontWeight: 700, background: "rgba(0,0,0,0.5)", padding: "6px 16px", borderRadius: 20 }}>
-          ↕ Arrastrá para recentrar
-        </div>
-        <button onClick={(e) => { e.stopPropagation(); onDone(); }} style={{
-          background: C.primary, color: "#fff", border: "none",
-          borderRadius: 20, padding: "6px 18px", fontSize: 12, fontWeight: 700, cursor: "pointer",
-        }}>Listo ✓</button>
-      </div>
-      {children}
+    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+      <span style={{ fontSize: 11, color: C.muted, width: 14, textAlign: "center" }}>{label}</span>
+      <input type="range" min="0" max="100" step="1" value={Math.round(num)}
+        onChange={e => onChange(e.target.value + "%")}
+        style={{ flex: 1, accentColor: C.primary, height: 4 }} />
+      <span style={{ fontSize: 11, color: C.muted, width: 28, textAlign: "right" }}>{Math.round(num)}%</span>
     </div>
   );
 }
@@ -83,38 +43,33 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [coverUrl, setCoverUrl]   = useState(profile?.cover_url || "");
   const [coverGrad, setCoverGrad] = useState(profile?.cover_gradient || "");
-  const [coverPos, setCoverPos]   = useState(profile?.cover_position || "50% 50%");
-  const [avatarPos, setAvatarPos] = useState(profile?.avatar_position || "50% 50%");
 
-  const [mode, setMode]           = useState(null); // "cover" | "avatar" | null
+  // Posición: "X% Y%"
+  const parsePct = (s, fallback) => {
+    const parts = (s || "").split(" ");
+    return {
+      x: parseFloat(parts[0]) || fallback,
+      y: parseFloat(parts[1]) || fallback,
+    };
+  };
+  const initCoverPos = parsePct(profile?.cover_position, 50);
+  const initAvatarPos = parsePct(profile?.avatar_position, 50);
+  const [coverX, setCoverX]   = useState(initCoverPos.x);
+  const [coverY, setCoverY]   = useState(initCoverPos.y);
+  const [avatarX, setAvatarX] = useState(initAvatarPos.x);
+  const [avatarY, setAvatarY] = useState(initAvatarPos.y);
+
+  const [editCover, setEditCover]   = useState(false); // sliders portada visibles
+  const [editAvatar, setEditAvatar] = useState(false); // sliders avatar visibles
+
   const [saving, setSaving]       = useState(false);
   const [saved, setSaved]         = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError]         = useState("");
 
-  // Escuchar eventos de drag para la portada
-  const coverRef = useRef(null);
-  const avatarRef = useRef(null);
-
-  const handleCoverPosChange = (e) => {
-    const { dx, dy } = e.detail;
-    setCoverPos(prev => {
-      const [px, py] = prev.split(" ").map(v => parseFloat(v));
-      const nx = Math.max(0, Math.min(100, px - (dx / 3)));
-      const ny = Math.max(0, Math.min(100, py - (dy / 3)));
-      return `${nx.toFixed(1)}% ${ny.toFixed(1)}%`;
-    });
-  };
-
-  const handleAvatarPosChange = (e) => {
-    const { dx, dy } = e.detail;
-    setAvatarPos(prev => {
-      const [px, py] = prev.split(" ").map(v => parseFloat(v));
-      const nx = Math.max(0, Math.min(100, px - (dx / 1.5)));
-      const ny = Math.max(0, Math.min(100, py - (dy / 1.5)));
-      return `${nx.toFixed(1)}% ${ny.toFixed(1)}%`;
-    });
-  };
+  const coverBg = coverUrl
+    ? `url(${coverUrl}) ${coverX}% ${coverY}% / cover no-repeat`
+    : coverGrad || "linear-gradient(135deg, #7C3AED 0%, #9C27B0 50%, #F59E0B 100%)";
 
   const uploadFile = async (file, folder) => {
     const ext = file.name.split(".").pop();
@@ -131,7 +86,7 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
     if (url) {
       setAvatarUrl(url);
       await supabase.from("profiles").update({ avatar_url: url }).eq("id", session.user.id);
-      onProfileUpdated?.({ ...profile, name, username, bio, avatar_url: url, cover_url: coverUrl, cover_gradient: coverGrad });
+      onProfileUpdated?.({ ...profile, name, username, bio, avatar_url: url });
     }
     setUploading(false); e.target.value = "";
   };
@@ -142,8 +97,10 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
     const url = await uploadFile(file, "covers");
     if (url) {
       setCoverUrl(url); setCoverGrad("");
+      setCoverX(50); setCoverY(50);
       await supabase.from("profiles").update({ cover_url: url, cover_gradient: "" }).eq("id", session.user.id);
-      onProfileUpdated?.({ ...profile, name, username, bio, avatar_url: avatarUrl, cover_url: url, cover_gradient: "" });
+      onProfileUpdated?.({ ...profile, name, username, bio, cover_url: url, cover_gradient: "" });
+      setEditCover(true); // abrir sliders automáticamente
     }
     setUploading(false); e.target.value = "";
   };
@@ -152,21 +109,20 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
     setSaving(true); setError("");
     const { error: e } = await supabase.from("profiles").update({
       name, username, bio,
-      cover_position: coverPos, avatar_position: avatarPos,
+      cover_position: `${coverX}% ${coverY}%`,
+      avatar_position: `${avatarX}% ${avatarY}%`,
       cover_gradient: coverGrad,
     }).eq("id", session.user.id);
     setSaving(false);
     if (e) { setError("Error al guardar. Intentá de nuevo."); return; }
     setSaved(true); setTimeout(() => setSaved(false), 2500);
-    onProfileUpdated?.({ ...profile, name, username, bio, avatar_url: avatarUrl, cover_url: coverUrl, cover_gradient: coverGrad, cover_position: coverPos, avatar_position: avatarPos });
+    onProfileUpdated?.({
+      ...profile, name, username, bio,
+      avatar_url: avatarUrl, cover_url: coverUrl, cover_gradient: coverGrad,
+      cover_position: `${coverX}% ${coverY}%`,
+      avatar_position: `${avatarX}% ${avatarY}%`,
+    });
   };
-
-  // Calcular el background de la portada
-  const coverBg = coverUrl
-    ? `url(${coverUrl}) ${coverPos}/cover no-repeat`
-    : coverGrad
-    ? coverGrad
-    : "linear-gradient(135deg, #7C3AED 0%, #9C27B0 50%, #F59E0B 100%)";
 
   return (
     <div style={{ background: C.bg, minHeight: "100vh", paddingBottom: 90 }}>
@@ -181,9 +137,8 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         <span style={{ fontSize: 16, fontWeight: 800, color: C.text, flex: 1 }}>Configuración</span>
         <button onClick={handleSave} disabled={saving || uploading} style={{
           background: saved ? C.success : C.primary, color: C.white, border: "none",
-          borderRadius: 20, padding: "7px 20px", fontSize: 13, fontWeight: 700,
-          cursor: "pointer", opacity: (saving || uploading) ? 0.6 : 1,
-          transition: "background 0.2s",
+          borderRadius: 20, padding: "7px 20px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+          opacity: (saving || uploading) ? 0.6 : 1,
         }}>
           {saving ? "Guardando..." : saved ? "¡Listo! ✓" : "Guardar"}
         </button>
@@ -191,171 +146,131 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
 
       {/* ── PORTADA ────────────────────────────────────────────── */}
       <div style={{ position: "relative" }}>
-
-        {/* La portada — con drag si está en modo reposición */}
-        {mode === "cover" ? (
-          <DragReposition onDone={() => setMode(null)}>
-            <div ref={coverRef} onPosChange={handleCoverPosChange}
-              style={{ height: 140, background: coverBg, width: "100%" }}
-              onMouseDown={(e) => { coverRef._drag = { x: e.clientX, y: e.clientY }; }}
-              onMouseMove={(e) => {
-                if (!coverRef._drag) return;
-                const dx = e.clientX - coverRef._drag.x;
-                const dy = e.clientY - coverRef._drag.y;
-                coverRef._drag = { x: e.clientX, y: e.clientY };
-                setCoverPos(prev => {
-                  const [px, py] = prev.split(" ").map(v => parseFloat(v));
-                  return `${Math.max(0,Math.min(100, px - dx/3)).toFixed(1)}% ${Math.max(0,Math.min(100, py - dy/3)).toFixed(1)}%`;
-                });
-              }}
-              onMouseUp={() => { coverRef._drag = null; }}
-              onTouchStart={(e) => { coverRef._drag = { x: e.touches[0].clientX, y: e.touches[0].clientY }; }}
-              onTouchMove={(e) => {
-                if (!coverRef._drag) return;
-                const dx = e.touches[0].clientX - coverRef._drag.x;
-                const dy = e.touches[0].clientY - coverRef._drag.y;
-                coverRef._drag = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                setCoverPos(prev => {
-                  const [px, py] = prev.split(" ").map(v => parseFloat(v));
-                  return `${Math.max(0,Math.min(100, px - dx/3)).toFixed(1)}% ${Math.max(0,Math.min(100, py - dy/3)).toFixed(1)}%`;
-                });
-              }}
-              onTouchEnd={() => { coverRef._drag = null; }}
-            />
-          </DragReposition>
-        ) : (
-          <div style={{ height: 140, background: coverBg, position: "relative" }}>
-            {/* Botones en la portada */}
-            <div style={{ position: "absolute", bottom: 8, right: 8, display: "flex", gap: 6 }}>
-              {(coverUrl || coverGrad) && (
-                <button onClick={() => setMode("cover")} style={{
-                  background: "rgba(0,0,0,0.55)", color: "#fff", border: "none",
-                  borderRadius: 8, padding: "5px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer",
-                }}>↕ Centrar</button>
-              )}
-              <label htmlFor="cover-file" style={{
-                background: "rgba(0,0,0,0.55)", color: "#fff",
-                borderRadius: 8, padding: "5px 11px", fontSize: 11, fontWeight: 700,
-                cursor: uploading ? "wait" : "pointer",
-                display: "inline-flex", alignItems: "center", gap: 4,
-              }}>
-                {uploading ? "⏳" : "✏️"} Portada
-              </label>
-              <input id="cover-file" type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverFile} />
-            </div>
+        <div style={{ height: 140, background: coverBg, position: "relative" }}>
+          {/* Botones sobre la portada */}
+          <div style={{ position: "absolute", bottom: 8, right: 8, display: "flex", gap: 6 }}>
+            {coverUrl && (
+              <button onClick={() => { setEditCover(v => !v); setEditAvatar(false); }} style={{
+                background: editCover ? C.primary : "rgba(0,0,0,0.55)", color: "#fff", border: "none",
+                borderRadius: 20, padding: "5px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer",
+              }}>↕ Centrar</button>
+            )}
+            <label htmlFor="cover-file" style={{
+              background: "rgba(0,0,0,0.55)", color: "#fff", borderRadius: 20,
+              padding: "5px 12px", fontSize: 11, fontWeight: 700,
+              cursor: uploading ? "wait" : "pointer",
+              display: "inline-flex", alignItems: "center", gap: 4,
+            }}>
+              {uploading ? "⏳" : "✏️"} Portada
+            </label>
+            <input id="cover-file" type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverFile} />
           </div>
-        )}
+        </div>
 
-        {/* Avatar centrado sobre portada */}
+        {/* Avatar sobre portada */}
         <div style={{ position: "absolute", bottom: -44, left: "50%", transform: "translateX(-50%)", zIndex: 5 }}>
           <div style={{ position: "relative" }}>
-            {/* La foto de avatar */}
-            {mode === "avatar" ? (
-              <div style={{ position: "relative" }}>
-                <img src={avatarUrl} alt="avatar" style={{
+            {avatarUrl
+              ? <img src={avatarUrl} alt="avatar" style={{
                   width: 88, height: 88, borderRadius: "50%", objectFit: "cover",
-                  objectPosition: avatarPos,
+                  objectPosition: `${avatarX}% ${avatarY}%`,
                   border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "block",
-                  cursor: "grab", userSelect: "none", touchAction: "none",
-                }}
-                onMouseDown={(e) => { avatarRef._drag = { x: e.clientX, y: e.clientY }; e.preventDefault(); }}
-                onMouseMove={(e) => {
-                  if (!avatarRef._drag) return;
-                  const dx = e.clientX - avatarRef._drag.x;
-                  const dy = e.clientY - avatarRef._drag.y;
-                  avatarRef._drag = { x: e.clientX, y: e.clientY };
-                  setAvatarPos(prev => {
-                    const [px, py] = prev.split(" ").map(v => parseFloat(v));
-                    return `${Math.max(0,Math.min(100, px - dx/1.2)).toFixed(1)}% ${Math.max(0,Math.min(100, py - dy/1.2)).toFixed(1)}%`;
-                  });
-                }}
-                onMouseUp={() => { avatarRef._drag = null; }}
-                onTouchStart={(e) => { avatarRef._drag = { x: e.touches[0].clientX, y: e.touches[0].clientY }; e.preventDefault(); }}
-                onTouchMove={(e) => {
-                  if (!avatarRef._drag) return;
-                  const dx = e.touches[0].clientX - avatarRef._drag.x;
-                  const dy = e.touches[0].clientY - avatarRef._drag.y;
-                  avatarRef._drag = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-                  setAvatarPos(prev => {
-                    const [px, py] = prev.split(" ").map(v => parseFloat(v));
-                    return `${Math.max(0,Math.min(100, px - dx/1.2)).toFixed(1)}% ${Math.max(0,Math.min(100, py - dy/1.2)).toFixed(1)}%`;
-                  });
-                }}
-                onTouchEnd={() => { avatarRef._drag = null; }}
-                />
-                {/* Overlay de reposición en avatar */}
-                <div style={{
-                  position: "absolute", inset: 0, borderRadius: "50%",
-                  background: "rgba(0,0,0,0.45)",
-                  display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  gap: 2,
-                }}>
-                  <span style={{ color: "#fff", fontSize: 9, fontWeight: 700, textAlign: "center", lineHeight: 1.2 }}>↕</span>
-                </div>
-                <button onClick={() => setMode(null)} style={{
-                  position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)",
-                  background: C.primary, color: "#fff", border: "none",
-                  borderRadius: 20, padding: "3px 10px", fontSize: 10, fontWeight: 700,
-                  cursor: "pointer", whiteSpace: "nowrap",
-                }}>Listo ✓</button>
-              </div>
-            ) : avatarUrl ? (
-              <img src={avatarUrl} alt="avatar" style={{
-                width: 88, height: 88, borderRadius: "50%", objectFit: "cover",
-                objectPosition: avatarPos,
-                border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.2)", display: "block",
-              }} />
-            ) : (
-              <div style={{
-                width: 88, height: 88, borderRadius: "50%",
-                background: `linear-gradient(135deg, ${C.primary}, ${C.dark})`,
-                color: "#fff", fontSize: 30, fontWeight: 700,
-                display: "flex", alignItems: "center", justifyContent: "center",
-                border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
-              }}>{initials(name)}</div>
-            )}
-
-            {/* Botones del avatar — solo cuando NO está en modo reposición */}
-            {mode !== "avatar" && (
-              <div style={{ position: "absolute", bottom: -2, right: -4, display: "flex", flexDirection: "column", gap: 3 }}>
-                <label htmlFor="avatar-file" style={{
-                  width: 24, height: 24, borderRadius: "50%",
-                  background: C.primary, color: "#fff", fontSize: 11,
+                }} />
+              : <div style={{
+                  width: 88, height: 88, borderRadius: "50%",
+                  background: `linear-gradient(135deg, ${C.primary}, ${C.dark})`,
+                  color: "#fff", fontSize: 30, fontWeight: 700,
                   display: "flex", alignItems: "center", justifyContent: "center",
+                  border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+                }}>{initials(name)}</div>
+            }
+            {/* Botones del avatar */}
+            <div style={{ position: "absolute", bottom: -4, right: -6, display: "flex", flexDirection: "column", gap: 3 }}>
+              <label htmlFor="avatar-file" style={{
+                width: 26, height: 26, borderRadius: "50%",
+                background: C.primary, color: "#fff", fontSize: 12,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                border: "2.5px solid #fff", cursor: "pointer",
+              }}>✏️</label>
+              {avatarUrl && (
+                <button onClick={() => { setEditAvatar(v => !v); setEditCover(false); }} style={{
+                  width: 26, height: 26, borderRadius: "50%",
+                  background: editAvatar ? C.primary : "#1F2937",
+                  color: "#fff", fontSize: 12, fontWeight: 700,
                   border: "2.5px solid #fff", cursor: "pointer",
-                  boxShadow: "0 2px 6px rgba(124,58,237,0.4)",
-                }}>✏️</label>
-                {avatarUrl && (
-                  <button onClick={() => setMode("avatar")} style={{
-                    width: 24, height: 24, borderRadius: "50%",
-                    background: "#1F2937", color: "#fff", fontSize: 10, fontWeight: 700,
-                    border: "2.5px solid #fff", cursor: "pointer",
-                  }}>↕</button>
-                )}
-              </div>
-            )}
+                }}>↕</button>
+              )}
+            </div>
             <input id="avatar-file" type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarFile} />
           </div>
         </div>
       </div>
 
-      {/* Espaciador */}
+      {/* ── SLIDERS DE POSICIÓN ────────────────────────────────── */}
       <div style={{ height: 58 }} />
+
+      {/* Sliders portada */}
+      {editCover && coverUrl && (
+        <div style={{
+          margin: "0 12px 12px", background: C.white, borderRadius: 14,
+          border: "1.5px solid " + C.primary + "40", padding: "14px 16px",
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>📐 Posición de la portada</span>
+            <button onClick={() => setEditCover(false)} style={{ background: "none", border: "none", color: C.muted, fontSize: 16, cursor: "pointer" }}>✕</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <PosSlider label="←→" value={coverX + "%"} onChange={v => setCoverX(parseFloat(v))} />
+            <PosSlider label="↕" value={coverY + "%"} onChange={v => setCoverY(parseFloat(v))} />
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 8, textAlign: "center" }}>
+            Ajustá los sliders para centrar la imagen · Guardá para aplicar
+          </div>
+        </div>
+      )}
+
+      {/* Sliders avatar */}
+      {editAvatar && avatarUrl && (
+        <div style={{
+          margin: "0 12px 12px", background: C.white, borderRadius: 14,
+          border: "1.5px solid " + C.primary + "40", padding: "14px 16px",
+        }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.primary, marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <span>📐 Posición de la foto</span>
+            <button onClick={() => setEditAvatar(false)} style={{ background: "none", border: "none", color: C.muted, fontSize: 16, cursor: "pointer" }}>✕</button>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <PosSlider label="←→" value={avatarX + "%"} onChange={v => setAvatarX(parseFloat(v))} />
+            <PosSlider label="↕" value={avatarY + "%"} onChange={v => setAvatarY(parseFloat(v))} />
+          </div>
+          {/* Preview del avatar con posición */}
+          <div style={{ display: "flex", justifyContent: "center", marginTop: 12 }}>
+            <img src={avatarUrl} alt="preview" style={{
+              width: 72, height: 72, borderRadius: "50%", objectFit: "cover",
+              objectPosition: `${avatarX}% ${avatarY}%`,
+              border: "3px solid " + C.primary, boxShadow: "0 2px 10px rgba(124,58,237,0.3)",
+            }} />
+          </div>
+          <div style={{ fontSize: 11, color: C.muted, marginTop: 8, textAlign: "center" }}>
+            Ajustá los sliders para centrar tu cara · Guardá para aplicar
+          </div>
+        </div>
+      )}
 
       {/* ── GRADIENTES RÁPIDOS ─────────────────────────────────── */}
       <div style={{ padding: "0 14px 14px" }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
           Color de portada
         </div>
-        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 2 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           {GRADIENTS.map((g, i) => (
-            <button key={i} onClick={() => { setCoverGrad(g); setCoverUrl(""); }} style={{
-              width: 52, height: 32, borderRadius: 8, flexShrink: 0,
+            <button key={i} onClick={() => { setCoverGrad(g); setCoverUrl(""); setEditCover(false); }} style={{
+              width: 52, height: 34, borderRadius: 10, flexShrink: 0,
               background: g, cursor: "pointer",
-              border: coverGrad === g && !coverUrl ? `3px solid ${C.primary}` : "2px solid transparent",
-              outline: coverGrad === g && !coverUrl ? `2px solid ${C.primary}40` : "none",
-              transform: coverGrad === g && !coverUrl ? "scale(1.08)" : "scale(1)",
-              transition: "transform 0.15s, border 0.15s",
+              border: coverGrad === g && !coverUrl ? `3px solid ${C.primary}` : "2.5px solid transparent",
+              boxShadow: coverGrad === g && !coverUrl ? `0 0 0 2px ${C.primary}50` : "0 1px 4px rgba(0,0,0,0.1)",
+              transform: coverGrad === g && !coverUrl ? "scale(1.1)" : "scale(1)",
+              transition: "all 0.15s",
             }} />
           ))}
         </div>
