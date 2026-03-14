@@ -315,9 +315,7 @@ export default function App() {
         const data = await loadProfile(s.user.id);
         const params = new URLSearchParams(window.location.search);
         if (!params.get("u") && !params.get("c")) {
-          if (data?.role === "manager") setPage("dashboard");
-          else if (data?.role === "gifter") setPage("explore");
-          else setPage("perfil");
+          setPage("perfil");
         }
       }
       setLoading(false);
@@ -330,9 +328,7 @@ export default function App() {
           loadProfile(s.user.id).then(data => {
             const params = new URLSearchParams(window.location.search);
             if (!params.get("u") && !params.get("c")) {
-              if (data?.role === "manager") setPage("dashboard");
-              else if (data?.role === "gifter") setPage("explore");
-              else setPage("perfil");
+              setPage("perfil");
             }
           });
         } else { loadProfile(s.user.id); }
@@ -348,8 +344,6 @@ export default function App() {
 
   const handleAuth = async (user) => {
     const data = await loadProfile(user.id);
-    if (data?.role === "manager") { setPage("dashboard"); return; }
-    if (data?.role === "gifter") { setPage("explore"); return; }
     setPage("perfil");
   };
 
