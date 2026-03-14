@@ -72,7 +72,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
                     style={{ cursor: "pointer", borderRadius: "50%", border: "2px solid transparent", transition: "border 0.15s" }}
                     onMouseEnter={e => e.currentTarget.style.border = "2px solid " + COLORS.primary}
                     onMouseLeave={e => e.currentTarget.style.border = "2px solid transparent"}>
-                    <Avatar initials={profile ? getInitials(profile.name) : "?"} size={36} />
+                    <Avatar initials={profile ? getInitials(profile.name) : "?"} src={profile?.avatar_url} size={36} />
                   </div>
                   <button onClick={() => setShowMenu(v => !v)} style={{
                     background: "none", border: "none", cursor: "pointer", padding: "4px 6px",
@@ -87,7 +87,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
                         boxShadow: "0 10px 40px rgba(0,0,0,0.14)", minWidth: 230, zIndex: 200, overflow: "hidden",
                       }}>
                         <div style={{ padding: "16px 18px 12px", borderBottom: "1px solid " + COLORS.border, display: "flex", alignItems: "center", gap: 12 }}>
-                          <Avatar initials={profile ? getInitials(profile.name) : "?"} size={38} />
+                          <Avatar initials={profile ? getInitials(profile.name) : "?"} src={profile?.avatar_url} size={38} />
                           <div>
                             <div style={{ fontWeight: 700, fontSize: 14, color: COLORS.text }}>{profile?.name}</div>
                             <div style={{ fontSize: 12, color: COLORS.textLight }}>@{profile?.username}</div>
@@ -126,7 +126,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {session ? (
               <div onClick={() => setPage("perfil")} style={{ cursor: "pointer" }}>
-                <Avatar initials={profile ? getInitials(profile.name) : "?"} size={34} />
+                <Avatar initials={profile ? getInitials(profile.name) : "?"} src={profile?.avatar_url} size={34} />
               </div>
             ) : (
               <>

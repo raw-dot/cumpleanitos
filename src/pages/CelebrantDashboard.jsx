@@ -231,7 +231,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       {/* ── Profile Header ── */}
       <Card style={{ padding: 32, marginBottom: 24, background: `linear-gradient(135deg, ${COLORS.primary}10 0%, ${COLORS.accent}08 100%)` }}>
         <div style={{ display: "flex", alignItems: "flex-start", gap: 20, flexWrap: "wrap" }}>
-          <Avatar initials={getInitials(profile?.name)} size={80} />
+          {profile?.avatar_url ? <img src={profile.avatar_url} alt="avatar" style={{ width: 80, height: 80, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" }} /> : <Avatar initials={getInitials(profile?.name)} size={80} />}
           <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 4 }}>
               <h2 style={{ margin: 0, fontSize: 24, fontWeight: 700 }}>{profile?.name}</h2>

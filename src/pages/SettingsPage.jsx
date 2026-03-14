@@ -18,9 +18,13 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
   const [bio, setBio] = useState(profile?.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [coverUrl, setCoverUrl] = useState(profile?.cover_url || "");
+  const [coverPos, setCoverPos] = useState(profile?.cover_position || "50% 50%");
+  const [avatarPos, setAvatarPos] = useState(profile?.avatar_position || "50% 50%");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [repositioning, setRepositioning] = useState(null); // "cover" | "avatar" | null
+  const [dragStart, setDragStart] = useState(null);
   const [error, setError] = useState("");
 
   const uploadFile = async (file, folder) => {
@@ -68,7 +72,7 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
     setSaving(true); setError("");
     const { error: e } = await supabase
       .from("profiles")
-      .update({ name, username, bio })
+      .update({ name, username, bio, cover_position: coverPos, avatar_position: avatarPos })
       .eq("id", session.user.id);
     setSaving(false);
     if (e) { setError("Error al guardar. Intentá de nuevo."); return; }
@@ -121,22 +125,52 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
           <input id="cover-input" type="file" accept="image/*" style={{ display: "none" }} onChange={handleCoverChange} />
         </div>
 
-        {/* Avatar sobre portada */}
+        {/* Avatar sobre portada con recentrado */}
         <div style={{ position: "absolute", bottom: -38, left: "50%", transform: "translateX(-50%)", zIndex: 2 }}>
           <div style={{ position: "relative" }}>
             {avatarUrl
-              ? <img src={avatarUrl} alt="avatar" style={{ width: 76, height: 76, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.3)", display: "block" }} />
+              ? <img src={avatarUrl} alt="avatar" style={{
+                  width: 76, height: 76, borderRadius: "50%", objectFit: "cover",
+                  objectPosition: avatarPos,
+                  border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.3)", display: "block",
+                  cursor: repositioning === "avatar" ? "grabbing" : "default",
+                }}
+                onMouseDown={repositioning === "avatar" ? (e) => setDragStart({ x: e.clientX, y: e.clientY, pos: avatarPos }) : undefined}
+                onMouseMove={repositioning === "avatar" && dragStart ? (e) => {
+                  const dx = ((e.clientX - dragStart.x) / 76) * -100;
+                  const dy = ((e.clientY - dragStart.y) / 76) * -100;
+                  const [ox, oy] = dragStart.pos.split(" ").map(p => parseFloat(p));
+                  setAvatarPos(`${Math.max(0,Math.min(100,ox+dx)).toFixed(0)}% ${Math.max(0,Math.min(100,oy+dy)).toFixed(0)}%`);
+                } : undefined}
+                onMouseUp={() => { if (repositioning === "avatar") setDragStart(null); }}
+                onTouchStart={repositioning === "avatar" ? (e) => setDragStart({ x: e.touches[0].clientX, y: e.touches[0].clientY, pos: avatarPos }) : undefined}
+                onTouchMove={repositioning === "avatar" && dragStart ? (e) => {
+                  const dx = ((e.touches[0].clientX - dragStart.x) / 76) * -100;
+                  const dy = ((e.touches[0].clientY - dragStart.y) / 76) * -100;
+                  const [ox, oy] = dragStart.pos.split(" ").map(p => parseFloat(p));
+                  setAvatarPos(`${Math.max(0,Math.min(100,ox+dx)).toFixed(0)}% ${Math.max(0,Math.min(100,oy+dy)).toFixed(0)}%`);
+                } : undefined}
+                onTouchEnd={() => { if (repositioning === "avatar") setDragStart(null); }}
+                />
               : <div style={{ width: 76, height: 76, borderRadius: "50%", background: `linear-gradient(135deg, ${COLORS.primary}, ${COLORS.primaryDark})`, color: "#fff", fontSize: 28, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.3)" }}>
                   {getInitials(name)}
                 </div>
             }
-            <label htmlFor="avatar-input" style={{
-              position: "absolute", bottom: 0, right: 0,
-              width: 24, height: 24, borderRadius: "50%",
-              background: COLORS.primary, color: "#fff",
-              fontSize: 12, display: "flex", alignItems: "center", justifyContent: "center",
-              border: "2px solid #fff", cursor: "pointer",
-            }}>✏️</label>
+            <div style={{ position: "absolute", bottom: -2, right: -2, display: "flex", flexDirection: "column", gap: 2 }}>
+              <label htmlFor="avatar-input" style={{
+                width: 22, height: 22, borderRadius: "50%",
+                background: COLORS.primary, color: "#fff",
+                fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center",
+                border: "2px solid #fff", cursor: "pointer",
+              }}>✏️</label>
+              {avatarUrl && (
+                <button onClick={() => setRepositioning(r => r === "avatar" ? null : "avatar")} style={{
+                  width: 22, height: 22, borderRadius: "50%",
+                  background: "#1F2937", color: "#fff",
+                  fontSize: 9, fontWeight: 700, border: "2px solid #fff", cursor: "pointer",
+                }}>⊹</button>
+              )}
+            </div>
             <input id="avatar-input" type="file" accept="image/*" style={{ display: "none" }} onChange={handleAvatarChange} />
           </div>
         </div>

@@ -187,19 +187,31 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
         </div>
       )}
 
-      {/* ── HERO SECTION ── */}
-      <div style={{
-        background: `linear-gradient(135deg, ${COLORS.primary}20 0%, ${COLORS.accent}15 100%)`,
-        padding: "40px 20px",
-        textAlign: "center",
-      }}>
-        <div style={{ maxWidth: 700, margin: "0 auto" }}>
+      {/* ── HERO SECTION — portada + avatar con foto real ── */}
+      <div style={{ background: `linear-gradient(135deg, ${COLORS.primary}20 0%, ${COLORS.accent}15 100%)` }}>
+        {/* Portada */}
+        <div style={{
+          height: 160, width: "100%",
+          background: profile?.cover_url
+            ? `url(${profile.cover_url}) center/cover no-repeat`
+            : `linear-gradient(135deg, ${COLORS.primary} 0%, #9C27B0 40%, ${COLORS.accent} 100%)`,
+        }} />
+        {/* Avatar centrado sobre portada */}
+        <div style={{ textAlign: "center", marginTop: -44, paddingBottom: 0 }}>
           {isToday ? (
-            <div style={{ fontSize: 80, marginBottom: 16 }}>🥳</div>
+            <div style={{ fontSize: 80 }}>🥳</div>
           ) : (
-            <Avatar initials={profile ? getInitials(profile.name) : "🎂"} size={80} />
+            <div style={{ display: "inline-block", position: "relative" }}>
+              {profile?.avatar_url
+                ? <img src={profile.avatar_url} alt="avatar" style={{ width: 88, height: 88, borderRadius: "50%", objectFit: "cover", border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.18)", display: "block" }} />
+                : <Avatar initials={profile ? getInitials(profile.name) : "🎂"} size={88} style={{ border: "4px solid #fff", boxShadow: "0 4px 20px rgba(0,0,0,0.18)" }} />
+              }
+            </div>
           )}
-          <h1 style={{ margin: "20px 0 8px", fontSize: 36, fontWeight: 900, color: COLORS.text }}>{displayName}</h1>
+        </div>
+        <div style={{ padding: "12px 20px 24px", textAlign: "center" }}>
+        <div style={{ maxWidth: 700, margin: "0 auto" }}>
+          <h1 style={{ margin: "0 0 8px", fontSize: 36, fontWeight: 900, color: COLORS.text }}>{displayName}</h1>
           <p style={{ margin: "0 0 16px", color: COLORS.textLight, fontSize: 16 }}>
             Cumpleaños el {formatBirthday(profile?.birthday || campaign?.birthday_date || "")}
           </p>
@@ -228,6 +240,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
               🔗 Compartir regalo
             </Button>
           </div>
+        </div>
         </div>
       </div>
 
