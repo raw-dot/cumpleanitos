@@ -7,6 +7,12 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import ExplorePage from "./pages/ExplorePage";
 import ProfilePage from "./pages/ProfilePage";
 import HomePage from "./pages/HomePage";
+import WishListPage from "./pages/WishListPage";
+import GiftsGivenPage from "./pages/GiftsGivenPage";
+import ManageGiftsPage from "./pages/ManageGiftsPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import ShareProfilePage from "./pages/ShareProfilePage";
+import SettingsPage from "./pages/SettingsPage";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -31,8 +37,8 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
 
   const menuItems = [
     { icon: "🎂", label: "Mi regalo", action: () => { setPage("dashboard"); setShowMenu(false); } },
-    { icon: "⚙️", label: "Configuración", action: () => { setPage("settings"); setShowMenu(false); } },
-    { icon: "🔗", label: "Compartir mi perfil", action: copyProfileLink },
+    { icon: "⚙️", label: "Configuración", action: () => { setPage("settings-mobile"); setShowMenu(false); } },
+    { icon: "🔗", label: "Compartir mi perfil", action: () => { setPage("share"); setShowMenu(false); } },
     { icon: "🚪", label: "Cerrar sesión", action: () => { onLogout(); setShowMenu(false); }, color: COLORS.error },
   ];
 
@@ -51,16 +57,15 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
           <Logo size={isMobile ? 20 : 24} />
         </div>
 
-        {/* Desktop nav */}
         {!isMobile && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
             <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => setPage("explore")}>Explorar</Button>
             {session ? (
               <>
                 {role === "manager" ? (
-                  <Button variant={page === "dashboard" ? "outline" : "ghost"} size="sm" onClick={() => setPage("dashboard")}>🎁 Mis regalos</Button>
+                  <Button variant="ghost" size="sm" onClick={() => setPage("dashboard")}>🎁 Mis regalos</Button>
                 ) : (
-                  <Button variant={page === "profile" ? "outline" : "ghost"} size="sm" onClick={onViewLanding}>🎂 Mi cumple</Button>
+                  <Button variant="ghost" size="sm" onClick={onViewLanding}>🎂 Mi cumple</Button>
                 )}
                 <div style={{ position: "relative", marginLeft: 4, display: "flex", alignItems: "center", gap: 2 }}>
                   <div onClick={() => { setPage("settings"); setShowMenu(false); }}
@@ -71,8 +76,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
                   </div>
                   <button onClick={() => setShowMenu(v => !v)} style={{
                     background: "none", border: "none", cursor: "pointer", padding: "4px 6px",
-                    color: COLORS.textLight, fontSize: 14, lineHeight: 1, borderRadius: 4,
-                    fontWeight: 700,
+                    color: COLORS.textLight, fontSize: 14, lineHeight: 1, borderRadius: 4, fontWeight: 700,
                   }}>▾</button>
                   {showMenu && (
                     <>
@@ -135,7 +139,6 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
           </div>
         )}
 
-        {/* Mobile nav — compacto */}
         {isMobile && (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {session ? (
@@ -164,91 +167,48 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
 }
 
 // ─── PANTALLA PERFIL MOBILE ────────────────────────────────────────────────
-function ProfileScreen({ profile, session, setPage, onLogout, onViewLanding }) {
+function ProfileScreen({ profile, setPage, onLogout, onViewLanding }) {
   const role = profile?.role;
-
-  const copyLink = () => {
-    navigator.clipboard.writeText(window.location.origin + "?u=" + profile?.username);
-  };
-
-  const spaceCards = [
-    {
-      icon: "🎂", title: "Mi regalo", sub: "Mi campaña de cumpleaños",
-      color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding(),
-    },
-    {
-      icon: "📋", title: "Lista de deseos", sub: "Cosas que me pueden regalar",
-      color: COLORS.accent, bg: "#FFFBEB", action: () => setPage("dashboard"),
-    },
-    {
-      icon: "🎁", title: "Regalos que hice", sub: "A quienes les regalé",
-      color: "#10B981", bg: "#F0FDF9", action: () => setPage("dashboard"),
-    },
-    {
-      icon: "🛍️", title: "Gestionar regalos", sub: "Cumpleaños que organizo",
-      color: "#3B82F6", bg: "#EFF6FF", action: () => setPage("dashboard"),
-    },
-  ];
-
-  const accountItems = [
-    { icon: "⚙️", label: "Configuración", sub: "Editar perfil y datos", bg: "#F3F4F6", action: () => setPage("settings") },
-    { icon: "🔗", label: "Compartir mi perfil", sub: "Link de cumpleaños público", bg: "#F3F4F6", action: copyLink },
-    { icon: "🚪", label: "Cerrar sesión", sub: null, bg: "#FEF2F2", danger: true, action: onLogout },
-  ];
-
   const roleLabel = role === "manager" ? "Gestor" : role === "gifter" ? "Regalador" : "Cumpleañero";
   const roleIcon = role === "manager" ? "🛍️" : role === "gifter" ? "🎁" : "🎂";
 
+  const spaceCards = [
+    { icon: "🎂", title: "Mi regalo", sub: "Mi campaña de cumpleaños", color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding() },
+    { icon: "📋", title: "Lista de deseos", sub: "Cosas que me pueden regalar", color: COLORS.accent, bg: "#FFFBEB", action: () => setPage("wishlist") },
+    { icon: "🎁", title: "Regalos que hice", sub: "A quienes les regalé", color: "#10B981", bg: "#F0FDF9", action: () => setPage("gifts-given") },
+    { icon: "🛍️", title: "Gestionar regalos", sub: "Cumpleaños que organizo", color: "#3B82F6", bg: "#EFF6FF", action: () => setPage("manage-gifts") },
+  ];
+
+  const accountItems = [
+    { icon: "⚙️", label: "Configuración", sub: "Editar perfil y datos", bg: "#F3F4F6", action: () => setPage("settings-mobile") },
+    { icon: "🔗", label: "Compartir mi perfil", sub: "Link de cumpleaños público", bg: "#F3F4F6", action: () => setPage("share") },
+    { icon: "🚪", label: "Cerrar sesión", sub: null, bg: "#FEF2F2", danger: true, action: onLogout },
+  ];
+
   return (
     <div style={{ background: "#F5F5F7", minHeight: "100vh", paddingBottom: 80 }}>
-      {/* Header */}
-      <div style={{
-        background: "linear-gradient(160deg, #EDE9FF 0%, #F5F0FF 100%)",
-        padding: "28px 20px 20px", textAlign: "center",
-      }}>
-        <div style={{
-          width: 72, height: 72, borderRadius: "50%",
-          background: "linear-gradient(135deg, " + COLORS.primary + ", " + COLORS.primaryDark + ")",
-          color: "#fff", fontSize: 26, fontWeight: 700,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          margin: "0 auto 12px", border: "3px solid #fff",
-          boxShadow: "0 4px 16px rgba(124,58,237,0.25)",
-        }}>
+      <div style={{ background: "linear-gradient(160deg, #EDE9FF 0%, #F5F0FF 100%)", padding: "28px 20px 20px", textAlign: "center" }}>
+        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg, #7C3AED, #5B21B6)", color: "#fff", fontSize: 26, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }}>
           {profile ? getInitials(profile.name) : "?"}
         </div>
         <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{profile?.name}</div>
         <div style={{ fontSize: 13, color: COLORS.textLight, margin: "3px 0 10px" }}>@{profile?.username}</div>
-        <div style={{
-          display: "inline-flex", alignItems: "center", gap: 5,
-          padding: "5px 14px", background: COLORS.primary + "18",
-          borderRadius: 20, fontSize: 12, fontWeight: 700, color: COLORS.primary,
-        }}>
+        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 14px", background: COLORS.primary + "18", borderRadius: 20, fontSize: 12, fontWeight: 700, color: COLORS.primary }}>
           {roleIcon} {roleLabel}
         </div>
       </div>
 
-      {/* Stats */}
       <div style={{ display: "flex", background: "#fff", borderBottom: "1px solid " + COLORS.border }}>
-        {[
-          { n: "$0", l: "Recibido" },
-          { n: "0", l: "Aportes" },
-          { n: "0", l: "Seguidores" },
-        ].map((s, i) => (
-          <div key={i} style={{
-            flex: 1, padding: "12px 4px", textAlign: "center",
-            borderRight: i < 2 ? "1px solid " + COLORS.border : "none",
-          }}>
+        {[{ n: "$0", l: "Recibido" }, { n: "0", l: "Aportes" }, { n: "0", l: "Seguidores" }].map((s, i) => (
+          <div key={i} style={{ flex: 1, padding: "12px 4px", textAlign: "center", borderRight: i < 2 ? "1px solid " + COLORS.border : "none" }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{s.n}</div>
             <div style={{ fontSize: 10, color: COLORS.textLight }}>{s.l}</div>
           </div>
         ))}
       </div>
 
-      {/* MI ESPACIO — Cards 2x2 */}
       <div style={{ padding: "16px 14px 4px" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>
-          Mi espacio
-        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 10 }}>Mi espacio</div>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {spaceCards.map((card, i) => (
             <button key={i} onClick={card.action} style={{
@@ -259,11 +219,7 @@ function ProfileScreen({ profile, session, setPage, onLogout, onViewLanding }) {
               alignItems: "flex-start", gap: 6, textAlign: "left",
               boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
             }}>
-              <div style={{
-                width: 44, height: 44, borderRadius: 12,
-                background: card.bg, display: "flex",
-                alignItems: "center", justifyContent: "center", fontSize: 22,
-              }}>{card.icon}</div>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{card.icon}</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.text, lineHeight: 1.2 }}>{card.title}</div>
               <div style={{ fontSize: 11, color: COLORS.textLight, lineHeight: 1.3 }}>{card.sub}</div>
               <div style={{ fontSize: 12, color: card.color, alignSelf: "flex-end", fontWeight: 700 }}>›</div>
@@ -272,11 +228,8 @@ function ProfileScreen({ profile, session, setPage, onLogout, onViewLanding }) {
         </div>
       </div>
 
-      {/* CUENTA */}
       <div style={{ padding: "16px 14px 4px" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>
-          Cuenta
-        </div>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Cuenta</div>
         <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: "1px solid " + COLORS.border }}>
           {accountItems.map((item, i) => (
             <button key={i} onClick={item.action} style={{
@@ -286,10 +239,7 @@ function ProfileScreen({ profile, session, setPage, onLogout, onViewLanding }) {
               background: "none", cursor: "pointer", border: "none",
               borderBottom: i < accountItems.length - 1 ? "1px solid #F3F4F6" : "none",
             }}>
-              <div style={{
-                width: 34, height: 34, borderRadius: 9, background: item.bg,
-                display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0,
-              }}>{item.icon}</div>
+              <div style={{ width: 34, height: 34, borderRadius: 9, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{item.icon}</div>
               <div style={{ flex: 1, textAlign: "left" }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: item.danger ? COLORS.error : COLORS.text }}>{item.label}</div>
                 {item.sub && <div style={{ fontSize: 11, color: COLORS.textLight }}>{item.sub}</div>}
@@ -311,29 +261,18 @@ function BottomNav({ page, setPage, profile, onViewLanding }) {
   const items = [
     { icon: "🏠", label: "Inicio", key: "home", action: () => setPage("home") },
     { icon: "🔍", label: "Explorar", key: "explore", action: () => setPage("explore") },
-    { icon: "🎁", label: "Mis listas", key: "dashboard", action: () => role === "manager" ? setPage("dashboard") : onViewLanding() },
+    { icon: "🎁", label: "Mis listas", key: "dashboard", action: () => role === "manager" ? setPage("manage-gifts") : onViewLanding() },
     { icon: "🔔", label: "Notif.", key: "notif", action: () => setPage("notif") },
     { icon: "👤", label: "Perfil", key: "perfil", action: () => setPage("perfil") },
   ];
   return (
-    <nav style={{
-      position: "fixed", bottom: 0, left: 0, right: 0, height: 70,
-      background: "#fff", borderTop: "1px solid " + COLORS.border,
-      display: "flex", alignItems: "stretch",
-      boxShadow: "0 -4px 24px rgba(124,58,237,0.10)", zIndex: 200,
-    }}>
+    <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 70, background: "#fff", borderTop: "1px solid " + COLORS.border, display: "flex", alignItems: "stretch", boxShadow: "0 -4px 24px rgba(124,58,237,0.10)", zIndex: 200 }}>
       {items.map((item) => {
-        const active = page === item.key;
+        const active = page === item.key || (item.key === "notif" && page === "notif");
         return (
-          <button key={item.key} onClick={item.action} style={{
-            flex: 1, display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            gap: 3, background: "none", border: "none", cursor: "pointer", padding: "8px 0",
-          }}>
+          <button key={item.key} onClick={item.action} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, background: "none", border: "none", cursor: "pointer", padding: "8px 0" }}>
             <span style={{ fontSize: 22, lineHeight: 1 }}>{item.icon}</span>
-            <span style={{ fontSize: 10, fontWeight: active ? 800 : 500, color: active ? COLORS.primary : COLORS.textLight }}>
-              {item.label}
-            </span>
+            <span style={{ fontSize: 10, fontWeight: active ? 800 : 500, color: active ? COLORS.primary : COLORS.textLight }}>{item.label}</span>
             {active && <div style={{ width: 5, height: 5, background: COLORS.primary, borderRadius: "50%", marginTop: -1 }} />}
           </button>
         );
@@ -345,16 +284,9 @@ function BottomNav({ page, setPage, profile, onViewLanding }) {
 // ─── FOOTER ──────────────────────────────────────────────────────────────────
 function Footer({ isMobile }) {
   return (
-    <footer style={{
-      borderTop: "1px solid " + COLORS.border,
-      padding: isMobile ? "32px 20px 24px" : "36px 20px",
-      textAlign: "center", marginTop: 40,
-      paddingBottom: isMobile ? 90 : 36,
-    }}>
+    <footer style={{ borderTop: "1px solid " + COLORS.border, padding: isMobile ? "32px 20px 24px" : "36px 20px", textAlign: "center", marginTop: 40, paddingBottom: isMobile ? 90 : 36 }}>
       <Logo size={22} />
-      <p style={{ fontSize: 13, color: COLORS.textLight, marginTop: 12, marginBottom: 0 }}>
-        Hecho con 💜 en Argentina · © 2026 Cumpleanitos
-      </p>
+      <p style={{ fontSize: 13, color: COLORS.textLight, marginTop: 12, marginBottom: 0 }}>Hecho con 💜 en Argentina · © 2026 Cumpleanitos</p>
     </footer>
   );
 }
@@ -371,17 +303,14 @@ export default function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const u = params.get("u");
-    const c = params.get("c");
+    const u = params.get("u"); const c = params.get("c");
     if (u) { setProfileTarget({ username: u }); setPage("profile"); }
     else if (c) { setProfileTarget({ campaignId: c }); setPage("profile"); }
   }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s);
-      if (s) loadProfile(s.user.id);
-      setLoading(false);
+      setSession(s); if (s) loadProfile(s.user.id); setLoading(false);
     }).catch(() => setLoading(false));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
@@ -405,16 +334,14 @@ export default function App() {
 
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (data) setProfile(data);
-    return data;
+    if (data) setProfile(data); return data;
   };
 
   const handleAuth = async (user) => {
     const data = await loadProfile(user.id);
     if (data?.role === "manager") { setPage("dashboard"); return; }
     if (data?.role === "gifter") { setPage("explore"); return; }
-    if (data?.username) viewProfile(data.username);
-    else setPage("dashboard");
+    if (data?.username) viewProfile(data.username); else setPage("dashboard");
   };
 
   const handleLogout = async () => {
@@ -430,41 +357,32 @@ export default function App() {
     if (!error) { setProfile(prev => ({ ...prev, role: newRole })); setPage("dashboard"); }
   };
 
+  const handleProfileUpdated = (updated) => setProfile(updated);
+
   if (loading) {
     return (
-      <div style={{
-        fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        minHeight: "100vh", color: COLORS.textLight, fontSize: 16,
-      }}>
-        <div style={{ textAlign: "center" }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>🎂</div>
-          Cargando...
-        </div>
+      <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: COLORS.textLight }}>
+        <div style={{ textAlign: "center" }}><div style={{ fontSize: 40, marginBottom: 12 }}>🎂</div>Cargando...</div>
       </div>
     );
   }
+
+  const noNavPages = ["perfil","wishlist","gifts-given","manage-gifts","settings-mobile","share","notif"];
 
   const renderPage = () => {
     switch (page) {
       case "home": return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
+      case "notif": return <NotificationsPage />;
+      case "wishlist": return <WishListPage onBack={() => setPage("perfil")} />;
+      case "gifts-given": return <GiftsGivenPage onBack={() => setPage("perfil")} />;
+      case "manage-gifts": return <ManageGiftsPage onBack={() => setPage("perfil")} />;
+      case "share": return <ShareProfilePage profile={profile} onBack={() => setPage("perfil")} onViewProfile={viewProfile} />;
+      case "settings-mobile":
+        return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
-        return (
-          <ProfileScreen
-            profile={profile} session={session} setPage={setPage}
-            onLogout={handleLogout}
-            onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")}
-          />
-        );
-      case "notif":
-        return (
-          <div style={{ padding: "20px", textAlign: "center", color: COLORS.textLight, paddingBottom: 80 }}>
-            <div style={{ fontSize: 40, marginBottom: 12 }}>🔔</div>
-            <p>No tenés notificaciones nuevas</p>
-          </div>
-        );
+        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
       case "login":
       case "register":
         if (session) {
@@ -490,23 +408,16 @@ export default function App() {
     }
   };
 
+  const hideFooter = noNavPages.includes(page);
+
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
-      <Navbar
-        page={page} setPage={setPage} session={session} profile={profile}
-        onLogout={handleLogout} onRoleSwitch={handleRoleSwitch}
-        onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")}
-      />
+      <Navbar page={page} setPage={setPage} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />
       <main style={{ paddingBottom: isMobile && session ? 70 : 0 }}>
         {renderPage()}
       </main>
-      {page !== "perfil" && <Footer isMobile={isMobile} />}
-      {session && (
-        <BottomNav
-          page={page} setPage={setPage} profile={profile}
-          onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")}
-        />
-      )}
+      {!hideFooter && <Footer isMobile={isMobile} />}
+      {session && <BottomNav page={page} setPage={setPage} profile={profile} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />}
     </div>
   );
 }
