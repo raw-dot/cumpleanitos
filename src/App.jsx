@@ -237,7 +237,6 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding }) {
               padding: "14px 16px",
               borderBottom: i < accountItems.length - 1 ? "1px solid #F3F4F6" : "none",
               background: "none", cursor: "pointer", border: "none",
-              borderBottom: i < accountItems.length - 1 ? "1px solid #F3F4F6" : "none",
             }}>
               <div style={{ width: 34, height: 34, borderRadius: 9, background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 17, flexShrink: 0 }}>{item.icon}</div>
               <div style={{ flex: 1, textAlign: "left" }}>

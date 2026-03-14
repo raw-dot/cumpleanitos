@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "./supabaseClient";
+import { supabase } from "../supabaseClient";
 
 const COLORS = {
   primary: "#7C3AED", primaryDark: "#5B21B6", accent: "#F59E0B",
