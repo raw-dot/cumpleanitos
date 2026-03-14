@@ -309,8 +309,18 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: s } }) => {
-      setSession(s); if (s) loadProfile(s.user.id); setLoading(false);
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      setSession(s);
+      if (s) {
+        const data = await loadProfile(s.user.id);
+        const params = new URLSearchParams(window.location.search);
+        if (!params.get("u") && !params.get("c")) {
+          if (data?.role === "manager") setPage("dashboard");
+          else if (data?.role === "gifter") setPage("explore");
+          else setPage("perfil");
+        }
+      }
+      setLoading(false);
     }).catch(() => setLoading(false));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s);
@@ -322,8 +332,7 @@ export default function App() {
             if (!params.get("u") && !params.get("c")) {
               if (data?.role === "manager") setPage("dashboard");
               else if (data?.role === "gifter") setPage("explore");
-              else if (data?.username) viewProfile(data.username);
-              else setPage("dashboard");
+              else setPage("perfil");
             }
           });
         } else { loadProfile(s.user.id); }
@@ -341,7 +350,7 @@ export default function App() {
     const data = await loadProfile(user.id);
     if (data?.role === "manager") { setPage("dashboard"); return; }
     if (data?.role === "gifter") { setPage("explore"); return; }
-    if (data?.username) viewProfile(data.username); else setPage("dashboard");
+    setPage("perfil");
   };
 
   const handleLogout = async () => {
