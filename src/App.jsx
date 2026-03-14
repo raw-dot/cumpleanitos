@@ -167,16 +167,16 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
 }
 
 // ─── PANTALLA PERFIL MOBILE ────────────────────────────────────────────────
-function ProfileScreen({ profile, setPage, onLogout, onViewLanding }) {
+function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats }) {
   const role = profile?.role;
   const roleLabel = role === "manager" ? "Gestor" : role === "gifter" ? "Regalador" : "Cumpleañero";
   const roleIcon = role === "manager" ? "🛍️" : role === "gifter" ? "🎁" : "🎂";
 
   const spaceCards = [
-    { icon: "🎂", title: "Mi regalo", sub: "Mi campaña de cumpleaños", color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding() },
-    { icon: "📋", title: "Lista de deseos", sub: "Cosas que me pueden regalar", color: COLORS.accent, bg: "#FFFBEB", action: () => setPage("wishlist") },
-    { icon: "🎁", title: "Regalos que hice", sub: "A quienes les regalé", color: "#10B981", bg: "#F0FDF9", action: () => setPage("gifts-given") },
-    { icon: "🛍️", title: "Gestionar regalos", sub: "Cumpleaños que organizo", color: "#3B82F6", bg: "#EFF6FF", action: () => setPage("manage-gifts") },
+    { icon: "🎂", title: "Regalo", color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding() },
+    { icon: "📋", title: "Deseos", color: COLORS.accent, bg: "#FFFBEB", action: () => setPage("wishlist") },
+    { icon: "🎁", title: "Regalé", color: "#10B981", bg: "#F0FDF9", action: () => setPage("gifts-given") },
+    { icon: "🛍️", title: "Gestionar", color: "#3B82F6", bg: "#EFF6FF", action: () => setPage("manage-gifts") },
   ];
 
   const accountItems = [
@@ -193,13 +193,15 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding }) {
         </div>
         <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{profile?.name}</div>
         <div style={{ fontSize: 13, color: COLORS.textLight, margin: "3px 0 10px" }}>@{profile?.username}</div>
-        <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 14px", background: COLORS.primary + "18", borderRadius: 20, fontSize: 12, fontWeight: 700, color: COLORS.primary }}>
-          {roleIcon} {roleLabel}
-        </div>
+
       </div>
 
       <div style={{ display: "flex", background: "#fff", borderBottom: "1px solid " + COLORS.border }}>
-        {[{ n: "$0", l: "Recibido" }, { n: "0", l: "Aportes" }, { n: "0", l: "Seguidores" }].map((s, i) => (
+        {[
+          { n: stats.raised > 0 ? "$" + (stats.raised >= 1000 ? (stats.raised/1000).toFixed(1)+"k" : stats.raised) : "$0", l: "Recaudado" },
+          { n: stats.gifters, l: "Regaladores" },
+          { n: stats.friends, l: "Amigos" },
+        ].map((s, i) => (
           <div key={i} style={{ flex: 1, padding: "12px 4px", textAlign: "center", borderRight: i < 2 ? "1px solid " + COLORS.border : "none" }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{s.n}</div>
             <div style={{ fontSize: 10, color: COLORS.textLight }}>{s.l}</div>
@@ -212,17 +214,15 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding }) {
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           {spaceCards.map((card, i) => (
             <button key={i} onClick={card.action} style={{
-              background: "#fff", borderRadius: 16, padding: "16px 14px 12px",
+              background: "#fff", borderRadius: 16, padding: "16px 10px 14px",
               border: "1px solid " + COLORS.border,
               borderBottom: "3px solid " + card.color,
               cursor: "pointer", display: "flex", flexDirection: "column",
-              alignItems: "flex-start", gap: 6, textAlign: "left",
-              boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
+              alignItems: "center", justifyContent: "center", gap: 8, textAlign: "center",
+              minHeight: 90, boxShadow: "0 1px 4px rgba(0,0,0,0.04)",
             }}>
-              <div style={{ width: 44, height: 44, borderRadius: 12, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{card.icon}</div>
-              <div style={{ fontSize: 13, fontWeight: 800, color: COLORS.text, lineHeight: 1.2 }}>{card.title}</div>
-              <div style={{ fontSize: 11, color: COLORS.textLight, lineHeight: 1.3 }}>{card.sub}</div>
-              <div style={{ fontSize: 12, color: card.color, alignSelf: "flex-end", fontWeight: 700 }}>›</div>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: card.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>{card.icon}</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: COLORS.text, lineHeight: 1.2, textAlign: "center" }}>{card.title}</div>
             </button>
           ))}
         </div>
@@ -260,7 +260,7 @@ function BottomNav({ page, setPage, profile, onViewLanding }) {
   const items = [
     { icon: "🏠", label: "Inicio", key: "home", action: () => setPage("home") },
     { icon: "🔍", label: "Explorar", key: "explore", action: () => setPage("explore") },
-    { icon: "🎁", label: "Mis listas", key: "dashboard", action: () => role === "manager" ? setPage("manage-gifts") : onViewLanding() },
+    { icon: "🎂", label: "Mi regalo", key: "miregalo", action: () => onViewLanding() },
     { icon: "🔔", label: "Notif.", key: "notif", action: () => setPage("notif") },
     { icon: "👤", label: "Perfil", key: "perfil", action: () => setPage("perfil") },
   ];
@@ -297,6 +297,7 @@ export default function App() {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [profileTarget, setProfileTarget] = useState(null);
+  const [stats, setStats] = useState({ raised: 0, gifters: 0, friends: 0 });
   const loginNavigatedRef = useRef(false);
   const isMobile = useIsMobile();
 
@@ -338,7 +339,30 @@ export default function App() {
 
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (data) setProfile(data); return data;
+    if (data) setProfile(data);
+    loadStats(userId);
+    return data;
+  };
+
+  const loadStats = async (userId) => {
+    try {
+      const [campRes, friendsRes] = await Promise.all([
+        supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId).eq("status", "active").limit(1).single(),
+        supabase.from("friends").select("id", { count: "exact", head: true }).eq("user_id", userId),
+      ]);
+      const friendCount = friendsRes.count || 0;
+      if (campRes.data?.id) {
+        const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
+        const contribs = contribRes.data || [];
+        const raised = contribs.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+        const gifters = new Set(contribs.map(c => c.gifter_name || "anon")).size;
+        setStats({ raised, gifters, friends: friendCount });
+      } else {
+        setStats({ raised: 0, gifters: 0, friends: friendCount });
+      }
+    } catch(e) {
+      setStats({ raised: 0, gifters: 0, friends: 0 });
+    }
   };
 
   const handleAuth = async (user) => {
@@ -375,7 +399,7 @@ export default function App() {
     switch (page) {
       case "home": return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
-      case "notif": return <NotificationsPage />;
+      case "notif": return <NotificationsPage session={session} />;
       case "wishlist": return <WishListPage onBack={() => setPage("perfil")} />;
       case "gifts-given": return <GiftsGivenPage onBack={() => setPage("perfil")} />;
       case "manage-gifts": return <ManageGiftsPage onBack={() => setPage("perfil")} />;
@@ -384,7 +408,7 @@ export default function App() {
         return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
-        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
+        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
       case "login":
       case "register":
         if (session) {
