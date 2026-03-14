@@ -18,6 +18,7 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
   const [bio, setBio] = useState(profile?.bio || "");
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [coverUrl, setCoverUrl] = useState(profile?.cover_url || "");
+  const [coverGradient, setCoverGradient] = useState(profile?.cover_gradient || "");
   const [coverPos, setCoverPos] = useState(profile?.cover_position || "50% 50%");
   const [avatarPos, setAvatarPos] = useState(profile?.avatar_position || "50% 50%");
   const [saving, setSaving] = useState(false);
@@ -61,8 +62,9 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
     const url = await uploadFile(file, "covers");
     if (url) {
       setCoverUrl(url);
-      await supabase.from("profiles").update({ cover_url: url }).eq("id", session.user.id);
-      if (onProfileUpdated) onProfileUpdated({ ...profile, name, username, bio, avatar_url: avatarUrl, cover_url: url });
+      setCoverGradient("");
+      await supabase.from("profiles").update({ cover_url: url, cover_gradient: "" }).eq("id", session.user.id);
+      if (onProfileUpdated) onProfileUpdated({ ...profile, name, username, bio, avatar_url: avatarUrl, cover_url: url, cover_gradient: "" });
     }
     setUploading(false);
     e.target.value = "";
@@ -72,7 +74,7 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
     setSaving(true); setError("");
     const { error: e } = await supabase
       .from("profiles")
-      .update({ name, username, bio, cover_position: coverPos, avatar_position: avatarPos })
+      .update({ name, username, bio, cover_position: coverPos, avatar_position: avatarPos, cover_gradient: coverGradient })
       .eq("id", session.user.id);
     setSaving(false);
     if (e) { setError("Error al guardar. Intentá de nuevo."); return; }
@@ -184,9 +186,11 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: 8 }}>Portada rápida</div>
         <div style={{ display: "flex", gap: 8, overflowX: "auto" }}>
           {coverGradients.map((g, i) => (
-            <button key={i} onClick={() => setCoverUrl("")} style={{
-              width: 56, height: 34, borderRadius: 8, border: "2px solid " + COLORS.border,
+            <button key={i} onClick={() => { setCoverGradient(g); setCoverUrl(""); }} style={{
+              width: 56, height: 34, borderRadius: 8,
+              border: coverGradient === g ? "2.5px solid " + COLORS.primary : "2px solid " + COLORS.border,
               background: g, cursor: "pointer", flexShrink: 0,
+              boxShadow: coverGradient === g ? "0 0 0 2px " + COLORS.primary + "40" : "none",
             }} title="Seleccionar gradiente" />
           ))}
         </div>

@@ -193,7 +193,9 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
         <div style={{
           height: 160, width: "100%",
           background: profile?.cover_url
-            ? `url(${profile.cover_url}) center/cover no-repeat`
+            ? `url(${profile.cover_url}) ${profile.cover_position || "center"}/cover no-repeat`
+            : profile?.cover_gradient
+            ? profile.cover_gradient
             : `linear-gradient(135deg, ${COLORS.primary} 0%, #9C27B0 40%, ${COLORS.accent} 100%)`,
         }} />
         {/* Avatar centrado sobre portada */}

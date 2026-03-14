@@ -173,7 +173,9 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats, onAva
         <div style={{
           height: 160,
           background: profile?.cover_url
-            ? "url(" + profile.cover_url + ") center/cover no-repeat"
+            ? "url(" + profile.cover_url + ") " + (profile.cover_position || "center") + "/cover no-repeat"
+            : profile?.cover_gradient
+            ? profile.cover_gradient
             : "linear-gradient(135deg, #7C3AED 0%, #9C27B0 40%, #F59E0B 100%)",
           width: "100%",
         }}>
