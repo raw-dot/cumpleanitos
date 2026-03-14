@@ -107,14 +107,24 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
 
   const handleSave = async () => {
     setSaving(true); setError("");
-    const { error: e } = await supabase.from("profiles").update({
-      name, username, bio,
+
+    // Update base fields (always exist)
+    const { error: e1 } = await supabase.from("profiles")
+      .update({ name, username, bio })
+      .eq("id", session.user.id);
+
+    if (e1) { setSaving(false); setError("Error al guardar datos. Intentá de nuevo."); return; }
+
+    // Update new visual fields — silently ignore if columns don't exist yet
+    await supabase.from("profiles").update({
       cover_position: `${coverX}% ${coverY}%`,
       avatar_position: `${avatarX}% ${avatarY}%`,
       cover_gradient: coverGrad,
     }).eq("id", session.user.id);
+    // Note: if these columns don't exist in DB yet, this silently fails
+    // Run migration-v4.sql in Supabase Dashboard to enable them
+
     setSaving(false);
-    if (e) { setError("Error al guardar. Intentá de nuevo."); return; }
     setSaved(true); setTimeout(() => setSaved(false), 2500);
     onProfileUpdated?.({
       ...profile, name, username, bio,
