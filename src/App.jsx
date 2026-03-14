@@ -93,24 +93,7 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
                             <div style={{ fontSize: 12, color: COLORS.textLight }}>@{profile?.username}</div>
                           </div>
                         </div>
-                        <div style={{ padding: "10px 14px 12px", borderBottom: "1px solid " + COLORS.border }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.textLight, marginBottom: 8, textTransform: "uppercase" }}>Cambiar rol</div>
-                          <div style={{ display: "flex", gap: 6 }}>
-                            {Object.entries(ROLES).map(([roleKey, roleData]) => (
-                              <button key={roleKey} onClick={() => { onRoleSwitch(roleKey); setShowMenu(false); }} style={{
-                                flex: 1, padding: "8px 6px", borderRadius: 8,
-                                border: "2px solid " + (role === roleKey ? roleData.color : COLORS.border),
-                                background: role === roleKey ? roleData.color + "15" : "transparent",
-                                color: role === roleKey ? roleData.color : COLORS.textLight,
-                                cursor: "pointer", fontSize: 11, fontWeight: role === roleKey ? 700 : 500,
-                                display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
-                              }}>
-                                <span style={{ fontSize: 16 }}>{roleData.icon}</span>
-                                <span>{roleData.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+
                         {menuItems.map((item, i) => (
                           <button key={i} onClick={item.action} style={{
                             display: "flex", alignItems: "center", gap: 12, width: "100%",
@@ -167,10 +150,8 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
 }
 
 // ─── PANTALLA PERFIL MOBILE ────────────────────────────────────────────────
-function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats }) {
+function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats, onAvatarUpload, onCoverUpload }) {
   const role = profile?.role;
-  const roleLabel = role === "manager" ? "Gestor" : role === "gifter" ? "Regalador" : "Cumpleañero";
-  const roleIcon = role === "manager" ? "🛍️" : role === "gifter" ? "🎁" : "🎂";
 
   const spaceCards = [
     { icon: "🎂", title: "Regalo", color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding() },
@@ -187,19 +168,41 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats }) {
 
   return (
     <div style={{ background: "#F5F5F7", minHeight: "100vh", paddingBottom: 80 }}>
-      <div style={{ background: "linear-gradient(160deg, #EDE9FF 0%, #F5F0FF 100%)", padding: "28px 20px 20px", textAlign: "center" }}>
-        <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg, #7C3AED, #5B21B6)", color: "#fff", fontSize: 26, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }}>
-          {profile ? getInitials(profile.name) : "?"}
+      {/* Portada */}
+      <div style={{ position: "relative" }}>
+        <div style={{
+          height: 100,
+          background: profile?.cover_url ? "url(" + profile.cover_url + ") center/cover" : "linear-gradient(135deg, #7C3AED, #F59E0B)",
+        }}>
+          <label htmlFor="cover-upload" style={{ position: "absolute", top: 8, right: 10, background: "rgba(0,0,0,0.45)", color: "#fff", borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+            ✏️ Portada
+          </label>
+          <input id="cover-upload" type="file" accept="image/*" style={{ display: "none" }} onChange={onCoverUpload} />
         </div>
+        {/* Avatar sobre portada */}
+        <div style={{ position: "absolute", bottom: -36, left: "50%", transform: "translateX(-50%)" }}>
+          <div style={{ position: "relative" }}>
+            {profile?.avatar_url
+              ? <img src={profile.avatar_url} alt="avatar" style={{ width: 72, height: 72, borderRadius: "50%", objectFit: "cover", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }} />
+              : <div style={{ width: 72, height: 72, borderRadius: "50%", background: "linear-gradient(135deg, #7C3AED, #5B21B6)", color: "#fff", fontSize: 26, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", border: "3px solid #fff", boxShadow: "0 4px 16px rgba(124,58,237,0.25)" }}>{profile ? getInitials(profile.name) : "?"}</div>
+            }
+            <label htmlFor="avatar-upload" style={{ position: "absolute", bottom: 0, right: 0, width: 22, height: 22, borderRadius: "50%", background: "#7C3AED", color: "#fff", fontSize: 11, display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid #fff", cursor: "pointer" }}>
+              ✏️
+            </label>
+            <input id="avatar-upload" type="file" accept="image/*" style={{ display: "none" }} onChange={onAvatarUpload} />
+          </div>
+        </div>
+      </div>
+      {/* Nombre + username con espacio para avatar */}
+      <div style={{ background: "#F5F5F7", paddingTop: 44, paddingBottom: 16, textAlign: "center" }}>
         <div style={{ fontSize: 20, fontWeight: 800, color: COLORS.text }}>{profile?.name}</div>
-        <div style={{ fontSize: 13, color: COLORS.textLight, margin: "3px 0 10px" }}>@{profile?.username}</div>
-
+        <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 3 }}>@{profile?.username}</div>
       </div>
 
       <div style={{ display: "flex", background: "#fff", borderBottom: "1px solid " + COLORS.border }}>
         {[
           { n: stats.raised > 0 ? "$" + (stats.raised >= 1000 ? (stats.raised/1000).toFixed(1)+"k" : stats.raised) : "$0", l: "Recaudado" },
-          { n: stats.gifters, l: "Regaladores" },
+          { n: stats.gifters, l: "Regalos" },
           { n: stats.friends, l: "Amigos" },
         ].map((s, i) => (
           <div key={i} style={{ flex: 1, padding: "12px 4px", textAlign: "center", borderRight: i < 2 ? "1px solid " + COLORS.border : "none" }}>
@@ -355,7 +358,7 @@ export default function App() {
         const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
         const contribs = contribRes.data || [];
         const raised = contribs.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-        const gifters = new Set(contribs.map(c => c.gifter_name || "anon")).size;
+        const gifters = contribs.length;  // cantidad de regalos/aportes reales
         setStats({ raised, gifters, friends: friendCount });
       } else {
         setStats({ raised: 0, gifters: 0, friends: friendCount });
@@ -385,6 +388,33 @@ export default function App() {
 
   const handleProfileUpdated = (updated) => setProfile(updated);
 
+  const uploadFile = async (file, folder) => {
+    const ext = file.name.split(".").pop();
+    const path = `${folder}/${session.user.id}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("cumple-images").upload(path, file, { upsert: true });
+    if (error) { console.error("Upload error:", error); return null; }
+    const { data: { publicUrl } } = supabase.storage.from("cumple-images").getPublicUrl(path);
+    return publicUrl;
+  };
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await uploadFile(file, "avatars");
+    if (!url) return;
+    await supabase.from("profiles").update({ avatar_url: url }).eq("id", session.user.id);
+    setProfile(prev => ({ ...prev, avatar_url: url }));
+  };
+
+  const handleCoverUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const url = await uploadFile(file, "covers");
+    if (!url) return;
+    await supabase.from("profiles").update({ cover_url: url }).eq("id", session.user.id);
+    setProfile(prev => ({ ...prev, cover_url: url }));
+  };
+
   if (loading) {
     return (
       <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: COLORS.textLight }}>
@@ -408,7 +438,7 @@ export default function App() {
         return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
-        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
+        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
       case "login":
       case "register":
         if (session) {
