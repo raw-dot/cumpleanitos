@@ -354,6 +354,7 @@ export default function App() {
       if (s) {
         setHasCampaign(null);
         await loadProfile(s.user.id);
+        window.history.replaceState({}, "", "/");
         const params = new URLSearchParams(window.location.search);
         if (!params.get("u") && !params.get("c")) {
           setPage("perfil");
@@ -361,19 +362,23 @@ export default function App() {
       }
       setLoading(false);
     }).catch(() => setLoading(false));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, s) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
       setSession(s);
       if (s) {
         if (event === "SIGNED_IN" && !loginNavigatedRef.current) {
           loginNavigatedRef.current = true;
-          loadProfile(s.user.id).then(data => {
-            const params = new URLSearchParams(window.location.search);
-            if (!params.get("u") && !params.get("c")) {
-              setPage("perfil");
-            }
-          });
-        } else { loadProfile(s.user.id); }
-      } else { loginNavigatedRef.current = false; setProfile(null); }
+          setHasCampaign(null);
+          await loadProfile(s.user.id);
+          window.history.replaceState({}, "", "/");
+          const params = new URLSearchParams(window.location.search);
+          if (!params.get("u") && !params.get("c")) {
+            setPage("perfil");
+          }
+        } else {
+          setHasCampaign(null);
+          await loadProfile(s.user.id);
+        }
+      } else { loginNavigatedRef.current = false; setProfile(null); setHasCampaign(null); }
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -411,7 +416,9 @@ export default function App() {
   };
 
   const handleAuth = async (user) => {
-    await loadProfile(user.id); // loadProfile ya awaita loadStats → hasCampaign resuelto
+    setHasCampaign(null);
+    await loadProfile(user.id);
+    window.history.replaceState({}, "", "/");
     setPage("perfil");
   };
 
@@ -424,9 +431,9 @@ export default function App() {
   const viewProfile = (username) => { setProfileTarget({ username }); setPage("profile"); };
 
   const navigateTo = (p) => {
-    if (p === "register") window.history.pushState({}, "", "/registro");
-    else if (p === "login") window.history.pushState({}, "", "/login");
-    else window.history.pushState({}, "", "/");
+    if (p === "register") window.history.replaceState({}, "", "/registro");
+    else if (p === "login") window.history.replaceState({}, "", "/login");
+    else window.history.replaceState({}, "", "/");
     setPage(p);
   };
 
