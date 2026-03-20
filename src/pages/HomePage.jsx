@@ -22,7 +22,7 @@ const ROLES_DATA = [
 ];
 
 const STEPS = [
-  { n: "1", label: "Creá tu perfil gratis", desc: "Registrate y armá tu lista de deseos en minutos" },
+  { n: "1", label: "Creá tu perfil gratis", desc: "Registrate y armá tu regalo de cumpleaños en segundos" },
   { n: "2", label: "Compartí tu lista", desc: "Enviá el link a tus amigos y familiares" },
   { n: "3", label: "Recibí tus regalos", desc: "Recibí los aportes de tus amigos para cumplir el deseo este cumpleaños" },
 ];
