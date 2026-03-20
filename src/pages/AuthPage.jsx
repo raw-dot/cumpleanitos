@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { COLORS, ROLES, Button, Card, Input, Alert, Logo } from "../shared";
 
-export default function AuthPage({ initialMode = "login", onAuth }) {
+export default function AuthPage({ initialMode = "login", onAuth, onNavigate }) {
   const [mode, setMode] = useState(initialMode);
   const [step, setStep] = useState(1);
   const [role, setRole] = useState("celebrant");
@@ -16,6 +16,13 @@ export default function AuthPage({ initialMode = "login", onAuth }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+
+  // Sincronizar mode cuando cambia initialMode desde el padre (ej: navbar)
+  useEffect(() => {
+    setMode(initialMode);
+    setError("");
+    setSuccess("");
+  }, [initialMode]);
 
   const getAge = (b) => {
     const today = new Date();
@@ -35,7 +42,8 @@ export default function AuthPage({ initialMode = "login", onAuth }) {
   };
 
   const switchMode = (newMode) => {
-    setMode(newMode);
+    if (onNavigate) onNavigate(newMode);
+    else setMode(newMode);
     setStep(1);
     setError("");
     setSuccess("");

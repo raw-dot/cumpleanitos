@@ -486,7 +486,7 @@ export default function App() {
       case "settings-mobile":
         return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
-        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
         if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => setHasCampaign(true)} />;
         return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
       case "login":
@@ -495,14 +495,14 @@ export default function App() {
           if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => setHasCampaign(true)} />;
           return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
         }
-        return <AuthPage initialMode={page} onAuth={handleAuth} />;
+        return <AuthPage key={page} initialMode={page} onAuth={handleAuth} onNavigate={navigateTo} />;
       case "dashboard":
-        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
         if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
         if (profile?.role === "manager") return <ManagerDashboard profile={profile} session={session} />;
         return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} />;
       case "settings":
-        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
         if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
         if (profile?.role === "manager") return <ManagerDashboard profile={profile} session={session} />;
         return <CelebrantDashboard profile={profile} session={session} defaultTab="settings" onViewLanding={() => viewProfile(profile?.username)} />;
