@@ -352,38 +352,37 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Un solo listener maneja todo: sesión inicial, login y logout
+    let initialDone = false;
+
+    // getSession: carga inicial, corre una sola vez
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      initialDone = true;
+      setSession(s);
+      if (s) {
+        setHasCampaign(null);
+        await loadProfile(s.user.id);
+        window.history.replaceState({}, "", "/");
+        const params = new URLSearchParams(window.location.search);
+        if (!params.get("u") && !params.get("c")) setPage("perfil");
+      } else {
+        setHasCampaign(false);
+      }
+      setLoading(false);
+    }).catch(() => { setHasCampaign(false); setLoading(false); });
+
+    // onAuthStateChange: solo cambios reales post-inicial
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
+      // Ignorar el INITIAL_SESSION y SIGNED_IN que llegan mientras getSession ya corre
+      if (!initialDone && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) return;
 
-      if (event === "INITIAL_SESSION") {
-        // Carga inicial — puede ser null (no logueado) o una sesión válida
+      if (event === "SIGNED_IN" && !loginNavigatedRef.current) {
+        loginNavigatedRef.current = true;
         setSession(s);
-        if (s) {
-          setHasCampaign(null);
-          await loadProfile(s.user.id);
-          window.history.replaceState({}, "", "/");
-          const params = new URLSearchParams(window.location.search);
-          if (!params.get("u") && !params.get("c")) {
-            setPage("perfil");
-          }
-        } else {
-          setHasCampaign(false);
-        }
-        setLoading(false);
-
-      } else if (event === "SIGNED_IN") {
-        // Login nuevo (no la sesión inicial)
-        setSession(s);
-        if (!loginNavigatedRef.current) {
-          loginNavigatedRef.current = true;
-          setHasCampaign(null);
-          await loadProfile(s.user.id);
-          window.history.replaceState({}, "", "/");
-          const params = new URLSearchParams(window.location.search);
-          if (!params.get("u") && !params.get("c")) {
-            setPage("perfil");
-          }
-        }
+        setHasCampaign(null);
+        await loadProfile(s.user.id);
+        window.history.replaceState({}, "", "/");
+        const params = new URLSearchParams(window.location.search);
+        if (!params.get("u") && !params.get("c")) setPage("perfil");
 
       } else if (event === "SIGNED_OUT") {
         loginNavigatedRef.current = false;
@@ -391,10 +390,9 @@ export default function App() {
         setProfile(null);
         setHasCampaign(false);
         setPage("home");
-        setLoading(false);
 
       } else if (event === "TOKEN_REFRESHED") {
-        setSession(s); // solo actualizar sesión, sin recargar perfil
+        setSession(s);
       }
     });
     return () => subscription.unsubscribe();
