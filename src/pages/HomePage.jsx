@@ -24,7 +24,7 @@ const ROLES_DATA = [
 const STEPS = [
   { n: "1", label: "Creá tu perfil gratis", desc: "Registrate y armá tu lista de deseos en minutos" },
   { n: "2", label: "Compartí tu lista", desc: "Enviá el link a tus amigos y familiares" },
-  { n: "3", label: "Recibí tus regalos", desc: "Transferencias directas, sin comisiones ocultas" },
+  { n: "3", label: "Recibí tus regalos", desc: "Recibí los aportes de tus amigos para cumplir el deseo este cumpleaños" },
 ];
 
 const FEATURES = [
@@ -90,55 +90,6 @@ export default function HomePage({ onRegister, onExplore }) {
         </div>
       </div>
 
-      {/* ROLES */}
-      <div style={{ padding: isMobile ? "28px 0" : "60px 20px" }}>
-        <div style={{
-          display: "flex", justifyContent: "space-between", alignItems: "center",
-          padding: isMobile ? "0 20px 14px" : "0 0 24px",
-          maxWidth: 1000, margin: "0 auto",
-        }}>
-          <h2 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, color: COLORS.text, margin: 0 }}>
-            Todo lo que necesitás
-          </h2>
-          {isMobile && (
-            <span onClick={onExplore} style={{ fontSize: 14, color: "#7C3AED", fontWeight: 700, cursor: "pointer" }}>
-              Ver más →
-            </span>
-          )}
-        </div>
-        {isMobile ? (
-          <div style={{
-            display: "flex", gap: 14, padding: "4px 20px 20px",
-            overflowX: "auto", scrollSnapType: "x mandatory",
-            WebkitOverflowScrolling: "touch", scrollbarWidth: "none",
-          }}>
-            {ROLES_DATA.map((r, i) => (
-              <div key={i} style={{
-                flexShrink: 0, width: 170, background: r.bg,
-                borderRadius: 20, padding: "20px 18px",
-                border: "1.5px solid " + r.color + "25",
-                scrollSnapAlign: "start",
-                boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-              }}>
-                <div style={{ fontSize: 38, marginBottom: 12 }}>{r.icon}</div>
-                <div style={{ fontWeight: 800, fontSize: 15, color: COLORS.text, marginBottom: 6 }}>{r.title}</div>
-                <div style={{ fontSize: 13, color: COLORS.textLight, lineHeight: 1.5 }}>{r.desc}</div>
-              </div>
-            ))}
-            <div style={{ flexShrink: 0, width: 4 }} />
-          </div>
-        ) : (
-          <div style={{ maxWidth: 1000, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 20 }}>
-            {ROLES_DATA.map((r, i) => (
-              <div key={i} style={{ padding: 28, borderRadius: 16, background: r.bg, border: "2px solid " + r.color + "20", textAlign: "center" }}>
-                <div style={{ fontSize: 44, marginBottom: 14 }}>{r.icon}</div>
-                <div style={{ fontWeight: 700, fontSize: 17, color: COLORS.text, marginBottom: 8 }}>{r.title}</div>
-                <div style={{ fontSize: 14, color: COLORS.textLight }}>{r.desc}</div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
       {/* CÓMO FUNCIONA */}
       <div style={{ maxWidth: 800, margin: "0 auto", padding: isMobile ? "0 20px 40px" : "60px 20px" }}>
