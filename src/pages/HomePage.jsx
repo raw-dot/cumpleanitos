@@ -93,7 +93,7 @@ export default function HomePage({ onRegister, onExplore }) {
 
       {/* CÓMO FUNCIONA */}
       <div style={{ maxWidth: 800, margin: "0 auto", padding: isMobile ? "0 20px 40px" : "60px 20px" }}>
-        <h2 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, margin: "0 0 " + (isMobile ? 16 : 40) + "px", color: COLORS.text }}>
+        <h2 style={{ fontSize: isMobile ? 22 : 30, fontWeight: 800, margin: "0 0 " + (isMobile ? 16 : 40) + "px", color: COLORS.text, textAlign: "center" }}>
           ¿Cómo funciona?
         </h2>
         {isMobile ? (
@@ -148,8 +148,8 @@ export default function HomePage({ onRegister, onExplore }) {
       {/* FEATURES DESKTOP */}
       {!isMobile && (
         <div style={{ maxWidth: 1000, margin: "0 auto", padding: "60px 20px" }}>
-          <h2 style={{ textAlign: "center", fontSize: 32, fontWeight: 800, marginBottom: 8, color: COLORS.text }}>Todo lo que necesitás</h2>
-          <p style={{ textAlign: "center", color: COLORS.textLight, marginBottom: 40 }}>Tres roles, una sola plataforma</p>
+          <h2 style={{ textAlign: "center", fontSize: 32, fontWeight: 800, marginBottom: 8, color: COLORS.text }}>Vos elegís cómo participar</h2>
+          <p style={{ textAlign: "center", color: COLORS.textLight, marginBottom: 40 }}>Podés ser los 3 a la vez — la plataforma se adapta a vos</p>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px,1fr))", gap: 24 }}>
             {FEATURES.map((f, i) => (
               <div key={i} style={{ background: COLORS.card, borderRadius: 16, padding: 28, textAlign: "center", border: "1px solid #E5E7EB", boxShadow: "0 2px 8px rgba(0,0,0,0.04)" }}>
