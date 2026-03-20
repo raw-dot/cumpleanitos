@@ -15,7 +15,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [loading, setLoading] = useState(true);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditCampaign, setShowEditCampaign] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "" });
+  const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "", image_url: "" });
   const [fetchingMeta, setFetchingMeta] = useState(false);
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemForm, setEditItemForm] = useState({ name: "", description: "", price: "", item_url: "" });
@@ -125,10 +125,11 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       description: newItem.description || null,
       price: newItem.price ? parseFloat(newItem.price) : null,
       item_url: newItem.item_url || null,
+      image_url: newItem.image_url || null,
     }).select().single();
     if (!err && data) {
       setItems(prev => [...prev, data]);
-      setNewItem({ name: "", description: "", price: "", item_url: "" });
+      setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "" });
       setShowAddItem(false);
       showSuccess("Item agregado a tu lista");
     }
@@ -153,20 +154,41 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const switchCampaign = (campId) => loadData(campId);
 
-  // Fetch URL metadata for wish items (via Microlink)
-  const fetchItemMeta = async () => {
-    if (!newItem.item_url) return;
+  // Fetch URL metadata for wish items (via Microlink — incluye imagen y precio)
+  const fetchItemMeta = async (urlOverride) => {
+    const url = urlOverride || newItem.item_url;
+    if (!url) return;
     setFetchingMeta(true);
     try {
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(newItem.item_url)}&meta=false`);
+      // Microlink trae OG tags, precio y screenshots de ML
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false&screenshot=false`);
       const json = await res.json();
       if (json.status === "success") {
         const d = json.data;
+
+        // Precio: Microlink puede traerlo en price.amount, o parseamos del título
+        let price = "";
+        if (d.price?.amount) {
+          price = String(Math.round(d.price.amount));
+        } else if (d.title) {
+          // ML incluye el precio en el title: "Producto $ 12.999 - ..."
+          const match = d.title.match(/\$\s*([\d.,]+)/);
+          if (match) price = match[1].replace(/\./g, "").replace(",", ".");
+        }
+
+        // Imagen: OG image o la primera imagen del crawl
+        const image = d.image?.url || d.logo?.url || "";
+
+        // Título: limpiar el precio del título de ML si está ahí
+        let title = d.title || "";
+        title = title.replace(/\s*\$[\s\d.,]+.*$/, "").trim();
+
         setNewItem(p => ({
           ...p,
-          name: p.name || d.title || "",
+          name: p.name || title,
           description: p.description || d.description || "",
-          price: p.price || (d.price?.amount ? String(d.price.amount) : ""),
+          price: p.price || price,
+          image_url: p.image_url || image,
         }));
         showSuccess("Datos cargados del link 🎁");
       }
@@ -658,7 +680,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
       {/* ── Modal: Agregar Item ── */}
       {showAddItem && (
-        <Modal title="Agregar a tu lista de deseos" onClose={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "" }); }}>
+        <Modal title="Agregar a tu lista de deseos" onClose={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "" }); }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             {/* Step 1: URL first — auto-fetch metadata */}
             <div>
@@ -666,12 +688,22 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                 Link del producto <span style={{ fontSize: 11, opacity: 0.7 }}>(pegá el link y hacé clic en "Buscar datos")</span>
               </label>
               <div style={{ display: "flex", gap: 8 }}>
-                <Input value={newItem.item_url} onChange={v => setNewItem(p => ({ ...p, item_url: v }))} placeholder="https://www.mercadolibre.com.ar/..." />
-                <Button size="sm" variant="outline" onClick={fetchItemMeta} disabled={!newItem.item_url || fetchingMeta} style={{ flexShrink: 0 }}>
-                  {fetchingMeta ? "..." : "Buscar datos"}
+                <Input
+                  value={newItem.item_url}
+                  onChange={v => setNewItem(p => ({ ...p, item_url: v }))}
+                  onBlur={() => { if (newItem.item_url && !newItem.name) fetchItemMeta(); }}
+                  placeholder="https://www.mercadolibre.com.ar/..."
+                />
+                <Button size="sm" variant="outline" onClick={() => fetchItemMeta()} disabled={!newItem.item_url || fetchingMeta} style={{ flexShrink: 0 }}>
+                  {fetchingMeta ? "⏳" : "🔍"}
                 </Button>
               </div>
             </div>
+            {newItem.image_url && (
+              <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid " + COLORS.border, textAlign: "center", background: "#F9FAFB" }}>
+                <img src={newItem.image_url} alt="Preview" style={{ maxHeight: 160, maxWidth: "100%", objectFit: "contain", padding: 8 }} />
+              </div>
+            )}
             <div>
               <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Nombre del regalo *</label>
               <Input value={newItem.name} onChange={v => setNewItem(p => ({ ...p, name: v }))} placeholder="Ej: Auriculares Sony WH-1000XM5" />
@@ -686,7 +718,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
             </div>
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
               <Button onClick={addItem} disabled={!newItem.name} style={{ flex: 1 }}>Agregar item</Button>
-              <Button variant="secondary" onClick={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "" }); }} style={{ flex: 1 }}>Cancelar</Button>
+              <Button variant="secondary" onClick={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "" }); }} style={{ flex: 1 }}>Cancelar</Button>
             </div>
           </div>
         </Modal>

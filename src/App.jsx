@@ -408,11 +408,10 @@ export default function App() {
   };
 
   const handleAuth = async (user) => {
-    const data = await loadProfile(user.id);
-    // hasCampaign se setea en loadStats; esperamos un tick
-    setTimeout(() => {
-      setPage("perfil");
-    }, 100);
+    await loadProfile(user.id);
+    // loadStats se llama dentro de loadProfile — esperamos que termine
+    // para que hasCampaign esté seteado correctamente antes de navegar
+    setTimeout(() => setPage("perfil"), 600);
   };
 
   const handleLogout = async () => {
