@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
 import AuthPage from "./pages/AuthPage";
+import AdminPage from "./pages/AdminPage";
 import CelebrantDashboard from "./pages/CelebrantDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import ExplorePage from "./pages/ExplorePage";
@@ -63,6 +64,7 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
             <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => setPage("explore")}>Explorar</Button>
             {session ? (
               <>
+                {profile?.is_admin && <Button variant="ghost" size="sm" onClick={() => setPage("admin")} style={{ color: "#92400E" }}>🛡️ Admin</Button>}
                 {role === "manager" ? (
                   <Button variant="ghost" size="sm" onClick={() => setPage("dashboard")}>🎁 Mis regalos</Button>
                 ) : (
@@ -517,6 +519,8 @@ export default function App() {
         return <CelebrantDashboard profile={profile} session={session} defaultTab="settings" onViewLanding={() => viewProfile(profile?.username)} />;
       case "profile":
         return <ProfilePage username={profileTarget?.username} campaignId={profileTarget?.campaignId} currentSession={session} currentProfile={profile} />;
+      case "admin":
+        return <AdminPage profile={profile} />;
       default:
         return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
     }
