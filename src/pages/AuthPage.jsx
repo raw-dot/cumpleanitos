@@ -5,7 +5,7 @@ import { COLORS, ROLES, Button, Card, Input, Alert, Logo } from "../shared";
 export default function AuthPage({ initialMode = "login", onAuth }) {
   const [mode, setMode] = useState(initialMode);
   const [step, setStep] = useState(1);
-  const [role, setRole] = useState("");
+  const [role, setRole] = useState("celebrant");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -132,74 +132,14 @@ export default function AuthPage({ initialMode = "login", onAuth }) {
     if (err) { setError(err.message); setLoading(false); }
   };
 
-  // ─── STEP 1: ROLE SELECTION ───────────────────────────────────────────────────
-  if (mode === "register" && step === 1) {
-    return (
-      <div style={{ maxWidth: 560, margin: "0 auto", padding: "60px 20px" }}>
-        <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 52, marginBottom: 12 }}>👋</div>
-          <h1 style={{ fontSize: 28, fontWeight: 700, color: COLORS.text, margin: "0 0 8px" }}>
-            ¿Cómo querés usar Cumpleanitos?
-          </h1>
-          <p style={{ color: COLORS.textLight, margin: 0 }}>Podés cambiar tu rol después desde tu perfil</p>
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {Object.entries(ROLES).map(([key, r]) => (
-            <div
-              key={key}
-              onClick={() => setRole(key)}
-              style={{
-                padding: "20px 24px",
-                borderRadius: 16,
-                border: `2px solid ${role === key ? r.color : COLORS.border}`,
-                background: role === key ? r.color + "0D" : COLORS.card,
-                cursor: "pointer",
-                transition: "all 0.2s",
-                display: "flex",
-                alignItems: "center",
-                gap: 16,
-              }}
-            >
-              <div style={{ fontSize: 36, width: 60, height: 60, display: "flex", alignItems: "center", justifyContent: "center", background: r.color + "15", borderRadius: 14, flexShrink: 0 }}>
-                {r.icon}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 17, color: COLORS.text }}>{r.label}</div>
-                <div style={{ fontSize: 14, color: COLORS.textLight, marginTop: 2 }}>{r.description}</div>
-              </div>
-              {role === key && (
-                <div style={{ width: 28, height: 28, borderRadius: "50%", background: r.color, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontSize: 14, flexShrink: 0 }}>✓</div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        <Button size="lg" style={{ width: "100%", marginTop: 24 }} disabled={!role} onClick={() => setStep(2)}>
-          Continuar →
-        </Button>
-
-        <p style={{ textAlign: "center", fontSize: 14, color: COLORS.textLight, marginTop: 16 }}>
-          ¿Ya tenés cuenta?{" "}
-          <span style={{ color: COLORS.primary, fontWeight: 600, cursor: "pointer" }} onClick={() => switchMode("login")}>
-            Iniciá sesión
-          </span>
-        </p>
-      </div>
-    );
-  }
-
-  // ─── STEP 2: REGISTER DETAILS ─────────────────────────────────────────────────
-  if (mode === "register" && step === 2) {
-    const r = ROLES[role];
+  // ─── REGISTER ─────────────────────────────────────────────────────────────────
+  if (mode === "register") {
     return (
       <div style={{ maxWidth: 440, margin: "0 auto", padding: "60px 20px" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 52, marginBottom: 12 }}>{r?.icon}</div>
+          <div style={{ fontSize: 52, marginBottom: 12 }}>🎂</div>
           <h1 style={{ fontSize: 28, fontWeight: 700, color: COLORS.text, margin: "0 0 8px" }}>Creá tu cuenta</h1>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 20, background: r?.color + "15", color: r?.color, fontSize: 13, fontWeight: 600 }}>
-            {r?.icon} {r?.label}
-          </div>
+          <p style={{ color: COLORS.textLight, margin: 0 }}>Unite a la plataforma de regalos más linda de Argentina</p>
         </div>
 
         <Card style={{ padding: 32 }}>
@@ -247,13 +187,6 @@ export default function AuthPage({ initialMode = "login", onAuth }) {
             </Button>
           </div>
 
-          <button
-            type="button"
-            onClick={() => setStep(1)}
-            style={{ background: "none", border: "none", cursor: "pointer", color: COLORS.textLight, fontSize: 13, marginTop: 12, width: "100%", padding: 8 }}
-          >
-            ← Volver a elegir rol
-          </button>
         </Card>
       </div>
     );
