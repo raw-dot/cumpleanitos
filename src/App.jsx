@@ -337,7 +337,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [profileTarget, setProfileTarget] = useState(null);
   const [stats, setStats] = useState({ raised: 0, gifters: 0, friends: 0 });
-  const [hasCampaign, setHasCampaign] = useState(true); // true para evitar flash
+  const [hasCampaign, setHasCampaign] = useState(null); // null=cargando, true/false=resuelto
   const loginNavigatedRef = useRef(false);
   const isMobile = useIsMobile();
 
@@ -352,7 +352,8 @@ export default function App() {
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       if (s) {
-        const data = await loadProfile(s.user.id);
+        setHasCampaign(null);
+        await loadProfile(s.user.id);
         const params = new URLSearchParams(window.location.search);
         if (!params.get("u") && !params.get("c")) {
           setPage("perfil");
@@ -380,7 +381,7 @@ export default function App() {
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (data) setProfile(data);
-    loadStats(userId);
+    await loadStats(userId);
     return data;
   };
 
@@ -391,27 +392,27 @@ export default function App() {
         supabase.from("friends").select("id", { count: "exact", head: true }).eq("user_id", userId),
       ]);
       const friendCount = friendsRes.count || 0;
-      if (campRes.data?.id) {
-        setHasCampaign(true);
+      const hasCamp = !!campRes.data?.id;
+      setHasCampaign(hasCamp);
+      if (hasCamp) {
         const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
         const contribs = contribRes.data || [];
         const raised = contribs.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-        const gifters = contribs.length;
-        setStats({ raised, gifters, friends: friendCount });
+        setStats({ raised, gifters: contribs.length, friends: friendCount });
       } else {
-        setHasCampaign(false);
         setStats({ raised: 0, gifters: 0, friends: friendCount });
       }
+      return hasCamp;
     } catch(e) {
+      setHasCampaign(false);
       setStats({ raised: 0, gifters: 0, friends: 0 });
+      return false;
     }
   };
 
   const handleAuth = async (user) => {
-    await loadProfile(user.id);
-    // loadStats se llama dentro de loadProfile — esperamos que termine
-    // para que hasCampaign esté seteado correctamente antes de navegar
-    setTimeout(() => setPage("perfil"), 600);
+    await loadProfile(user.id); // loadProfile ya awaita loadStats → hasCampaign resuelto
+    setPage("perfil");
   };
 
   const handleLogout = async () => {
@@ -486,12 +487,14 @@ export default function App() {
         return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
-        if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => setHasCampaign(true)} />;
+        if (hasCampaign === null) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
+        if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
         return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
       case "login":
       case "register":
         if (session) {
-          if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => setHasCampaign(true)} />;
+          if (hasCampaign === null) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
+          if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
           return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
         }
         return <AuthPage key={page} initialMode={page} onAuth={handleAuth} onNavigate={navigateTo} />;
