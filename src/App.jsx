@@ -352,6 +352,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // Carga inicial de sesión
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       setSession(s);
       if (s) {
@@ -362,13 +363,17 @@ export default function App() {
         if (!params.get("u") && !params.get("c")) {
           setPage("perfil");
         }
+      } else {
+        setHasCampaign(false); // sin sesión, no hay campaign
       }
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => { setHasCampaign(false); setLoading(false); });
+
+    // Solo escuchar cambios reales: login y logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
-      setSession(s);
-      if (s) {
-        if (event === "SIGNED_IN" && !loginNavigatedRef.current) {
+      if (event === "SIGNED_IN") {
+        setSession(s);
+        if (!loginNavigatedRef.current) {
           loginNavigatedRef.current = true;
           setHasCampaign(null);
           await loadProfile(s.user.id);
@@ -377,11 +382,15 @@ export default function App() {
           if (!params.get("u") && !params.get("c")) {
             setPage("perfil");
           }
-        } else {
-          setHasCampaign(null);
-          await loadProfile(s.user.id);
         }
-      } else { loginNavigatedRef.current = false; setProfile(null); setHasCampaign(null); }
+      } else if (event === "SIGNED_OUT") {
+        loginNavigatedRef.current = false;
+        setSession(null);
+        setProfile(null);
+        setHasCampaign(false);
+        setPage("home");
+      }
+      // Ignorar INITIAL_SESSION y TOKEN_REFRESHED — ya manejados por getSession
     });
     return () => subscription.unsubscribe();
   }, []);
@@ -394,6 +403,8 @@ export default function App() {
   };
 
   const loadStats = async (userId) => {
+    // Safety timeout: si tarda más de 5s, asumir que no tiene campaign
+    const timeout = setTimeout(() => setHasCampaign(prev => prev === null ? false : prev), 5000);
     try {
       const [campRes, friendsRes] = await Promise.all([
         supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId).eq("status", "active").limit(1).single(),
@@ -410,8 +421,10 @@ export default function App() {
       } else {
         setStats({ raised: 0, gifters: 0, friends: friendCount });
       }
+      clearTimeout(timeout);
       return hasCamp;
     } catch(e) {
+      clearTimeout(timeout);
       setHasCampaign(false);
       setStats({ raised: 0, gifters: 0, friends: 0 });
       return false;
@@ -486,7 +499,9 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
-      case "home": return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
+      case "home":
+        if (session && hasCampaign === false) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
+        return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
       case "notif": return <NotificationsPage session={session} />;
       case "wishlist": return <WishListPage onBack={() => setPage("perfil")} />;
