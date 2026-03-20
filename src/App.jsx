@@ -41,6 +41,7 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
     { icon: "🎂", label: "Mi regalo", action: () => { setPage("dashboard"); setShowMenu(false); } },
     { icon: "⚙️", label: "Configuración", action: () => { setPage("settings-mobile"); setShowMenu(false); } },
     { icon: "🔗", label: "Compartir mi perfil", action: () => { setPage("share"); setShowMenu(false); } },
+    ...(profile?.is_admin ? [{ icon: "🛡️", label: "Panel Admin", action: () => { setPage("admin"); setShowMenu(false); }, color: "#92400E" }] : []),
     { icon: "🚪", label: "Cerrar sesión", action: () => { onLogout(); setShowMenu(false); }, color: COLORS.error },
   ];
 
@@ -64,7 +65,6 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
             <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => setPage("explore")}>Explorar</Button>
             {session ? (
               <>
-                {profile?.is_admin && <Button variant="ghost" size="sm" onClick={() => setPage("admin")} style={{ color: "#92400E" }}>🛡️ Admin</Button>}
                 {role === "manager" ? (
                   <Button variant="ghost" size="sm" onClick={() => setPage("dashboard")}>🎁 Mis regalos</Button>
                 ) : (
@@ -166,6 +166,7 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats, onAva
   const accountItems = [
     { icon: "⚙️", label: "Configuración", sub: "Editar perfil y datos", bg: "#F3F4F6", action: () => setPage("settings-mobile") },
     { icon: "🔗", label: "Compartir mi perfil", sub: "Link de cumpleaños público", bg: "#F3F4F6", action: () => setPage("share") },
+    ...(profile?.is_admin ? [{ icon: "🛡️", label: "Panel Admin", sub: "Gestión de usuarios", bg: "#FEF3C7", action: () => setPage("admin") }] : []),
     { icon: "🚪", label: "Cerrar sesión", sub: null, bg: "#FEF2F2", danger: true, action: onLogout },
   ];
 
