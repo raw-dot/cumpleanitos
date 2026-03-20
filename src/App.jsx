@@ -352,26 +352,27 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Carga inicial de sesión
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      if (s) {
-        setHasCampaign(null);
-        await loadProfile(s.user.id);
-        window.history.replaceState({}, "", "/");
-        const params = new URLSearchParams(window.location.search);
-        if (!params.get("u") && !params.get("c")) {
-          setPage("perfil");
-        }
-      } else {
-        setHasCampaign(false); // sin sesión, no hay campaign
-      }
-      setLoading(false);
-    }).catch(() => { setHasCampaign(false); setLoading(false); });
-
-    // Solo escuchar cambios reales: login y logout
+    // Un solo listener maneja todo: sesión inicial, login y logout
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
-      if (event === "SIGNED_IN") {
+
+      if (event === "INITIAL_SESSION") {
+        // Carga inicial — puede ser null (no logueado) o una sesión válida
+        setSession(s);
+        if (s) {
+          setHasCampaign(null);
+          await loadProfile(s.user.id);
+          window.history.replaceState({}, "", "/");
+          const params = new URLSearchParams(window.location.search);
+          if (!params.get("u") && !params.get("c")) {
+            setPage("perfil");
+          }
+        } else {
+          setHasCampaign(false);
+        }
+        setLoading(false);
+
+      } else if (event === "SIGNED_IN") {
+        // Login nuevo (no la sesión inicial)
         setSession(s);
         if (!loginNavigatedRef.current) {
           loginNavigatedRef.current = true;
@@ -383,14 +384,18 @@ export default function App() {
             setPage("perfil");
           }
         }
+
       } else if (event === "SIGNED_OUT") {
         loginNavigatedRef.current = false;
         setSession(null);
         setProfile(null);
         setHasCampaign(false);
         setPage("home");
+        setLoading(false);
+
+      } else if (event === "TOKEN_REFRESHED") {
+        setSession(s); // solo actualizar sesión, sin recargar perfil
       }
-      // Ignorar INITIAL_SESSION y TOKEN_REFRESHED — ya manejados por getSession
     });
     return () => subscription.unsubscribe();
   }, []);
