@@ -27,6 +27,10 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [saving, setSaving] = useState(false);
   const [imageSuggestions, setImageSuggestions] = useState([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  // Setup wizard (onboarding)
+  const [setupForm, setSetupForm] = useState({ title: "", description: "", goal_amount: "", ml_url: "", image_url: "", gallery: [] });
+  const [setupFetchingMeta, setSetupFetchingMeta] = useState(false);
+  const [setupStep, setSetupStep] = useState(1); // 1=mensaje+link, 2=confirmar
 
   const days = daysUntilBirthday(profile?.birthday);
   const totalRaised = contributions.reduce((s, c) => s + (c.amount || 0), 0);
@@ -70,18 +74,67 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
 
+  // ── SETUP: scraping de ML ──
+  const fetchSetupMeta = async (url) => {
+    if (!url) return;
+    setSetupFetchingMeta(true);
+    try {
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
+      const json = await res.json();
+      if (json.status === "success") {
+        const d = json.data;
+        let price = "";
+        if (d.price?.amount) price = String(Math.round(d.price.amount));
+        else if (d.title) { const m = d.title.match(/\$\s*([\d.,]+)/); if (m) price = m[1].replace(/\./g,"").replace(",","."); }
+        let title = d.title || ""; title = title.replace(/\s*\$[\s\d.,]+.*$/, "").trim();
+        const img = d.image?.url || d.logo?.url || "";
+        setSetupForm(p => ({
+          ...p,
+          title: p.title || title,
+          goal_amount: p.goal_amount || price,
+          image_url: p.image_url || img,
+          gallery: img && !p.gallery.includes(img) ? [...p.gallery, img] : p.gallery,
+        }));
+        showSuccess("Datos cargados 🎁");
+      }
+    } catch {}
+    setSetupFetchingMeta(false);
+  };
+
+  // ── CREAR CAMPAIGN desde el setup ──
   const createCampaign = async () => {
+    const title = setupForm.title || `Mi Regalo de ${profile?.name}`;
+    const description = setupForm.description || `¡Hola! Soy ${profile?.name}. Estoy juntando para mi cumpleaños. ¡Gracias por entrar! 🎂`;
     const { data } = await supabase.from("gift_campaigns").insert({
-      title: "Mi Regalo",
-      description: `¡Hola! Soy ${profile?.name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por visitar mi regalo! 🎂`,
+      title,
+      description,
       birthday_person_id: session.user.id,
       created_by: session.user.id,
-      goal_amount: 10000,
+      goal_amount: parseFloat(setupForm.goal_amount) || 10000,
       birthday_date: profile?.birthday,
       status: "active",
       birthday_person_name: profile?.name,
+      image_url: setupForm.image_url || null,
+      product_link: setupForm.ml_url || null,
     }).select().single();
-    if (data) { setCampaign(data); showSuccess("¡Regalo creado!"); if (onCampaignCreated) onCampaignCreated(); }
+    if (data) {
+      // Si hay items de galería, insertarlos como gift_items
+      if (setupForm.gallery.length > 0) {
+        await supabase.from("gift_items").insert(
+          setupForm.gallery.slice(0,4).map((img, i) => ({
+            campaign_id: data.id,
+            name: title,
+            image_url: img,
+            item_url: setupForm.ml_url || null,
+            price: parseFloat(setupForm.goal_amount) || null,
+          }))
+        );
+      }
+      setCampaign(data);
+      await loadData(data.id);
+      showSuccess("¡Tu regalo está listo! 🎂");
+      if (onCampaignCreated) onCampaignCreated();
+    }
   };
 
   const uploadImage = async (file) => {
@@ -374,12 +427,111 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
               </Card>
             </div>
           ) : (
-            <Card style={{ textAlign: "center", padding: 60 }}>
-              <div style={{ fontSize: 56, marginBottom: 16 }}>🎂</div>
-              <h3 style={{ margin: "0 0 8px", fontSize: 20 }}>No tenés un regalo activo</h3>
-              <p style={{ color: COLORS.textLight, marginBottom: 24 }}>Creá tu regalo para empezar a recibir regalos de cumpleaños</p>
-              <Button size="lg" onClick={createCampaign}>Crear mi regalo</Button>
-            </Card>
+            /* ── ONBOARDING SETUP ── */
+            <div style={{ maxWidth: 520, margin: "0 auto" }}>
+              {/* Header emotivo */}
+              <div style={{ textAlign: "center", padding: "32px 0 24px" }}>
+                <div style={{ fontSize: 56, marginBottom: 12 }}>🎂</div>
+                <h2 style={{ fontSize: 24, fontWeight: 800, color: COLORS.text, margin: "0 0 8px" }}>
+                  ¡Hola, {profile?.name?.split(" ")[0]}! 👋
+                </h2>
+                <p style={{ fontSize: 15, color: COLORS.textLight, lineHeight: 1.6, margin: 0 }}>
+                  Armá tu regalo de cumpleaños en 1 minuto.<br/>
+                  Tus amigos van a poder aportar para que se cumpla tu deseo. 🎁
+                </p>
+              </div>
+
+              <Card style={{ display: "flex", flexDirection: "column", gap: 20, padding: 24 }}>
+
+                {/* Link ML */}
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, display: "block", marginBottom: 6 }}>
+                    🛒 ¿Qué querés que te regalen?
+                  </label>
+                  <p style={{ fontSize: 12, color: COLORS.textLight, margin: "0 0 8px" }}>
+                    Pegá el link de MercadoLibre y completamos el título, precio e imágenes automáticamente.
+                  </p>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <Input
+                      value={setupForm.ml_url}
+                      onChange={v => setSetupForm(p => ({ ...p, ml_url: v }))}
+                      onBlur={() => setupForm.ml_url && !setupForm.title && fetchSetupMeta(setupForm.ml_url)}
+                      placeholder="https://www.mercadolibre.com.ar/..."
+                    />
+                    <Button
+                      size="sm" variant="outline"
+                      onClick={() => fetchSetupMeta(setupForm.ml_url)}
+                      disabled={!setupForm.ml_url || setupFetchingMeta}
+                      style={{ flexShrink: 0, minWidth: 44 }}
+                    >
+                      {setupFetchingMeta ? "⏳" : "🔍"}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Preview imagen */}
+                {setupForm.image_url && (
+                  <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${COLORS.border}`, background: "#F9FAFB", textAlign: "center" }}>
+                    <img src={setupForm.image_url} alt="Preview" style={{ maxHeight: 200, maxWidth: "100%", objectFit: "contain", padding: 12 }} />
+                    <div style={{ padding: "0 12px 12px", display: "flex", gap: 8 }}>
+                      <Input
+                        value={setupForm.image_url}
+                        onChange={v => setSetupForm(p => ({ ...p, image_url: v }))}
+                        placeholder="URL de imagen de portada"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Título */}
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, display: "block", marginBottom: 6 }}>
+                    ✏️ Título del regalo
+                  </label>
+                  <Input
+                    value={setupForm.title}
+                    onChange={v => setSetupForm(p => ({ ...p, title: v }))}
+                    placeholder={`Ej: iPhone 15, Bici de montaña, Cena especial...`}
+                  />
+                </div>
+
+                {/* Monto */}
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, display: "block", marginBottom: 6 }}>
+                    💰 Valor del regalo (ARS)
+                  </label>
+                  <Input
+                    type="number"
+                    value={setupForm.goal_amount}
+                    onChange={v => setSetupForm(p => ({ ...p, goal_amount: v }))}
+                    placeholder="Ej: 150000"
+                    min="0"
+                  />
+                </div>
+
+                {/* Mensaje */}
+                <div>
+                  <label style={{ fontSize: 13, fontWeight: 700, color: COLORS.text, display: "block", marginBottom: 6 }}>
+                    💬 Mensaje para tus amigos
+                  </label>
+                  <Textarea
+                    value={setupForm.description}
+                    onChange={v => setSetupForm(p => ({ ...p, description: v }))}
+                    placeholder={`Ej: ¡Hola! Este año me encantaría recibir esto para mi cumpleaños. Si querés sumarte con lo que puedas, ¡te voy a amar! 🎉`}
+                    rows={3}
+                  />
+                </div>
+
+                <Button
+                  size="lg"
+                  style={{ width: "100%", marginTop: 4 }}
+                  onClick={createCampaign}
+                >
+                  🎂 Crear mi regalo
+                </Button>
+
+              </Card>
+            </div>
           )}
         </div>
       )}

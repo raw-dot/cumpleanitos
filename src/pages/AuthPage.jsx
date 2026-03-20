@@ -99,27 +99,6 @@ export default function AuthPage({ initialMode = "login", onAuth, onNavigate }) 
           role,
         }, { onConflict: "id" });
 
-        // Auto-create campaign for celebrants and managers
-        if (role === "celebrant" || role === "manager") {
-          const { data: camp } = await supabase.from("gift_campaigns")
-            .select("id")
-            .eq("birthday_person_id", loginData.user.id)
-            .single();
-
-          if (!camp) {
-            await supabase.from("gift_campaigns").insert({
-              title: "Mi Regalo",
-              description: `¡Hola! Soy ${name}. Estoy juntando regalitos para mi cumpleaños. ¡Gracias por entrar a mi regalo! 🎂`,
-              birthday_person_id: loginData.user.id,
-              created_by: loginData.user.id,
-              goal_amount: 10000,
-              birthday_date: birthday,
-              status: "active",
-              birthday_person_name: name,
-            });
-          }
-        }
-
         onAuth(loginData.user);
       } else {
         setSuccess("¡Cuenta creada! Revisá tu email para confirmar e iniciá sesión.");
