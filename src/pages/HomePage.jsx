@@ -22,9 +22,9 @@ const ROLES_DATA = [
 ];
 
 const STEPS = [
-  { n: "1", label: "Creá tu perfil gratis", desc: "Registrate y armá tu lista de deseos en minutos" },
-  { n: "2", label: "Compartí tu lista", desc: "Enviá el link a tus amigos y familiares" },
-  { n: "3", label: "Recibí tus regalos", desc: "Recibí los aportes de tus amigos para cumplir el deseo este cumpleaños" },
+  { n: "1", label: "Creá tu cumpleaños", desc: "Registrate, cargá tu deseo de cumpleaños y compartí el link con tus amigos y familia." },
+  { n: "2", label: "Regalá", desc: "Enterate quién de tus amigos está cumpliendo años y aportá para ayudar a que se cumpla su deseo." },
+  { n: "3", label: "Organizá los regalos", desc: "Tus amigos no saben qué quieren que les regalen ni se lo comparten a sus amigos. Hacelo vos por ellos." },
 ];
 
 const FEATURES = [
