@@ -6,7 +6,7 @@ import {
   getInitials, formatMoney, formatBirthday, daysUntilBirthday,
 } from "../shared";
 
-export default function CelebrantDashboard({ profile, session, defaultTab = "campaign", onViewLanding }) {
+export default function CelebrantDashboard({ profile, session, defaultTab = "campaign", onViewLanding, onCampaignCreated }) {
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [campaigns, setCampaigns] = useState([]);
   const [campaign, setCampaign] = useState(null);
@@ -81,7 +81,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
       status: "active",
       birthday_person_name: profile?.name,
     }).select().single();
-    if (data) { setCampaign(data); showSuccess("¡Regalo creado!"); }
+    if (data) { setCampaign(data); showSuccess("¡Regalo creado!"); if (onCampaignCreated) onCampaignCreated(); }
   };
 
   const uploadImage = async (file) => {

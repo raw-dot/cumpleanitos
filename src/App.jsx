@@ -25,7 +25,8 @@ function useIsMobile() {
 }
 
 // ─── NAVBAR ──────────────────────────────────────────────────────────────────
-function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onViewLanding }) {
+function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleSwitch, onViewLanding }) {
+  const _nav = navigateTo || setPage;
   const [showMenu, setShowMenu] = useState(false);
   const isMobile = useIsMobile();
   const role = profile?.role;
@@ -115,8 +116,8 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
               </>
             ) : (
               <>
-                <Button variant="ghost" size="sm" onClick={() => setPage("login")}>Iniciar sesión</Button>
-                <Button variant="accent" size="sm" onClick={() => setPage("register")}>Registrarse gratis</Button>
+                <Button variant="ghost" size="sm" onClick={() => _nav("login")}>Iniciar sesión</Button>
+                <Button variant="accent" size="sm" onClick={() => _nav("register")}>Registrarse gratis</Button>
               </>
             )}
           </div>
@@ -130,12 +131,12 @@ function Navbar({ page, setPage, session, profile, onLogout, onRoleSwitch, onVie
               </div>
             ) : (
               <>
-                <button onClick={() => setPage("login")} style={{
+                <button onClick={() => _nav("login")} style={{
                   background: "transparent", border: "1.5px solid " + COLORS.primary,
                   color: COLORS.primary, borderRadius: 9999,
                   padding: "8px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer",
                 }}>Ingresar</button>
-                <button onClick={() => setPage("register")} style={{
+                <button onClick={() => _nav("register")} style={{
                   background: COLORS.accent, border: "none", color: "#fff", borderRadius: 9999,
                   padding: "8px 18px", fontSize: 14, fontWeight: 700, cursor: "pointer",
                   boxShadow: "0 2px 8px rgba(245,158,11,0.35)",
@@ -336,6 +337,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [profileTarget, setProfileTarget] = useState(null);
   const [stats, setStats] = useState({ raised: 0, gifters: 0, friends: 0 });
+  const [hasCampaign, setHasCampaign] = useState(true); // true para evitar flash
   const loginNavigatedRef = useRef(false);
   const isMobile = useIsMobile();
 
@@ -390,12 +392,14 @@ export default function App() {
       ]);
       const friendCount = friendsRes.count || 0;
       if (campRes.data?.id) {
+        setHasCampaign(true);
         const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
         const contribs = contribRes.data || [];
         const raised = contribs.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-        const gifters = contribs.length;  // cantidad de regalos/aportes reales
+        const gifters = contribs.length;
         setStats({ raised, gifters, friends: friendCount });
       } else {
+        setHasCampaign(false);
         setStats({ raised: 0, gifters: 0, friends: friendCount });
       }
     } catch(e) {
@@ -405,7 +409,10 @@ export default function App() {
 
   const handleAuth = async (user) => {
     const data = await loadProfile(user.id);
-    setPage("perfil");
+    // hasCampaign se setea en loadStats; esperamos un tick
+    setTimeout(() => {
+      setPage("perfil");
+    }, 100);
   };
 
   const handleLogout = async () => {
@@ -415,6 +422,13 @@ export default function App() {
   };
 
   const viewProfile = (username) => { setProfileTarget({ username }); setPage("profile"); };
+
+  const navigateTo = (p) => {
+    if (p === "register") window.history.pushState({}, "", "/registro");
+    else if (p === "login") window.history.pushState({}, "", "/login");
+    else window.history.pushState({}, "", "/");
+    setPage(p);
+  };
 
   const handleRoleSwitch = async (newRole) => {
     const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", session.user.id);
@@ -473,13 +487,13 @@ export default function App() {
         return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} />;
+        if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => setHasCampaign(true)} />;
         return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
       case "login":
       case "register":
         if (session) {
-          if (profile?.role === "manager") return <ManagerDashboard profile={profile} session={session} />;
-          if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
-          return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" />;
+          if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => setHasCampaign(true)} />;
+          return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
         }
         return <AuthPage initialMode={page} onAuth={handleAuth} />;
       case "dashboard":
@@ -503,7 +517,7 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
-      <Navbar page={page} setPage={setPage} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />
+      <Navbar page={page} setPage={setPage} navigateTo={navigateTo} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />
       <main style={{ paddingBottom: isMobile && session ? 70 : 0 }}>
         {renderPage()}
       </main>
