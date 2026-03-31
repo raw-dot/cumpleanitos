@@ -346,6 +346,7 @@ export default function App() {
   const [onboardingUser, setOnboardingUser] = useState(null);
   const [onboardingUsername, setOnboardingUsername] = useState("");
   const loginNavigatedRef = useRef(false);
+  const hasCampaignTimeoutRef = useRef(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -370,6 +371,11 @@ export default function App() {
       setSession(s);
       if (s) {
         setHasCampaign(null);
+        // Timeout de seguridad: si loadStats tarda más de 4s, desbloquear igual
+        if (hasCampaignTimeoutRef.current) clearTimeout(hasCampaignTimeoutRef.current);
+        hasCampaignTimeoutRef.current = setTimeout(() => {
+          setHasCampaign(prev => prev === null ? false : prev);
+        }, 4000);
         await loadProfile(s.user.id);
         window.history.replaceState({}, "", "/");
         const params = new URLSearchParams(window.location.search);
@@ -390,6 +396,10 @@ export default function App() {
         loginNavigatedRef.current = true;
         setSession(s);
         setHasCampaign(null);
+        if (hasCampaignTimeoutRef.current) clearTimeout(hasCampaignTimeoutRef.current);
+        hasCampaignTimeoutRef.current = setTimeout(() => {
+          setHasCampaign(prev => prev === null ? false : prev);
+        }, 4000);
         await loadProfile(s.user.id);
         window.history.replaceState({}, "", "/");
         const params = new URLSearchParams(window.location.search);
@@ -466,6 +476,7 @@ export default function App() {
       ]);
       const friendCount = friendsRes.count || 0;
       const hasCamp = !!campRes.data?.id;
+      if (hasCampaignTimeoutRef.current) { clearTimeout(hasCampaignTimeoutRef.current); hasCampaignTimeoutRef.current = null; }
       setHasCampaign(hasCamp);
       if (hasCamp) {
         const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
