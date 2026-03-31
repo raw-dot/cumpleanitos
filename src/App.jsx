@@ -411,7 +411,8 @@ export default function App() {
 
       if (isGoogleUser && isIncomplete) {
         // Generar username sugerido desde el email (parte antes del @)
-        const { data: { user } } = await supabase.auth.getUser();
+        const { data: authData } = await supabase.auth.getUser();
+        const user = authData?.user;
         const email = user?.email || "";
         const suggestedUsername = email
           .split("@")[0]
@@ -421,10 +422,11 @@ export default function App() {
           .replace(/_+/g, "_")
           .replace(/^_|_$/g, "")
           .slice(0, 20);
+        setProfile(data); // setear perfil igual para que la app no quede colgada
         setOnboardingUser(user);
         setOnboardingUsername(suggestedUsername);
-        setSession(s => s); // mantener session
         setShowOnboarding(true);
+        await loadStats(userId);
         return data;
       }
 

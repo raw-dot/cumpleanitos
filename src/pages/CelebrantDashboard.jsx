@@ -76,65 +76,65 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   // ── Extraer ID de ML desde URL ──
   const extractMLId = (url) => {
-    const patterns = [
-      /\/MLA-?(\d+)/i,
-      /\/p\/MLA(\d+)/i,
-      /item_id=MLA(\d+)/i,
-      /-MLA(\d+)-/i,
-    ];
-    for (const p of patterns) {
-      const m = url.match(p);
-      if (m) return "MLA" + m[1];
-    }
-    return null;
+    const m = url.match(/MLA-?(\d+)/i);
+    return m ? "MLA" + m[1] : null;
   };
 
-  // ── SETUP: fetch desde API oficial de ML ──
+  // ── Fetch producto de ML via API pública (sin CORS issues) ──
+  const fetchMLProduct = async (url) => {
+    const itemId = extractMLId(url);
+    if (!itemId) return null;
+    try {
+      // Usar allorigins como proxy CORS-free
+      const apiUrl = `https://api.mercadolibre.com/items/${itemId}`;
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
+      const res = await fetch(proxyUrl);
+      if (!res.ok) return null;
+      const wrapper = await res.json();
+      if (!wrapper.contents) return null;
+      const d = JSON.parse(wrapper.contents);
+      const price = d.price ? String(Math.round(d.price)) : "";
+      const title = d.title || "";
+      const gallery = (d.pictures || []).map(p => p.secure_url || p.url).filter(Boolean).slice(0, 8);
+      return { price, title, gallery, mainImg: gallery[0] || "" };
+    } catch { return null; }
+  };
+
+  // ── Fallback: Microlink ──
+  const fetchMicrolink = async (url) => {
+    try {
+      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
+      const json = await res.json();
+      if (json.status !== "success") return null;
+      const d = json.data;
+      let price = "";
+      if (d.price?.amount) price = String(Math.round(d.price.amount));
+      else if (d.title) { const m = d.title.match(/[$]\s*([\d.,]+)/); if (m) price = m[1].replace(/[.]/g,"").replace(",","."); }
+      let title = d.title || ""; title = title.replace(/\s*[$][\s\d.,]+.*$/, "").trim();
+      const img = d.image?.url || d.logo?.url || "";
+      return { price, title, gallery: img ? [img] : [], mainImg: img };
+    } catch { return null; }
+  };
+
+  // ── SETUP: fetch meta ──
   const fetchSetupMeta = async (url) => {
     if (!url) return;
     setSetupFetchingMeta(true);
     try {
-      const itemId = extractMLId(url);
-      if (itemId) {
-        const res = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
-        if (res.ok) {
-          const d = await res.json();
-          const price = d.price ? String(Math.round(d.price)) : "";
-          const title = d.title || "";
-          // Recolectar todas las fotos del producto
-          const gallery = (d.pictures || []).map(p => p.secure_url || p.url).filter(Boolean).slice(0, 6);
-          const mainImg = gallery[0] || "";
-          setSetupForm(prev => ({
-            ...prev,
-            title: prev.title || title,
-            goal_amount: prev.goal_amount || price,
-            image_url: prev.image_url || mainImg,
-            gallery,
-            ml_url: url,
-          }));
-          showSuccess("Producto encontrado en MercadoLibre 🎁");
-          setSetupFetchingMeta(false);
-          return;
-        }
-      }
-      // Fallback: Microlink para URLs no-ML o cuando falla la API
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
-      const json = await res.json();
-      if (json.status === "success") {
-        const d = json.data;
-        let price = "";
-        if (d.price?.amount) price = String(Math.round(d.price.amount));
-        else if (d.title) { const m = d.title.match(/\$\s*([\d.,]+)/); if (m) price = m[1].replace(/\./g,"").replace(",","."); }
-        let title = d.title || ""; title = title.replace(/\s*\$[\s\d.,]+.*$/, "").trim();
-        const img = d.image?.url || d.logo?.url || "";
-        setSetupForm(p => ({
-          ...p,
-          title: p.title || title,
-          goal_amount: p.goal_amount || price,
-          image_url: p.image_url || img,
-          gallery: img ? [img] : [],
+      let result = await fetchMLProduct(url);
+      if (!result) result = await fetchMicrolink(url);
+      if (result) {
+        setSetupForm(prev => ({
+          ...prev,
+          title: prev.title || result.title,
+          goal_amount: prev.goal_amount || result.price,
+          image_url: prev.image_url || result.mainImg,
+          gallery: result.gallery,
+          ml_url: url,
         }));
-        showSuccess("Datos cargados 🎁");
+        showSuccess("Producto encontrado 🎁");
+      } else {
+        showSuccess("No pudimos cargar los datos, completá manualmente");
       }
     } catch {}
     setSetupFetchingMeta(false);
@@ -246,52 +246,25 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const switchCampaign = (campId) => loadData(campId);
 
-  // ── Fetch metadata para items de wishlist (ML API + fallback Microlink) ──
+  // ── Fetch metadata para items de wishlist ──
   const fetchItemMeta = async (urlOverride) => {
     const url = urlOverride || newItem.item_url;
     if (!url) return;
     setFetchingMeta(true);
     try {
-      const itemId = extractMLId(url);
-      if (itemId) {
-        const res = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
-        if (res.ok) {
-          const d = await res.json();
-          const price = d.price ? String(Math.round(d.price)) : "";
-          const title = d.title || "";
-          const gallery = (d.pictures || []).map(p => p.secure_url || p.url).filter(Boolean).slice(0, 6);
-          const mainImg = gallery[0] || "";
-          setNewItem(p => ({
-            ...p,
-            name: p.name || title,
-            price: p.price || price,
-            image_url: p.image_url || mainImg,
-            gallery: gallery.length ? gallery : p.gallery || [],
-          }));
-          showSuccess("Producto encontrado 🎁");
-          setFetchingMeta(false);
-          return;
-        }
-      }
-      // Fallback: Microlink
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false&screenshot=false`);
-      const json = await res.json();
-      if (json.status === "success") {
-        const d = json.data;
-        let price = "";
-        if (d.price?.amount) price = String(Math.round(d.price.amount));
-        else if (d.title) { const m = d.title.match(/[$]\s*([\d.,]+)/); if (m) price = m[1].replace(/[.]/g,"").replace(",","."); }
-        let title = d.title || ""; title = title.replace(/\s*[$][\s\d.,]+.*$/, "").trim();
-        const image = d.image?.url || d.logo?.url || "";
+      let result = await fetchMLProduct(url);
+      if (!result) result = await fetchMicrolink(url);
+      if (result) {
         setNewItem(p => ({
           ...p,
-          name: p.name || title,
-          description: p.description || d.description || "",
-          price: p.price || price,
-          image_url: p.image_url || image,
-          gallery: image ? [image] : [],
+          name: p.name || result.title,
+          price: p.price || result.price,
+          image_url: p.image_url || result.mainImg,
+          gallery: result.gallery.length ? result.gallery : (p.gallery || []),
         }));
-        showSuccess("Datos cargados del link 🎁");
+        showSuccess("Producto encontrado 🎁");
+      } else {
+        showSuccess("No pudimos cargar los datos, completá manualmente");
       }
     } catch {}
     setFetchingMeta(false);
