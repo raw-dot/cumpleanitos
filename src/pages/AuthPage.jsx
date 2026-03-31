@@ -112,9 +112,11 @@ export default function AuthPage({ initialMode = "login", onAuth, onNavigate }) 
   const handleGoogle = async () => {
     setLoading(true);
     setError("");
+    const isProd = window.location.hostname !== "localhost";
+    const redirectTo = isProd ? "https://cumpleanitos.com" : window.location.origin;
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo },
     });
     if (err) { setError(err.message); setLoading(false); }
   };
