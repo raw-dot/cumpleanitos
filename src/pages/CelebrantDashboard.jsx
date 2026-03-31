@@ -15,7 +15,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [loading, setLoading] = useState(true);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showEditCampaign, setShowEditCampaign] = useState(false);
-  const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "", image_url: "" });
+  const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "", image_url: "", gallery: [] });
   const [fetchingMeta, setFetchingMeta] = useState(false);
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemForm, setEditItemForm] = useState({ name: "", description: "", price: "", item_url: "" });
@@ -74,11 +74,50 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
 
-  // ── SETUP: scraping de ML ──
+  // ── Extraer ID de ML desde URL ──
+  const extractMLId = (url) => {
+    const patterns = [
+      /\/MLA-?(\d+)/i,
+      /\/p\/MLA(\d+)/i,
+      /item_id=MLA(\d+)/i,
+      /-MLA(\d+)-/i,
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return "MLA" + m[1];
+    }
+    return null;
+  };
+
+  // ── SETUP: fetch desde API oficial de ML ──
   const fetchSetupMeta = async (url) => {
     if (!url) return;
     setSetupFetchingMeta(true);
     try {
+      const itemId = extractMLId(url);
+      if (itemId) {
+        const res = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
+        if (res.ok) {
+          const d = await res.json();
+          const price = d.price ? String(Math.round(d.price)) : "";
+          const title = d.title || "";
+          // Recolectar todas las fotos del producto
+          const gallery = (d.pictures || []).map(p => p.secure_url || p.url).filter(Boolean).slice(0, 6);
+          const mainImg = gallery[0] || "";
+          setSetupForm(prev => ({
+            ...prev,
+            title: prev.title || title,
+            goal_amount: prev.goal_amount || price,
+            image_url: prev.image_url || mainImg,
+            gallery,
+            ml_url: url,
+          }));
+          showSuccess("Producto encontrado en MercadoLibre 🎁");
+          setSetupFetchingMeta(false);
+          return;
+        }
+      }
+      // Fallback: Microlink para URLs no-ML o cuando falla la API
       const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
       const json = await res.json();
       if (json.status === "success") {
@@ -93,7 +132,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
           title: p.title || title,
           goal_amount: p.goal_amount || price,
           image_url: p.image_url || img,
-          gallery: img && !p.gallery.includes(img) ? [...p.gallery, img] : p.gallery,
+          gallery: img ? [img] : [],
         }));
         showSuccess("Datos cargados 🎁");
       }
@@ -182,7 +221,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
     }).select().single();
     if (!err && data) {
       setItems(prev => [...prev, data]);
-      setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "" });
+      setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "", gallery: [] });
       setShowAddItem(false);
       showSuccess("Item agregado a tu lista");
     }
@@ -207,45 +246,54 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const switchCampaign = (campId) => loadData(campId);
 
-  // Fetch URL metadata for wish items (via Microlink — incluye imagen y precio)
+  // ── Fetch metadata para items de wishlist (ML API + fallback Microlink) ──
   const fetchItemMeta = async (urlOverride) => {
     const url = urlOverride || newItem.item_url;
     if (!url) return;
     setFetchingMeta(true);
     try {
-      // Microlink trae OG tags, precio y screenshots de ML
+      const itemId = extractMLId(url);
+      if (itemId) {
+        const res = await fetch(`https://api.mercadolibre.com/items/${itemId}`);
+        if (res.ok) {
+          const d = await res.json();
+          const price = d.price ? String(Math.round(d.price)) : "";
+          const title = d.title || "";
+          const gallery = (d.pictures || []).map(p => p.secure_url || p.url).filter(Boolean).slice(0, 6);
+          const mainImg = gallery[0] || "";
+          setNewItem(p => ({
+            ...p,
+            name: p.name || title,
+            price: p.price || price,
+            image_url: p.image_url || mainImg,
+            gallery: gallery.length ? gallery : p.gallery || [],
+          }));
+          showSuccess("Producto encontrado 🎁");
+          setFetchingMeta(false);
+          return;
+        }
+      }
+      // Fallback: Microlink
       const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false&screenshot=false`);
       const json = await res.json();
       if (json.status === "success") {
         const d = json.data;
-
-        // Precio: Microlink puede traerlo en price.amount, o parseamos del título
         let price = "";
-        if (d.price?.amount) {
-          price = String(Math.round(d.price.amount));
-        } else if (d.title) {
-          // ML incluye el precio en el title: "Producto $ 12.999 - ..."
-          const match = d.title.match(/\$\s*([\d.,]+)/);
-          if (match) price = match[1].replace(/\./g, "").replace(",", ".");
-        }
-
-        // Imagen: OG image o la primera imagen del crawl
+        if (d.price?.amount) price = String(Math.round(d.price.amount));
+        else if (d.title) { const m = d.title.match(/[$]\s*([\d.,]+)/); if (m) price = m[1].replace(/[.]/g,"").replace(",","."); }
+        let title = d.title || ""; title = title.replace(/\s*[$][\s\d.,]+.*$/, "").trim();
         const image = d.image?.url || d.logo?.url || "";
-
-        // Título: limpiar el precio del título de ML si está ahí
-        let title = d.title || "";
-        title = title.replace(/\s*\$[\s\d.,]+.*$/, "").trim();
-
         setNewItem(p => ({
           ...p,
           name: p.name || title,
           description: p.description || d.description || "",
           price: p.price || price,
           image_url: p.image_url || image,
+          gallery: image ? [image] : [],
         }));
         showSuccess("Datos cargados del link 🎁");
       }
-    } catch { /* silently fail */ }
+    } catch {}
     setFetchingMeta(false);
   };
 
@@ -458,28 +506,66 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                       onBlur={() => setupForm.ml_url && !setupForm.title && fetchSetupMeta(setupForm.ml_url)}
                       placeholder="https://www.mercadolibre.com.ar/..."
                     />
-                    <Button
-                      size="sm" variant="outline"
+                    <button
+                      type="button"
                       onClick={() => fetchSetupMeta(setupForm.ml_url)}
                       disabled={!setupForm.ml_url || setupFetchingMeta}
-                      style={{ flexShrink: 0, minWidth: 44 }}
+                      style={{
+                        flexShrink: 0, width: 44, height: 40,
+                        background: setupFetchingMeta ? "#F3F4F6" : "#EEEDFE",
+                        border: "1px solid #AFA9EC", borderRadius: 8,
+                        cursor: !setupForm.ml_url || setupFetchingMeta ? "not-allowed" : "pointer",
+                        fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+                        opacity: !setupForm.ml_url ? 0.5 : 1,
+                      }}
                     >
-                      {setupFetchingMeta ? "⏳" : "🔍"}
-                    </Button>
+                      {setupFetchingMeta ? (
+                        <span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid #AFA9EC", borderTopColor: "#7C3AED", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                      ) : "🔍"}
+                    </button>
                   </div>
                 </div>
 
-                {/* Preview imagen */}
-                {setupForm.image_url && (
-                  <div style={{ borderRadius: 12, overflow: "hidden", border: `1px solid ${COLORS.border}`, background: "#F9FAFB", textAlign: "center" }}>
-                    <img src={setupForm.image_url} alt="Preview" style={{ maxHeight: 200, maxWidth: "100%", objectFit: "contain", padding: 12 }} />
-                    <div style={{ padding: "0 12px 12px", display: "flex", gap: 8 }}>
-                      <Input
-                        value={setupForm.image_url}
-                        onChange={v => setSetupForm(p => ({ ...p, image_url: v }))}
-                        placeholder="URL de imagen de portada"
-                      />
+                {/* Preview + selector de fotos */}
+                {(setupForm.title || setupForm.image_url) && (
+                  <div style={{ background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 12, padding: 14 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                      <span style={{ fontSize: 14 }}>✅</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: "#166534" }}>
+                        Producto encontrado — revisá y editá si querés
+                      </span>
                     </div>
+
+                    {/* Selector de fotos cuando hay gallery */}
+                    {setupForm.gallery && setupForm.gallery.length > 1 && (
+                      <div style={{ marginBottom: 12 }}>
+                        <p style={{ fontSize: 11, color: "#166534", margin: "0 0 6px", fontWeight: 500 }}>
+                          Elegí la foto de portada:
+                        </p>
+                        <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                          {setupForm.gallery.map((img, i) => (
+                            <img
+                              key={i}
+                              src={img}
+                              alt=""
+                              onClick={() => setSetupForm(p => ({ ...p, image_url: img }))}
+                              style={{
+                                width: 64, height: 64, borderRadius: 8, objectFit: "cover", flexShrink: 0,
+                                cursor: "pointer",
+                                border: setupForm.image_url === img ? "2px solid #7C3AED" : "1.5px solid #D1D5DB",
+                                opacity: setupForm.image_url === img ? 1 : 0.75,
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {setupForm.image_url && (
+                      <div style={{ textAlign: "center", background: "#fff", borderRadius: 8, padding: 8, border: "1px solid #D1FAE5" }}>
+                        <img src={setupForm.image_url} alt="Preview" style={{ maxHeight: 160, maxWidth: "100%", objectFit: "contain" }} />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -832,13 +918,17 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
       {/* ── Modal: Agregar Item ── */}
       {showAddItem && (
-        <Modal title="Agregar a tu lista de deseos" onClose={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "" }); }}>
-          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {/* Step 1: URL first — auto-fetch metadata */}
+        <Modal title="Agregar a tu lista de deseos" onClose={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "", gallery: [] }); }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+
+            {/* URL + botón buscar */}
             <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>
-                Link del producto <span style={{ fontSize: 11, opacity: 0.7 }}>(pegá el link y hacé clic en "Buscar datos")</span>
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, display: "block", marginBottom: 6 }}>
+                🛒 Link del producto
               </label>
+              <p style={{ fontSize: 12, color: COLORS.textLight, margin: "0 0 8px" }}>
+                Pegá el link de MercadoLibre y cargamos todo automáticamente
+              </p>
               <div style={{ display: "flex", gap: 8 }}>
                 <Input
                   value={newItem.item_url}
@@ -846,33 +936,114 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                   onBlur={() => { if (newItem.item_url && !newItem.name) fetchItemMeta(); }}
                   placeholder="https://www.mercadolibre.com.ar/..."
                 />
-                <Button size="sm" variant="outline" onClick={() => fetchItemMeta()} disabled={!newItem.item_url || fetchingMeta} style={{ flexShrink: 0 }}>
-                  {fetchingMeta ? "⏳" : "🔍"}
-                </Button>
+                <button
+                  type="button"
+                  onClick={() => fetchItemMeta()}
+                  disabled={!newItem.item_url || fetchingMeta}
+                  style={{
+                    flexShrink: 0, width: 44, height: 40,
+                    background: fetchingMeta ? "#F3F4F6" : "#EEEDFE",
+                    border: "1px solid #AFA9EC", borderRadius: 8,
+                    cursor: !newItem.item_url || fetchingMeta ? "not-allowed" : "pointer",
+                    fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+                    opacity: !newItem.item_url ? 0.5 : 1,
+                  }}
+                >
+                  {fetchingMeta ? (
+                    <span style={{ display: "inline-block", width: 16, height: 16, border: "2px solid #AFA9EC", borderTopColor: "#7C3AED", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+                  ) : "🔍"}
+                </button>
               </div>
             </div>
-            {newItem.image_url && (
-              <div style={{ borderRadius: 10, overflow: "hidden", border: "1px solid " + COLORS.border, textAlign: "center", background: "#F9FAFB" }}>
-                <img src={newItem.image_url} alt="Preview" style={{ maxHeight: 160, maxWidth: "100%", objectFit: "contain", padding: 8 }} />
+
+            {/* Preview card — aparece solo cuando hay datos cargados */}
+            {(newItem.name || newItem.image_url) && (
+              <div style={{
+                background: "#F0FDF4", border: "1px solid #86EFAC",
+                borderRadius: 12, padding: 14,
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontSize: 14 }}>✅</span>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: "#166534" }}>
+                    Producto encontrado — revisá y editá si querés
+                  </span>
+                </div>
+
+                {/* Selector de fotos */}
+                {newItem.gallery && newItem.gallery.length > 1 && (
+                  <div style={{ marginBottom: 12 }}>
+                    <p style={{ fontSize: 11, color: "#166534", margin: "0 0 6px", fontWeight: 500 }}>
+                      Elegí la foto principal:
+                    </p>
+                    <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4 }}>
+                      {newItem.gallery.map((img, i) => (
+                        <img
+                          key={i}
+                          src={img}
+                          alt=""
+                          onClick={() => setNewItem(p => ({ ...p, image_url: img }))}
+                          style={{
+                            width: 60, height: 60, borderRadius: 8, objectFit: "cover", flexShrink: 0,
+                            cursor: "pointer",
+                            border: newItem.image_url === img ? "2px solid #7C3AED" : "1.5px solid #D1D5DB",
+                            opacity: newItem.image_url === img ? 1 : 0.75,
+                            transition: "border 0.15s, opacity 0.15s",
+                          }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Preview de foto seleccionada */}
+                {newItem.image_url && (
+                  <div style={{ textAlign: "center", marginBottom: 12, background: "#fff", borderRadius: 8, padding: 8, border: "1px solid #D1FAE5" }}>
+                    <img src={newItem.image_url} alt="Preview" style={{ maxHeight: 140, maxWidth: "100%", objectFit: "contain" }} />
+                  </div>
+                )}
               </div>
             )}
+
+            {/* Título editable */}
             <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Nombre del regalo *</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, display: "block", marginBottom: 6 }}>✏️ Nombre del regalo *</label>
               <Input value={newItem.name} onChange={v => setNewItem(p => ({ ...p, name: v }))} placeholder="Ej: Auriculares Sony WH-1000XM5" />
             </div>
+
+            {/* Precio editable */}
             <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Descripción (opcional)</label>
-              <Textarea value={newItem.description} onChange={v => setNewItem(p => ({ ...p, description: v }))} placeholder="Marca, modelo, color, detalles..." rows={2} />
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, display: "block", marginBottom: 6 }}>💰 Precio en ARS</label>
+              <Input type="number" value={newItem.price} onChange={v => setNewItem(p => ({ ...p, price: v }))} placeholder="Ej: 150000" min="0" />
             </div>
+
+            {/* Descripción opcional */}
             <div>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 4 }}>Precio aproximado en ARS (opcional)</label>
-              <Input type="number" value={newItem.price} onChange={v => setNewItem(p => ({ ...p, price: v }))} placeholder="Ej: 25000" min="0" />
+              <label style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, display: "block", marginBottom: 6 }}>
+                💬 Descripción <span style={{ fontSize: 11, fontWeight: 400, color: COLORS.textLight }}>(opcional)</span>
+              </label>
+              <Textarea value={newItem.description} onChange={v => setNewItem(p => ({ ...p, description: v }))} placeholder="Color, talle, modelo específico..." rows={2} />
             </div>
+
+            {/* Botones */}
             <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
-              <Button onClick={addItem} disabled={!newItem.name} style={{ flex: 1 }}>Agregar item</Button>
-              <Button variant="secondary" onClick={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "" }); }} style={{ flex: 1 }}>Cancelar</Button>
+              <Button
+                onClick={addItem}
+                disabled={!newItem.name}
+                style={{ flex: 1 }}
+              >
+                Agregar a mi lista
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => { setShowAddItem(false); setNewItem({ name: "", description: "", price: "", item_url: "", image_url: "", gallery: [] }); }}
+                style={{ flex: 1 }}
+              >
+                Cancelar
+              </Button>
             </div>
+
           </div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </Modal>
       )}
     </div>
