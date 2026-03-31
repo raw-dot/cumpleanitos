@@ -135,6 +135,17 @@ export default function AuthPage({ initialMode = "login", onAuth, onNavigate }) 
           <Alert message={error} type="error" />
           <Alert message={success} type="success" />
 
+          <Button variant="google" size="lg" style={{ width: "100%", marginBottom: 16, boxShadow: "0 1px 3px rgba(0,0,0,0.12)" }} onClick={handleGoogle} disabled={loading}>
+            <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width={18} height={18} alt="" />
+            Registrarse con Google
+          </Button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+            <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+            <span style={{ fontSize: 13, color: COLORS.textLight }}>o con email</span>
+            <div style={{ flex: 1, height: 1, background: COLORS.border }} />
+          </div>
+
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <Input placeholder="Nombre completo" value={name} onChange={setName} />
             <Input
