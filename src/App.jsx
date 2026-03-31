@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
+import GoogleOnboardingModal from "./components/ui/GoogleOnboardingModal";
 import AuthPage from "./pages/AuthPage";
 import AdminPage from "./pages/AdminPage";
 import CelebrantDashboard from "./pages/CelebrantDashboard";
@@ -340,7 +341,10 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [profileTarget, setProfileTarget] = useState(null);
   const [stats, setStats] = useState({ raised: 0, gifters: 0, friends: 0 });
-  const [hasCampaign, setHasCampaign] = useState(null); // null=cargando, true/false=resuelto
+  const [hasCampaign, setHasCampaign] = useState(null);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingUser, setOnboardingUser] = useState(null);
+  const [onboardingUsername, setOnboardingUsername] = useState("");
   const loginNavigatedRef = useRef(false);
   const isMobile = useIsMobile();
 
@@ -401,26 +405,29 @@ export default function App() {
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
     if (data) {
-      // Si el username es el auto-generado (user_xxx), intentar mejorarlo con el nombre de Google
-      if (data.username && data.username.startsWith("user_")) {
+      // Detectar si es usuario nuevo de Google: username auto-generado Y sin birthday/phone
+      const isGoogleUser = data.username && data.username.startsWith("user_");
+      const isIncomplete = !data.birthday || !data.phone;
+
+      if (isGoogleUser && isIncomplete) {
+        // Generar username sugerido desde el email (parte antes del @)
         const { data: { user } } = await supabase.auth.getUser();
-        const fullName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
-        if (fullName) {
-          const baseUsername = fullName
-            .toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-            .replace(/[^a-z0-9]/g, "_")
-            .replace(/_+/g, "_")
-            .replace(/^_|_$/g, "")
-            .slice(0, 20);
-          // Verificar que no esté en uso
-          const { data: existing } = await supabase.from("profiles").select("username").eq("username", baseUsername).neq("id", userId).single();
-          if (!existing) {
-            await supabase.from("profiles").update({ username: baseUsername }).eq("id", userId);
-            data.username = baseUsername;
-          }
-        }
+        const email = user?.email || "";
+        const suggestedUsername = email
+          .split("@")[0]
+          .toLowerCase()
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^a-z0-9_]/g, "_")
+          .replace(/_+/g, "_")
+          .replace(/^_|_$/g, "")
+          .slice(0, 20);
+        setOnboardingUser(user);
+        setOnboardingUsername(suggestedUsername);
+        setSession(s => s); // mantener session
+        setShowOnboarding(true);
+        return data;
       }
+
       setProfile(data);
     }
     await loadStats(userId);
@@ -571,6 +578,19 @@ export default function App() {
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
+      {showOnboarding && onboardingUser && (
+        <GoogleOnboardingModal
+          user={onboardingUser}
+          initialUsername={onboardingUsername}
+          onComplete={async () => {
+            setShowOnboarding(false);
+            const { data } = await supabase.from("profiles").select("*").eq("id", onboardingUser.id).single();
+            if (data) setProfile(data);
+            await loadStats(onboardingUser.id);
+            setPage("perfil");
+          }}
+        />
+      )}
       <Navbar page={page} setPage={setPage} navigateTo={navigateTo} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />
       <main style={{ paddingBottom: isMobile && session ? 70 : 0 }}>
         {renderPage()}
