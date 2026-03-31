@@ -358,6 +358,12 @@ export default function App() {
   useEffect(() => {
     let initialDone = false;
 
+    // Timeout global de seguridad: si todo falla, desbloquear la app en 8s
+    const globalTimeout = setTimeout(() => {
+      setLoading(false);
+      setHasCampaign(prev => prev === null ? false : prev);
+    }, 8000);
+
     // getSession: carga inicial, corre una sola vez
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       initialDone = true;
@@ -372,11 +378,12 @@ export default function App() {
         setHasCampaign(false);
       }
       setLoading(false);
-    }).catch(() => { setHasCampaign(false); setLoading(false); });
+      clearTimeout(globalTimeout);
+    }).catch(() => { setHasCampaign(false); setLoading(false); clearTimeout(globalTimeout); });
 
     // onAuthStateChange: solo cambios reales post-inicial
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, s) => {
-      // Ignorar el INITIAL_SESSION y SIGNED_IN que llegan mientras getSession ya corre
+      // Ignorar eventos que llegan mientras getSession ya corre
       if (!initialDone && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) return;
 
       if (event === "SIGNED_IN" && !loginNavigatedRef.current) {
@@ -388,14 +395,21 @@ export default function App() {
         const params = new URLSearchParams(window.location.search);
         if (!params.get("u") && !params.get("c")) setPage("perfil");
 
+      } else if (event === "TOKEN_REFRESHED" && s) {
+        // Token refrescado: actualizar session sin re-cargar perfil ni mostrar spinner
+        setSession(s);
+        // Si hasCampaign es null (estado colgado), resolverlo
+        setHasCampaign(prev => prev === null ? false : prev);
+
       } else if (event === "SIGNED_OUT") {
         loginNavigatedRef.current = false;
         setSession(null);
         setProfile(null);
         setHasCampaign(false);
+        setLoading(false);
         setPage("home");
 
-      } else if (event === "TOKEN_REFRESHED") {
+      } else if (event === "USER_UPDATED" && s) {
         setSession(s);
       }
     });
@@ -403,7 +417,13 @@ export default function App() {
   }, []);
 
   const loadProfile = async (userId) => {
+    const profileTimeout = setTimeout(() => {
+      // Si loadProfile tarda más de 6s, desbloquear la app igual
+      setLoading(false);
+      setHasCampaign(prev => prev === null ? false : prev);
+    }, 6000);
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    clearTimeout(profileTimeout);
     if (data) {
       // Detectar si es usuario nuevo de Google: username auto-generado Y sin birthday/phone
       const isGoogleUser = data.username && data.username.startsWith("user_");
