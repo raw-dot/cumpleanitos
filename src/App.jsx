@@ -400,7 +400,29 @@ export default function App() {
 
   const loadProfile = async (userId) => {
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
-    if (data) setProfile(data);
+    if (data) {
+      // Si el username es el auto-generado (user_xxx), intentar mejorarlo con el nombre de Google
+      if (data.username && data.username.startsWith("user_")) {
+        const { data: { user } } = await supabase.auth.getUser();
+        const fullName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
+        if (fullName) {
+          const baseUsername = fullName
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "_")
+            .replace(/_+/g, "_")
+            .replace(/^_|_$/g, "")
+            .slice(0, 20);
+          // Verificar que no esté en uso
+          const { data: existing } = await supabase.from("profiles").select("username").eq("username", baseUsername).neq("id", userId).single();
+          if (!existing) {
+            await supabase.from("profiles").update({ username: baseUsername }).eq("id", userId);
+            data.username = baseUsername;
+          }
+        }
+      }
+      setProfile(data);
+    }
     await loadStats(userId);
     return data;
   };
