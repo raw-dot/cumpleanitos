@@ -74,45 +74,41 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
 
-  // ── Extraer ID de ML desde URL ──
-  const extractMLId = (url) => {
-    const m = url.match(/MLA-?(\d+)/i);
-    return m ? "MLA" + m[1] : null;
-  };
-
-  // ── Fetch producto de ML via API pública (sin CORS issues) ──
-  const fetchMLProduct = async (url) => {
-    const itemId = extractMLId(url);
-    if (!itemId) return null;
-    try {
-      // Usar allorigins como proxy CORS-free
-      const apiUrl = `https://api.mercadolibre.com/items/${itemId}`;
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(apiUrl)}`;
-      const res = await fetch(proxyUrl);
-      if (!res.ok) return null;
-      const wrapper = await res.json();
-      if (!wrapper.contents) return null;
-      const d = JSON.parse(wrapper.contents);
-      const price = d.price ? String(Math.round(d.price)) : "";
-      const title = d.title || "";
-      const gallery = (d.pictures || []).map(p => p.secure_url || p.url).filter(Boolean).slice(0, 8);
-      return { price, title, gallery, mainImg: gallery[0] || "" };
-    } catch { return null; }
-  };
-
-  // ── Fallback: Microlink ──
-  const fetchMicrolink = async (url) => {
+  // ── Fetch metadata via Microlink (funciona desde browser sin CORS) ──
+  const fetchProductMeta = async (url) => {
     try {
       const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
+      if (!res.ok) return null;
       const json = await res.json();
       if (json.status !== "success") return null;
       const d = json.data;
+
+      // Extraer precio — ML lo incluye en el título o en price.amount
       let price = "";
-      if (d.price?.amount) price = String(Math.round(d.price.amount));
-      else if (d.title) { const m = d.title.match(/[$]\s*([\d.,]+)/); if (m) price = m[1].replace(/[.]/g,"").replace(",","."); }
-      let title = d.title || ""; title = title.replace(/\s*[$][\s\d.,]+.*$/, "").trim();
-      const img = d.image?.url || d.logo?.url || "";
-      return { price, title, gallery: img ? [img] : [], mainImg: img };
+      if (d.price?.amount) {
+        price = String(Math.round(d.price.amount));
+      } else if (d.title) {
+        // ML pone el precio en el título: "Producto $ 1.299.999 ..."
+        const m = d.title.match(/\$\s*([\d.]+(?:,\d+)?)/);
+        if (m) price = m[1].replace(/\./g, "").replace(",", ".");
+      }
+
+      // Limpiar título: sacar el precio y todo lo que viene después
+      let title = d.title || "";
+      title = title
+        .replace(/\s*\$[\s\d.,]+.*$/, "")
+        .replace(/\s*-\s*Mercado Libre.*$/i, "")
+        .replace(/\s*\|.*$/, "")
+        .trim();
+
+      // Imagen principal
+      const img = d.image?.url || "";
+
+      // Galería: Microlink a veces devuelve videos y múltiples imágenes
+      const gallery = [];
+      if (img) gallery.push(img);
+
+      return { price, title, gallery, mainImg: img };
     } catch { return null; }
   };
 
@@ -121,20 +117,19 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
     if (!url) return;
     setSetupFetchingMeta(true);
     try {
-      let result = await fetchMLProduct(url);
-      if (!result) result = await fetchMicrolink(url);
-      if (result) {
+      const result = await fetchProductMeta(url);
+      if (result && (result.title || result.price || result.mainImg)) {
         setSetupForm(prev => ({
           ...prev,
-          title: prev.title || result.title,
-          goal_amount: prev.goal_amount || result.price,
-          image_url: prev.image_url || result.mainImg,
-          gallery: result.gallery,
+          title: result.title || prev.title,
+          goal_amount: result.price || prev.goal_amount,
+          image_url: result.mainImg || prev.image_url,
+          gallery: result.gallery.length ? result.gallery : prev.gallery,
           ml_url: url,
         }));
         showSuccess("Producto encontrado 🎁");
       } else {
-        showSuccess("No pudimos cargar los datos, completá manualmente");
+        showSuccess("No pudimos cargar los datos automáticamente, completá manualmente");
       }
     } catch {}
     setSetupFetchingMeta(false);
@@ -252,14 +247,13 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
     if (!url) return;
     setFetchingMeta(true);
     try {
-      let result = await fetchMLProduct(url);
-      if (!result) result = await fetchMicrolink(url);
-      if (result) {
+      const result = await fetchProductMeta(url);
+      if (result && (result.title || result.price || result.mainImg)) {
         setNewItem(p => ({
           ...p,
-          name: p.name || result.title,
-          price: p.price || result.price,
-          image_url: p.image_url || result.mainImg,
+          name: result.title || p.name,
+          price: result.price || p.price,
+          image_url: result.mainImg || p.image_url,
           gallery: result.gallery.length ? result.gallery : (p.gallery || []),
         }));
         showSuccess("Producto encontrado 🎁");
