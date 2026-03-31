@@ -17,6 +17,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const [showEditCampaign, setShowEditCampaign] = useState(false);
   const [newItem, setNewItem] = useState({ name: "", description: "", price: "", item_url: "", image_url: "", gallery: [] });
   const [fetchingMeta, setFetchingMeta] = useState(false);
+  const [itemFetchStatus, setItemFetchStatus] = useState(null);
   const [editingItemId, setEditingItemId] = useState(null);
   const [editItemForm, setEditItemForm] = useState({ name: "", description: "", price: "", item_url: "" });
   const [campaignForm, setCampaignForm] = useState({ title: "", description: "", goal_amount: "", image_url: "", product_link: "" });
@@ -30,6 +31,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   // Setup wizard (onboarding)
   const [setupForm, setSetupForm] = useState({ title: "", description: "", goal_amount: "", ml_url: "", image_url: "", gallery: [] });
   const [setupFetchingMeta, setSetupFetchingMeta] = useState(false);
+  const [setupFetchStatus, setSetupFetchStatus] = useState(null); // null | "ok" | "error" | "empty"
   const [setupStep, setSetupStep] = useState(1); // 1=mensaje+link, 2=confirmar
 
   const days = daysUntilBirthday(profile?.birthday);
@@ -74,51 +76,43 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
 
-  // ── Fetch metadata via Microlink (funciona desde browser sin CORS) ──
+  // ── Fetch metadata via Microlink ──
   const fetchProductMeta = async (url) => {
-    try {
-      const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
-      if (!res.ok) return null;
-      const json = await res.json();
-      if (json.status !== "success") return null;
-      const d = json.data;
+    const res = await fetch(`https://api.microlink.io/?url=${encodeURIComponent(url)}&meta=false`);
+    if (!res.ok) throw new Error("microlink_error");
+    const json = await res.json();
+    if (json.status !== "success") throw new Error("microlink_failed");
+    const d = json.data;
 
-      // Extraer precio — ML lo incluye en el título o en price.amount
-      let price = "";
-      if (d.price?.amount) {
-        price = String(Math.round(d.price.amount));
-      } else if (d.title) {
-        // ML pone el precio en el título: "Producto $ 1.299.999 ..."
-        const m = d.title.match(/\$\s*([\d.]+(?:,\d+)?)/);
-        if (m) price = m[1].replace(/\./g, "").replace(",", ".");
-      }
+    // Precio: ML lo incluye en price.amount o en el título "$ 1.299.999"
+    let price = "";
+    if (d.price?.amount) {
+      price = String(Math.round(d.price.amount));
+    } else if (d.title) {
+      const m = d.title.match(/\$\s*([\d.]+(?:,\d+)?)/);
+      if (m) price = m[1].replace(/\./g, "").replace(",", ".");
+    }
 
-      // Limpiar título: sacar el precio y todo lo que viene después
-      let title = d.title || "";
-      title = title
-        .replace(/\s*\$[\s\d.,]+.*$/, "")
-        .replace(/\s*-\s*Mercado Libre.*$/i, "")
-        .replace(/\s*\|.*$/, "")
-        .trim();
+    // Título limpio
+    let title = d.title || "";
+    title = title
+      .replace(/\s*\$[\s\d.,]+.*$/, "")
+      .replace(/\s*-\s*Mercado Libre.*$/i, "")
+      .replace(/\s*\|.*$/, "")
+      .trim();
 
-      // Imagen principal
-      const img = d.image?.url || "";
-
-      // Galería: Microlink a veces devuelve videos y múltiples imágenes
-      const gallery = [];
-      if (img) gallery.push(img);
-
-      return { price, title, gallery, mainImg: img };
-    } catch { return null; }
+    const img = d.image?.url || "";
+    return { price, title, gallery: img ? [img] : [], mainImg: img };
   };
 
   // ── SETUP: fetch meta ──
   const fetchSetupMeta = async (url) => {
     if (!url) return;
     setSetupFetchingMeta(true);
+    setSetupFetchStatus(null);
     try {
       const result = await fetchProductMeta(url);
-      if (result && (result.title || result.price || result.mainImg)) {
+      if (result.title || result.price || result.mainImg) {
         setSetupForm(prev => ({
           ...prev,
           title: result.title || prev.title,
@@ -127,11 +121,13 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
           gallery: result.gallery.length ? result.gallery : prev.gallery,
           ml_url: url,
         }));
-        showSuccess("Producto encontrado 🎁");
+        setSetupFetchStatus("ok");
       } else {
-        showSuccess("No pudimos cargar los datos automáticamente, completá manualmente");
+        setSetupFetchStatus("empty");
       }
-    } catch {}
+    } catch {
+      setSetupFetchStatus("error");
+    }
     setSetupFetchingMeta(false);
   };
 
@@ -246,9 +242,10 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
     const url = urlOverride || newItem.item_url;
     if (!url) return;
     setFetchingMeta(true);
+    setItemFetchStatus(null);
     try {
       const result = await fetchProductMeta(url);
-      if (result && (result.title || result.price || result.mainImg)) {
+      if (result.title || result.price || result.mainImg) {
         setNewItem(p => ({
           ...p,
           name: result.title || p.name,
@@ -256,11 +253,13 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
           image_url: result.mainImg || p.image_url,
           gallery: result.gallery.length ? result.gallery : (p.gallery || []),
         }));
-        showSuccess("Producto encontrado 🎁");
+        setItemFetchStatus("ok");
       } else {
-        showSuccess("No pudimos cargar los datos, completá manualmente");
+        setItemFetchStatus("empty");
       }
-    } catch {}
+    } catch {
+      setItemFetchStatus("error");
+    }
     setFetchingMeta(false);
   };
 
@@ -469,7 +468,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                   <div style={{ display: "flex", gap: 8 }}>
                     <Input
                       value={setupForm.ml_url}
-                      onChange={v => setSetupForm(p => ({ ...p, ml_url: v }))}
+                      onChange={v => { setSetupForm(p => ({ ...p, ml_url: v })); setSetupFetchStatus(null); }}
                       onBlur={() => setupForm.ml_url && !setupForm.title && fetchSetupMeta(setupForm.ml_url)}
                       placeholder="https://www.mercadolibre.com.ar/..."
                     />
@@ -491,6 +490,24 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                       ) : "🔍"}
                     </button>
                   </div>
+
+                  {/* Feedback inline debajo de la URL */}
+                  {setupFetchStatus === "ok" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "#166534", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: "8px 12px" }}>
+                      <span>✅</span> Producto encontrado — revisá el título, precio y foto abajo
+                    </div>
+                  )}
+                  {setupFetchStatus === "error" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "8px 12px" }}>
+                      <span>⚠️</span> No pudimos leer el link. Completá los datos manualmente.
+                    </div>
+                  )}
+                  {setupFetchStatus === "empty" && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "8px 12px" }}>
+                      <span>⚠️</span> Página cargada pero sin datos detectables. Completá manualmente.
+                    </div>
+                  )}
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
 
                 {/* Preview + selector de fotos */}
@@ -899,7 +916,7 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
               <div style={{ display: "flex", gap: 8 }}>
                 <Input
                   value={newItem.item_url}
-                  onChange={v => setNewItem(p => ({ ...p, item_url: v }))}
+                  onChange={v => { setNewItem(p => ({ ...p, item_url: v })); setItemFetchStatus(null); }}
                   onBlur={() => { if (newItem.item_url && !newItem.name) fetchItemMeta(); }}
                   placeholder="https://www.mercadolibre.com.ar/..."
                 />
@@ -921,6 +938,22 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
                   ) : "🔍"}
                 </button>
               </div>
+              {/* Feedback inline debajo de la URL */}
+              {itemFetchStatus === "ok" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "#166534", background: "#F0FDF4", border: "1px solid #86EFAC", borderRadius: 8, padding: "8px 12px" }}>
+                  <span>✅</span> Producto encontrado — revisá los datos abajo
+                </div>
+              )}
+              {itemFetchStatus === "error" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "8px 12px" }}>
+                  <span>⚠️</span> No pudimos leer el link. Completá los datos manualmente.
+                </div>
+              )}
+              {itemFetchStatus === "empty" && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "#92400E", background: "#FFFBEB", border: "1px solid #FDE68A", borderRadius: 8, padding: "8px 12px" }}>
+                  <span>⚠️</span> Página sin datos detectables. Completá manualmente.
+                </div>
+              )}
             </div>
 
             {/* Preview card — aparece solo cuando hay datos cargados */}
