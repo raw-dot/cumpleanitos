@@ -253,14 +253,6 @@ function EditUserPanel({ user, onSave, onCancel, onDelete, saving }) {
         ))}
       </div>
 
-      {/* Nota sobre email */}
-      <div style={{ padding: "8px 12px", background: "#EFF6FF", borderRadius: 8, border: "0.5px solid #BFDBFE", marginBottom: 12 }}>
-        <div style={{ fontSize: 11, color: "#1E40AF", display: "flex", alignItems: "center", gap: 6 }}>
-          <span>ℹ️</span>
-          <span>El email de <strong>autenticación</strong> solo puede cambiarlo el usuario desde su Configuración. Acá solo editás el email de contacto.</span>
-        </div>
-      </div>
-
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))", gap: 12, marginBottom: 12 }}>
         {/* Rol */}
         <div>
@@ -352,9 +344,7 @@ export default function AdminPage({ profile, onBack }) {
     const { data: profilesData, error } = await supabase.rpc('get_all_users_with_email');
     
     if (error) {
-      console.error('Error loading users with RPC:', error);
-      console.log('Cayendo en fallback - cargando sin emails desde profiles directamente');
-      
+      console.error('Error loading users:', error);
       // Fallback: si la función RPC no existe aún, cargar sin emails
       const { data: fallbackData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (!fallbackData) { setLoading(false); return; }
@@ -375,14 +365,7 @@ export default function AdminPage({ profile, onBack }) {
       return;
     }
     
-    if (!profilesData) { 
-      console.log('profilesData es null o undefined');
-      setLoading(false); 
-      return; 
-    }
-    
-    console.log('✅ Usuarios cargados con RPC:', profilesData.length, 'usuarios');
-    console.log('Ejemplo primer usuario:', profilesData[0]);
+    if (!profilesData) { setLoading(false); return; }
     
     // Traer campañas
     const { data: campaigns } = await supabase.from("gift_campaigns").select("birthday_person_id, status");
@@ -413,7 +396,7 @@ export default function AdminPage({ profile, onBack }) {
     const { error: profileError } = await supabase.from("profiles").update({
       name: form.name,
       username: form.username,
-      email: form.email, // Solo actualiza email de contacto en profiles
+      email: form.email,
       phone: form.phone,
       role: form.role,
       is_admin: form.is_admin,
@@ -426,9 +409,19 @@ export default function AdminPage({ profile, onBack }) {
       return;
     }
     
-    // Nota: El email de autenticación (auth.users) solo puede ser cambiado 
-    // por el propio usuario desde su página de Configuración por seguridad.
-    // Aquí solo actualizamos el email de contacto en profiles.
+    // Si cambió el email, actualizar en auth.users también
+    const originalUser = users.find(u => u.id === userId);
+    if (originalUser && form.email !== originalUser.email && form.email) {
+      // Enviar email de verificación al nuevo correo
+      const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
+        email: form.email,
+        email_confirm: false // Esto fuerza que se envíe correo de verificación
+      });
+      
+      if (emailError) {
+        console.error('Error updating email in auth:', emailError);
+      }
+    }
     
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...form } : u));
     setEditUser(null);
