@@ -148,6 +148,7 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
   const [name,     setName]     = useState(profile?.name || "");
   const [username, setUsername] = useState(profile?.username || "");
   const [bio,      setBio]      = useState(profile?.bio || "");
+  const [email,    setEmail]    = useState(profile?.email || session?.user?.email || "");
   const [realAlias, setRealAlias] = useState(getRealAlias(profile?.payment_alias));
 
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
@@ -208,15 +209,38 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         coverGrad: coverGrad }
     );
 
+    // Actualizar perfil en profiles
     const { error: e } = await supabase.from("profiles").update({
-      name, username, bio, payment_alias: visualData,
+      name, username, bio, email, payment_alias: visualData,
     }).eq("id", session.user.id);
 
+    if (e) { 
+      setSaving(false);
+      setError("Error al guardar: " + e.message); 
+      return; 
+    }
+
+    // Si cambió el email, actualizar en auth.users y enviar verificación
+    const emailChanged = email !== session?.user?.email && email !== profile?.email;
+    if (emailChanged && email) {
+      const { error: emailError } = await supabase.auth.updateUser({ 
+        email: email 
+      });
+      
+      if (emailError) {
+        setError("Email guardado en perfil. Error al actualizar autenticación: " + emailError.message);
+        setSaving(false);
+        return;
+      } else {
+        setError("");
+        alert("✉️ Te enviamos un correo de verificación a " + email + ". Por favor confirmá tu nuevo email.");
+      }
+    }
+
     setSaving(false);
-    if (e) { setError("Error al guardar: " + e.message); return; }
     setSaved(true); setTimeout(() => setSaved(false), 2500);
     onProfileUpdated?.({
-      ...profile, name, username, bio,
+      ...profile, name, username, bio, email,
       avatar_url: avatarUrl, cover_url: coverUrl,
       payment_alias: visualData,
     });
@@ -405,13 +429,19 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         {[
           { label: "Nombre completo", val: name, set: setName, ph: "Tu nombre" },
           { label: "Usuario", val: username, set: setUsername, ph: "usuario (sin @)" },
+          { label: "Email", val: email, set: setEmail, ph: "tu@email.com", type: "email" },
           { label: "Bio", val: bio, set: setBio, ph: "Contá algo de vos..." },
           { label: "Alias de pago (Mercado Pago)", val: realAlias, set: setRealAlias, ph: "tu.alias" },
         ].map(f => (
           <div key={f.label}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 5 }}>{f.label}</div>
-            <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
-              style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 10, fontSize: 14, color: C.text, outline: "none", background: C.white }} />
+            <input 
+              type={f.type || "text"}
+              value={f.val} 
+              onChange={e => f.set(e.target.value)} 
+              placeholder={f.ph}
+              style={{ width: "100%", padding: "11px 13px", border: "1.5px solid " + C.border, borderRadius: 10, fontSize: 14, color: C.text, outline: "none", background: C.white }} 
+            />
           </div>
         ))}
       </div>
@@ -427,8 +457,12 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "13px 14px" }}>
           <div style={{ width: 36, height: 36, borderRadius: 9, background: "#F3F4F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>📧</div>
           <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{session?.user?.email}</div>
-            <div style={{ fontSize: 11, color: C.success }}>Email verificado ✓</div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>{email || session?.user?.email || "Sin email"}</div>
+            {(session?.user?.email_confirmed_at || profile?.email_verified) ? (
+              <div style={{ fontSize: 11, color: C.success }}>Email verificado ✓</div>
+            ) : (
+              <div style={{ fontSize: 11, color: C.accent }}>Pendiente de verificación</div>
+            )}
           </div>
         </div>
       </div>

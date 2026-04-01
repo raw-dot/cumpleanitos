@@ -150,7 +150,20 @@ function UserTableView({ users, loading, onBack, onRefresh, onEdit }) {
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: "10px 14px", color: COLORS.textLight, fontSize: 12 }}>{user.email || "—"}</td>
+                      <td style={{ padding: "10px 14px" }}>
+                        {user.email ? (
+                          <div>
+                            <div style={{ fontSize: 12, color: COLORS.text }}>{user.email}</div>
+                            {user.email_verified ? (
+                              <div style={{ fontSize: 10, color: "#10B981" }}>✓ Verificado</div>
+                            ) : (
+                              <div style={{ fontSize: 10, color: "#F59E0B" }}>⊗ Sin verificar</div>
+                            )}
+                          </div>
+                        ) : (
+                          <span style={{ color: COLORS.textLight, fontSize: 12 }}>—</span>
+                        )}
+                      </td>
                       <td style={{ padding: "10px 14px" }}>
                         {user.role && ROLE_LABELS[user.role]
                           ? <Pill label={ROLE_LABELS[user.role].label} color={ROLE_LABELS[user.role].color} bg={ROLE_LABELS[user.role].bg} />
@@ -326,12 +339,45 @@ export default function AdminPage({ profile, onBack }) {
 
   const loadUsers = async () => {
     setLoading(true);
-    const { data: profilesData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    
+    // Usar función RPC que hace JOIN con auth.users para traer emails
+    const { data: profilesData, error } = await supabase.rpc('get_all_users_with_email');
+    
+    if (error) {
+      console.error('Error loading users:', error);
+      // Fallback: si la función RPC no existe aún, cargar sin emails
+      const { data: fallbackData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+      if (!fallbackData) { setLoading(false); return; }
+      
+      const { data: campaigns } = await supabase.from("gift_campaigns").select("birthday_person_id, status");
+      const campMap = {};
+      (campaigns || []).forEach(c => { if (!campMap[c.birthday_person_id]) campMap[c.birthday_person_id] = []; campMap[c.birthday_person_id].push(c); });
+      const enriched = fallbackData.map(u => ({ ...u, email: null, campaigns: campMap[u.id] || [] }));
+      setUsers(enriched);
+      const today = new Date().toISOString().split("T")[0];
+      setStats({
+        total: enriched.length,
+        withCampaign: enriched.filter(u => u.campaigns.length > 0).length,
+        newToday: enriched.filter(u => u.created_at?.startsWith(today)).length,
+        disabled: enriched.filter(u => u.is_active === false).length,
+      });
+      setLoading(false);
+      return;
+    }
+    
     if (!profilesData) { setLoading(false); return; }
+    
+    // Traer campañas
     const { data: campaigns } = await supabase.from("gift_campaigns").select("birthday_person_id, status");
     const campMap = {};
     (campaigns || []).forEach(c => { if (!campMap[c.birthday_person_id]) campMap[c.birthday_person_id] = []; campMap[c.birthday_person_id].push(c); });
-    const enriched = profilesData.map(u => ({ ...u, campaigns: campMap[u.id] || [] }));
+    
+    // Enriquecer con campañas
+    const enriched = profilesData.map(u => ({ 
+      ...u, 
+      campaigns: campMap[u.id] || [] 
+    }));
+    
     setUsers(enriched);
     const today = new Date().toISOString().split("T")[0];
     setStats({
@@ -345,14 +391,38 @@ export default function AdminPage({ profile, onBack }) {
 
   const saveUser = async (userId, form) => {
     setSaving(true);
-    await supabase.from("profiles").update({
+    
+    // Actualizar perfil en profiles
+    const { error: profileError } = await supabase.from("profiles").update({
       name: form.name,
       username: form.username,
+      email: form.email,
       phone: form.phone,
       role: form.role,
       is_admin: form.is_admin,
       is_active: form.is_active,
     }).eq("id", userId);
+    
+    if (profileError) {
+      console.error('Error updating profile:', profileError);
+      setSaving(false);
+      return;
+    }
+    
+    // Si cambió el email, actualizar en auth.users también
+    const originalUser = users.find(u => u.id === userId);
+    if (originalUser && form.email !== originalUser.email && form.email) {
+      // Enviar email de verificación al nuevo correo
+      const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
+        email: form.email,
+        email_confirm: false // Esto fuerza que se envíe correo de verificación
+      });
+      
+      if (emailError) {
+        console.error('Error updating email in auth:', emailError);
+      }
+    }
+    
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...form } : u));
     setEditUser(null);
     setSaving(false);
@@ -473,7 +543,13 @@ export default function AdminPage({ profile, onBack }) {
                       {isDisabled && <Pill label="deshabilitado" color="#991B1B" bg="#FEF2F2" />}
                     </div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "2px 16px", fontSize: 12, color: COLORS.textLight }}>
-                      {user.email    && <span>✉️ {user.email}</span>}
+                      {user.email && (
+                        <span>
+                          ✉️ {user.email} 
+                          {user.email_verified && <span style={{ color: "#10B981", fontSize: 11 }}> ✓</span>}
+                          {!user.email_verified && <span style={{ color: "#F59E0B", fontSize: 11 }}> ⊗</span>}
+                        </span>
+                      )}
                       {user.phone    && <span>📱 {user.phone}</span>}
                       {user.birthday && <span>🎂 {user.birthday} · {user.age} años</span>}
                       {user.created_at && <span>🗓 {new Date(user.created_at).toLocaleDateString("es-AR")}</span>}
