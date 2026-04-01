@@ -21,7 +21,7 @@ const IcoBtn = ({ title, onClick, style = {}, children }) => (
 );
 
 // ─── VISTA TABLA ─────────────────────────────────────────────────────────────
-function UserTableView({ users, loading, onBack, onRefresh, onEdit }) {
+function UserTableView({ users, loading, onBack, onRefresh, onEdit, onBulkDisable, onBulkEnable, onBulkDelete }) {
   const [search, setSearch]   = useState("");
   const [filter, setFilter]   = useState("all");
   const [selected, setSelected] = useState([]);
@@ -45,6 +45,20 @@ function UserTableView({ users, loading, onBack, onRefresh, onEdit }) {
 
   const toggleSelect = (id) => setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   const toggleAll = () => setSelected(selected.length === paged.length ? [] : paged.map(u => u.id));
+
+  const handleBulkAction = async (action) => {
+    if (selected.length === 0) return;
+    
+    if (action === 'disable') {
+      await onBulkDisable(selected);
+    } else if (action === 'enable') {
+      await onBulkEnable(selected);
+    } else if (action === 'delete') {
+      await onBulkDelete(selected);
+    }
+    
+    setSelected([]); // Limpiar selección después de la acción
+  };
 
   const FILTERS = [
     { key: "all", label: "Todos" },
@@ -93,15 +107,15 @@ function UserTableView({ users, loading, onBack, onRefresh, onEdit }) {
         <div style={{ background: "#EEEDFE", border: "0.5px solid #AFA9EC", borderRadius: 8, padding: "8px 14px", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 8 }}>
           <span style={{ fontSize: 12, color: "#3C3489", fontWeight: 600 }}>{selected.length} seleccionados</span>
           <div style={{ display: "flex", gap: 6 }}>
-            {[
-              { label: "Deshabilitar", color: "#F59E0B" },
-              { label: "Habilitar", color: "#10B981" },
-              { label: "Eliminar", color: "#EF4444" },
-            ].map(a => (
-              <button key={a.label} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: `0.5px solid ${a.color}40`, background: "#fff", color: a.color, cursor: "pointer", fontWeight: 600 }}>
-                {a.label}
-              </button>
-            ))}
+            <button onClick={() => handleBulkAction('disable')} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "0.5px solid #F59E0B40", background: "#fff", color: "#F59E0B", cursor: "pointer", fontWeight: 600 }}>
+              Deshabilitar
+            </button>
+            <button onClick={() => handleBulkAction('enable')} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "0.5px solid #10B98140", background: "#fff", color: "#10B981", cursor: "pointer", fontWeight: 600 }}>
+              Habilitar
+            </button>
+            <button onClick={() => handleBulkAction('delete')} style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "0.5px solid #EF444440", background: "#fff", color: "#EF4444", cursor: "pointer", fontWeight: 600 }}>
+              Eliminar
+            </button>
           </div>
         </div>
       )}
@@ -366,58 +380,166 @@ export default function AdminPage({ profile, onBack }) {
   const saveUser = async (userId, form) => {
     setSaving(true);
     
-    // Actualizar perfil en profiles
-    const { error: profileError } = await supabase.from("profiles").update({
-      name: form.name,
-      username: form.username,
-      email: form.email,
-      phone: form.phone,
-      role: form.role,
-      is_admin: form.is_admin,
-      is_active: form.is_active,
-    }).eq("id", userId);
-    
-    if (profileError) {
-      console.error('Error updating profile:', profileError);
-      setSaving(false);
-      return;
-    }
-    
-    // Si cambió el email, actualizar en auth.users también
-    const originalUser = users.find(u => u.id === userId);
-    if (originalUser && form.email !== originalUser.email && form.email) {
-      // Enviar email de verificación al nuevo correo
-      const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
+    try {
+      // Actualizar perfil en profiles
+      const { error: profileError } = await supabase.from("profiles").update({
+        name: form.name,
+        username: form.username,
         email: form.email,
-        email_confirm: false // Esto fuerza que se envíe correo de verificación
-      });
+        phone: form.phone,
+        role: form.role,
+        is_admin: form.is_admin,
+        is_active: form.is_active,
+      }).eq("id", userId);
       
-      if (emailError) {
-        console.error('Error updating email in auth:', emailError);
+      if (profileError) {
+        // Manejar error de username duplicado
+        if (profileError.code === '23505' && profileError.message.includes('username')) {
+          alert('❌ Error: El usuario @' + form.username + ' ya existe. Elegí otro username.');
+        } else {
+          alert('❌ Error al guardar: ' + profileError.message);
+        }
+        console.error('Error updating profile:', profileError);
+        setSaving(false);
+        return;
       }
+      
+      // Actualizar lista local
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...form } : u));
+      setEditUser(null);
+      setSaving(false);
+      
+      // Feedback de éxito
+      alert('✅ Usuario actualizado correctamente');
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado al guardar');
+      setSaving(false);
     }
-    
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...form } : u));
-    setEditUser(null);
-    setSaving(false);
   };
 
   const deleteUser = async (userId) => {
-    await supabase.from("profiles").delete().eq("id", userId);
-    setUsers(prev => prev.filter(u => u.id !== userId));
-    setConfirm(null);
-    setEditUser(null);
+    try {
+      // Intentar eliminar el usuario
+      const { error } = await supabase.from("profiles").delete().eq("id", userId);
+      
+      if (error) {
+        // Si hay error por foreign key constraints
+        if (error.code === '23503') {
+          alert('❌ No se puede eliminar este usuario porque tiene datos relacionados (campañas, regalos, etc). Primero debés eliminar esos datos o deshabilitar el usuario.');
+        } else {
+          alert('❌ Error al eliminar usuario: ' + error.message);
+        }
+        console.error('Error deleting user:', error);
+        return;
+      }
+      
+      // Éxito: remover de la lista local
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      setConfirm(null);
+      setEditUser(null);
+      
+      // Feedback de éxito
+      alert('✅ Usuario eliminado correctamente');
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado al eliminar usuario');
+    }
   };
 
   const toggleDisable = async (userId, current) => {
-    const newVal = current === false ? true : false;
-    await supabase.from("profiles").update({ is_active: newVal }).eq("id", userId);
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: newVal } : u));
+    try {
+      const newVal = current === false ? true : false;
+      const { error } = await supabase.from("profiles").update({ is_active: newVal }).eq("id", userId);
+      
+      if (error) {
+        alert('❌ Error al cambiar estado: ' + error.message);
+        console.error('Error toggling disable:', error);
+        return;
+      }
+      
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_active: newVal } : u));
+      
+      // Feedback sutil (opcional, puedes comentar si es muy molesto)
+      // alert(newVal ? '✅ Usuario habilitado' : '⚠️ Usuario deshabilitado');
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
   };
 
   const toggleAdmin = async (userId, current) => {
-    await supabase.from("profiles").update({ is_admin: !current }).eq("id", userId);
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: !current } : u));
+    try {
+      const { error } = await supabase.from("profiles").update({ is_admin: !current }).eq("id", userId);
+      
+      if (error) {
+        alert('❌ Error al cambiar permisos de admin: ' + error.message);
+        console.error('Error toggling admin:', error);
+        return;
+      }
+      
+      setUsers(prev => prev.map(u => u.id === userId ? { ...u, is_admin: !current } : u));
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
+  };
+
+  const bulkDisable = async (userIds) => {
+    try {
+      const { error } = await supabase.from("profiles").update({ is_active: false }).in("id", userIds);
+      if (error) {
+        alert('❌ Error al deshabilitar usuarios: ' + error.message);
+        return;
+      }
+      setUsers(prev => prev.map(u => userIds.includes(u.id) ? { ...u, is_active: false } : u));
+      alert(`✅ ${userIds.length} usuarios deshabilitados`);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
+  };
+
+  const bulkEnable = async (userIds) => {
+    try {
+      const { error } = await supabase.from("profiles").update({ is_active: true }).in("id", userIds);
+      if (error) {
+        alert('❌ Error al habilitar usuarios: ' + error.message);
+        return;
+      }
+      setUsers(prev => prev.map(u => userIds.includes(u.id) ? { ...u, is_active: true } : u));
+      alert(`✅ ${userIds.length} usuarios habilitados`);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
+  };
+
+  const bulkDelete = async (userIds) => {
+    if (!confirm(`⚠️ ¿Estás seguro de eliminar ${userIds.length} usuarios? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.from("profiles").delete().in("id", userIds);
+      if (error) {
+        if (error.code === '23503') {
+          alert('❌ No se pueden eliminar algunos usuarios porque tienen datos relacionados. Deshabilitalos en su lugar.');
+        } else {
+          alert('❌ Error al eliminar usuarios: ' + error.message);
+        }
+        return;
+      }
+      setUsers(prev => prev.filter(u => !userIds.includes(u.id)));
+      alert(`✅ ${userIds.length} usuarios eliminados`);
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
   };
 
   const filteredMain = users.filter(u => {
@@ -430,7 +552,16 @@ export default function AdminPage({ profile, onBack }) {
   if (view === "table") {
     return (
       <>
-        <UserTableView users={users} loading={loading} onBack={() => setView("main")} onRefresh={loadUsers} onEdit={u => { setEditUser(u); setView("main"); }} />
+        <UserTableView 
+          users={users} 
+          loading={loading} 
+          onBack={() => setView("main")} 
+          onRefresh={loadUsers} 
+          onEdit={u => { setEditUser(u); setView("main"); }}
+          onBulkDisable={bulkDisable}
+          onBulkEnable={bulkEnable}
+          onBulkDelete={bulkDelete}
+        />
         {editUser && (
           <div style={{ maxWidth: 1000, margin: "0 auto", padding: "0 20px 80px" }}>
             <EditUserPanel user={editUser} onSave={saveUser} onCancel={() => setEditUser(null)} onDelete={id => setConfirm(id)} saving={saving} />
