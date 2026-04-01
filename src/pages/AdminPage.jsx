@@ -253,6 +253,14 @@ function EditUserPanel({ user, onSave, onCancel, onDelete, saving }) {
         ))}
       </div>
 
+      {/* Nota sobre email */}
+      <div style={{ padding: "8px 12px", background: "#EFF6FF", borderRadius: 8, border: "0.5px solid #BFDBFE", marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: "#1E40AF", display: "flex", alignItems: "center", gap: 6 }}>
+          <span>ℹ️</span>
+          <span>El email de <strong>autenticación</strong> solo puede cambiarlo el usuario desde su Configuración. Acá solo editás el email de contacto.</span>
+        </div>
+      </div>
+
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px,1fr))", gap: 12, marginBottom: 12 }}>
         {/* Rol */}
         <div>
@@ -396,7 +404,7 @@ export default function AdminPage({ profile, onBack }) {
     const { error: profileError } = await supabase.from("profiles").update({
       name: form.name,
       username: form.username,
-      email: form.email,
+      email: form.email, // Solo actualiza email de contacto en profiles
       phone: form.phone,
       role: form.role,
       is_admin: form.is_admin,
@@ -409,19 +417,9 @@ export default function AdminPage({ profile, onBack }) {
       return;
     }
     
-    // Si cambió el email, actualizar en auth.users también
-    const originalUser = users.find(u => u.id === userId);
-    if (originalUser && form.email !== originalUser.email && form.email) {
-      // Enviar email de verificación al nuevo correo
-      const { error: emailError } = await supabase.auth.admin.updateUserById(userId, {
-        email: form.email,
-        email_confirm: false // Esto fuerza que se envíe correo de verificación
-      });
-      
-      if (emailError) {
-        console.error('Error updating email in auth:', emailError);
-      }
-    }
+    // Nota: El email de autenticación (auth.users) solo puede ser cambiado 
+    // por el propio usuario desde su página de Configuración por seguridad.
+    // Aquí solo actualizamos el email de contacto en profiles.
     
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, ...form } : u));
     setEditUser(null);
