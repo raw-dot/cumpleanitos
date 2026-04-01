@@ -340,31 +340,8 @@ export default function AdminPage({ profile, onBack }) {
   const loadUsers = async () => {
     setLoading(true);
     
-    // Usar función RPC que hace JOIN con auth.users para traer emails
-    const { data: profilesData, error } = await supabase.rpc('get_all_users_with_email');
-    
-    if (error) {
-      console.error('Error loading users:', error);
-      // Fallback: si la función RPC no existe aún, cargar sin emails
-      const { data: fallbackData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
-      if (!fallbackData) { setLoading(false); return; }
-      
-      const { data: campaigns } = await supabase.from("gift_campaigns").select("birthday_person_id, status");
-      const campMap = {};
-      (campaigns || []).forEach(c => { if (!campMap[c.birthday_person_id]) campMap[c.birthday_person_id] = []; campMap[c.birthday_person_id].push(c); });
-      const enriched = fallbackData.map(u => ({ ...u, email: null, campaigns: campMap[u.id] || [] }));
-      setUsers(enriched);
-      const today = new Date().toISOString().split("T")[0];
-      setStats({
-        total: enriched.length,
-        withCampaign: enriched.filter(u => u.campaigns.length > 0).length,
-        newToday: enriched.filter(u => u.created_at?.startsWith(today)).length,
-        disabled: enriched.filter(u => u.is_active === false).length,
-      });
-      setLoading(false);
-      return;
-    }
-    
+    // Traer todos los perfiles (incluyendo email que ya está en profiles)
+    const { data: profilesData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
     if (!profilesData) { setLoading(false); return; }
     
     // Traer campañas
@@ -373,10 +350,7 @@ export default function AdminPage({ profile, onBack }) {
     (campaigns || []).forEach(c => { if (!campMap[c.birthday_person_id]) campMap[c.birthday_person_id] = []; campMap[c.birthday_person_id].push(c); });
     
     // Enriquecer con campañas
-    const enriched = profilesData.map(u => ({ 
-      ...u, 
-      campaigns: campMap[u.id] || [] 
-    }));
+    const enriched = profilesData.map(u => ({ ...u, campaigns: campMap[u.id] || [] }));
     
     setUsers(enriched);
     const today = new Date().toISOString().split("T")[0];
