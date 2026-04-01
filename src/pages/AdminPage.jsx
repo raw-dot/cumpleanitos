@@ -327,10 +327,93 @@ function EditUserPanel({ user, onSave, onCancel, onDelete, saving }) {
   );
 }
 
+// ─── VISTA PAPELERA ──────────────────────────────────────────────────────────
+function TrashView({ users, loading, onBack, onRestore, onPermanentDelete }) {
+  const getDaysLeft = (deletedAt) => {
+    const deleted = new Date(deletedAt);
+    const now = new Date();
+    const diff = 7 - Math.floor((now - deleted) / (1000 * 60 * 60 * 24));
+    return Math.max(0, diff);
+  };
+
+  return (
+    <div style={{ maxWidth: 1000, margin: "0 auto", padding: "24px 20px 80px" }}>
+      {/* Breadcrumb */}
+      <div onClick={onBack} style={{ fontSize: 12, color: COLORS.textLight, marginBottom: 16, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+        ← Modo Administrador &nbsp;/&nbsp; <span style={{ color: COLORS.text, fontWeight: 600 }}>Papelera de reciclaje</span>
+      </div>
+
+      {/* Header */}
+      <div style={{ marginBottom: 20 }}>
+        <h1 style={{ fontSize: 18, fontWeight: 800, margin: "0 0 3px" }}>🗑️ Papelera de reciclaje</h1>
+        <p style={{ fontSize: 12, color: COLORS.textLight, margin: 0 }}>
+          {users.length} usuarios eliminados · Se borran permanentemente después de 7 días
+        </p>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: "center", padding: 60, color: COLORS.textLight }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🗑️</div>Cargando...
+        </div>
+      ) : users.length === 0 ? (
+        <Card style={{ textAlign: "center", padding: 60, color: COLORS.textLight }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>✨</div>
+          <p style={{ margin: 0 }}>La papelera está vacía</p>
+        </Card>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {users.map(user => {
+            const daysLeft = getDaysLeft(user.deleted_at);
+            return (
+              <Card key={user.id} style={{ padding: "14px 18px" }}>
+                <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                  {/* Avatar */}
+                  <div style={{ width: 44, height: 44, borderRadius: "50%", background: "#FEE2E2", color: "#DC2626", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 700, flexShrink: 0 }}>
+                    {getInitials(user.name || user.username || "?")}
+                  </div>
+
+                  {/* Info */}
+                  <div style={{ flex: 1, minWidth: 180 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 3 }}>
+                      <span style={{ fontWeight: 800, fontSize: 14, color: COLORS.text }}>{user.name || "Sin nombre"}</span>
+                      <span style={{ fontSize: 12, color: COLORS.textLight }}>@{user.username}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: COLORS.textLight }}>
+                      {user.email && <span>✉️ {user.email}</span>}
+                      {user.email && user.phone && <span> · </span>}
+                      {user.phone && <span>📱 {user.phone}</span>}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 11, color: daysLeft <= 2 ? "#DC2626" : "#F59E0B", fontWeight: 600 }}>
+                      {daysLeft === 0 
+                        ? "⏰ Se elimina hoy" 
+                        : `⏰ Se elimina en ${daysLeft} día${daysLeft > 1 ? 's' : ''}`}
+                    </div>
+                  </div>
+
+                  {/* Acciones */}
+                  <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                    <Button size="sm" variant="outline" onClick={() => onRestore(user.id)} style={{ borderColor: "#10B981", color: "#10B981" }}>
+                      ↩️ Restaurar
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => onPermanentDelete(user.id)} style={{ color: "#EF4444", border: "1px solid #FCA5A5" }}>
+                      🗑️ Eliminar ya
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── PANTALLA PRINCIPAL ADMIN ─────────────────────────────────────────────────
 export default function AdminPage({ profile, onBack }) {
-  const [view, setView]         = useState("main"); // "main" | "table"
+  const [view, setView]         = useState("main"); // "main" | "table" | "trash"
   const [users, setUsers]       = useState([]);
+  const [trashedUsers, setTrashedUsers] = useState([]);
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState("");
   const [editUser, setEditUser] = useState(null);
@@ -354,8 +437,13 @@ export default function AdminPage({ profile, onBack }) {
   const loadUsers = async () => {
     setLoading(true);
     
-    // Traer todos los perfiles (incluyendo email que ya está en profiles)
-    const { data: profilesData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
+    // Traer todos los perfiles ACTIVOS (no eliminados)
+    const { data: profilesData } = await supabase
+      .from("profiles")
+      .select("*")
+      .is("deleted_at", null)  // Solo usuarios NO eliminados
+      .order("created_at", { ascending: false });
+      
     if (!profilesData) { setLoading(false); return; }
     
     // Traer campañas
@@ -424,17 +512,15 @@ export default function AdminPage({ profile, onBack }) {
       // Cerrar modal primero
       setConfirm(null);
       
-      // Intentar eliminar el usuario
-      const { error } = await supabase.from("profiles").delete().eq("id", userId);
+      // Soft delete: marcar con deleted_at en lugar de eliminar
+      const { error } = await supabase
+        .from("profiles")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", userId);
       
       if (error) {
-        console.error('Error deleting user:', error);
-        // Si hay error por foreign key constraints
-        if (error.code === '23503') {
-          alert('❌ No se puede eliminar este usuario porque tiene datos relacionados (campañas, regalos, etc). Primero debés eliminar esos datos o deshabilitar el usuario.');
-        } else {
-          alert('❌ Error al eliminar usuario: ' + error.message);
-        }
+        console.error('Error moving user to trash:', error);
+        alert('❌ Error al mover a papelera: ' + error.message);
         return;
       }
       
@@ -443,11 +529,11 @@ export default function AdminPage({ profile, onBack }) {
       setEditUser(null);
       
       // Feedback de éxito
-      alert('✅ Usuario eliminado correctamente');
+      alert('🗑️ Usuario movido a papelera. Se eliminará permanentemente en 7 días.');
       
     } catch (err) {
       console.error('Unexpected error:', err);
-      alert('❌ Error inesperado al eliminar usuario');
+      alert('❌ Error inesperado');
     }
   };
 
@@ -522,22 +608,78 @@ export default function AdminPage({ profile, onBack }) {
   };
 
   const bulkDelete = async (userIds) => {
-    if (!confirm(`⚠️ ¿Estás seguro de eliminar ${userIds.length} usuarios? Esta acción no se puede deshacer.`)) {
+    if (!confirm(`⚠️ ¿Mover ${userIds.length} usuarios a la papelera? Se eliminarán permanentemente en 7 días.`)) {
       return;
     }
     
     try {
-      const { error } = await supabase.from("profiles").delete().in("id", userIds);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ deleted_at: new Date().toISOString() })
+        .in("id", userIds);
+        
       if (error) {
-        if (error.code === '23503') {
-          alert('❌ No se pueden eliminar algunos usuarios porque tienen datos relacionados. Deshabilitalos en su lugar.');
-        } else {
-          alert('❌ Error al eliminar usuarios: ' + error.message);
-        }
+        alert('❌ Error al mover usuarios a papelera: ' + error.message);
         return;
       }
+      
       setUsers(prev => prev.filter(u => !userIds.includes(u.id)));
-      alert(`✅ ${userIds.length} usuarios eliminados`);
+      alert(`🗑️ ${userIds.length} usuarios movidos a papelera`);
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
+  };
+
+  const loadTrashedUsers = async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("profiles")
+      .select("*")
+      .not("deleted_at", "is", null)
+      .order("deleted_at", { ascending: false });
+    setTrashedUsers(data || []);
+    setLoading(false);
+  };
+
+  const restoreUser = async (userId) => {
+    try {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ deleted_at: null })
+        .eq("id", userId);
+      
+      if (error) {
+        alert('❌ Error al restaurar usuario: ' + error.message);
+        return;
+      }
+      
+      setTrashedUsers(prev => prev.filter(u => u.id !== userId));
+      alert('✅ Usuario restaurado correctamente');
+      
+    } catch (err) {
+      console.error('Unexpected error:', err);
+      alert('❌ Error inesperado');
+    }
+  };
+
+  const permanentlyDeleteUser = async (userId) => {
+    if (!confirm('⚠️ ¿ELIMINAR PERMANENTEMENTE este usuario? Esta acción NO se puede deshacer y eliminará TODOS sus datos (campañas, regalos, etc).')) {
+      return;
+    }
+    
+    try {
+      const { error } = await supabase.rpc('permanently_delete_user', { user_id: userId });
+      
+      if (error) {
+        alert('❌ Error al eliminar permanentemente: ' + error.message);
+        return;
+      }
+      
+      setTrashedUsers(prev => prev.filter(u => u.id !== userId));
+      alert('✅ Usuario eliminado permanentemente');
+      
     } catch (err) {
       console.error('Unexpected error:', err);
       alert('❌ Error inesperado');
@@ -574,6 +716,19 @@ export default function AdminPage({ profile, onBack }) {
     );
   }
 
+  // ── VISTA PAPELERA ──
+  if (view === "trash") {
+    return (
+      <TrashView 
+        users={trashedUsers}
+        loading={loading}
+        onBack={() => setView("main")}
+        onRestore={restoreUser}
+        onPermanentDelete={permanentlyDeleteUser}
+      />
+    );
+  }
+
   // ── VISTA PRINCIPAL ──
   const STAT_CARDS = [
     { icon: "👥", label: "Usuarios totales", value: stats.total, color: "#7C3AED", onClick: () => setView("table") },
@@ -595,6 +750,7 @@ export default function AdminPage({ profile, onBack }) {
           <p style={{ margin: 0, color: COLORS.textLight, fontSize: 14 }}>Gestión completa de usuarios — solo visible para admins</p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
+          <Button size="sm" variant="outline" onClick={() => { loadTrashedUsers(); setView("trash"); }}>🗑️ Papelera</Button>
           <Button size="sm" variant="outline" onClick={loadUsers}>↻ Actualizar</Button>
           {onBack && <Button size="sm" variant="ghost" onClick={onBack}>← Volver</Button>}
         </div>
