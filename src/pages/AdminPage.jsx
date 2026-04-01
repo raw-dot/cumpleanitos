@@ -352,7 +352,9 @@ export default function AdminPage({ profile, onBack }) {
     const { data: profilesData, error } = await supabase.rpc('get_all_users_with_email');
     
     if (error) {
-      console.error('Error loading users:', error);
+      console.error('Error loading users with RPC:', error);
+      console.log('Cayendo en fallback - cargando sin emails desde profiles directamente');
+      
       // Fallback: si la función RPC no existe aún, cargar sin emails
       const { data: fallbackData } = await supabase.from("profiles").select("*").order("created_at", { ascending: false });
       if (!fallbackData) { setLoading(false); return; }
@@ -373,7 +375,14 @@ export default function AdminPage({ profile, onBack }) {
       return;
     }
     
-    if (!profilesData) { setLoading(false); return; }
+    if (!profilesData) { 
+      console.log('profilesData es null o undefined');
+      setLoading(false); 
+      return; 
+    }
+    
+    console.log('✅ Usuarios cargados con RPC:', profilesData.length, 'usuarios');
+    console.log('Ejemplo primer usuario:', profilesData[0]);
     
     // Traer campañas
     const { data: campaigns } = await supabase.from("gift_campaigns").select("birthday_person_id, status");
