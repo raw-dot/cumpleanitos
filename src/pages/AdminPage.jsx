@@ -421,23 +421,25 @@ export default function AdminPage({ profile, onBack }) {
 
   const deleteUser = async (userId) => {
     try {
+      // Cerrar modal primero
+      setConfirm(null);
+      
       // Intentar eliminar el usuario
       const { error } = await supabase.from("profiles").delete().eq("id", userId);
       
       if (error) {
+        console.error('Error deleting user:', error);
         // Si hay error por foreign key constraints
         if (error.code === '23503') {
           alert('❌ No se puede eliminar este usuario porque tiene datos relacionados (campañas, regalos, etc). Primero debés eliminar esos datos o deshabilitar el usuario.');
         } else {
           alert('❌ Error al eliminar usuario: ' + error.message);
         }
-        console.error('Error deleting user:', error);
         return;
       }
       
       // Éxito: remover de la lista local
       setUsers(prev => prev.filter(u => u.id !== userId));
-      setConfirm(null);
       setEditUser(null);
       
       // Feedback de éxito
