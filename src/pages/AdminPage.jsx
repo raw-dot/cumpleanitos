@@ -438,11 +438,16 @@ export default function AdminPage({ profile, onBack }) {
     setLoading(true);
     
     // Traer todos los perfiles ACTIVOS (no eliminados) desde VIEW
-    const { data: profilesData } = await supabase
+    const { data: profilesData, error: queryError } = await supabase
       .from("profiles_with_auth")
       .select("*")
-      .is("profile_deleted_at", null)  // Solo usuarios NO eliminados
       .order("profile_created_at", { ascending: false });
+    
+    if (queryError) {
+      console.error("Error loading profiles:", queryError);
+      setLoading(false);
+      return;
+    }
       
     if (!profilesData) { setLoading(false); return; }
     
