@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
-import GoogleOnboardingModal from "./components/ui/GoogleOnboardingModal";
+import CompleteProfilePage from "./pages/CompleteProfilePage";
 import AuthPage from "./pages/AuthPage";
 import AdminPage from "./pages/AdminPage";
 import CelebrantDashboard from "./pages/CelebrantDashboard";
@@ -609,21 +609,26 @@ export default function App() {
 
   const hideFooter = noNavPages.includes(page);
 
-  return (
-    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
-      {showOnboarding && onboardingUser && (
-        <GoogleOnboardingModal
+  // Si está en proceso de completar perfil de Google, mostrar solo esa pantalla
+  if (showOnboarding && onboardingUser) {
+    return (
+      <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
+        <CompleteProfilePage
           user={onboardingUser}
-          initialUsername={onboardingUsername}
-          onComplete={async () => {
+          suggestedUsername={onboardingUsername}
+          onComplete={async (updatedProfile) => {
             setShowOnboarding(false);
-            const { data } = await supabase.from("profiles").select("*").eq("id", onboardingUser.id).single();
-            if (data) setProfile(data);
+            setProfile(updatedProfile);
             await loadStats(onboardingUser.id);
             setPage("perfil");
           }}
         />
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
       <Navbar page={page} setPage={setPage} navigateTo={navigateTo} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />
       <main style={{ paddingBottom: isMobile && session ? 70 : 0 }}>
         {renderPage()}
