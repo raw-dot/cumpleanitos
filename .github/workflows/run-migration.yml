@@ -30,10 +30,16 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           MIGRATION_FILE: ${{ github.event.inputs.migration_file }}
         run: |
-          cat > run-migration.js << 'EOF'
-          const { createClient } = require('@supabase/supabase-js');
-          const fs = require('fs');
-          const path = require('path');
+          cat > package.json << 'PKGJSON'
+          {
+            "type": "module"
+          }
+          PKGJSON
+
+          cat > run-migration.mjs << 'EOF'
+          import { createClient } from '@supabase/supabase-js';
+          import fs from 'fs';
+          import path from 'path';
 
           const supabaseUrl = process.env.SUPABASE_URL;
           const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -100,7 +106,7 @@ jobs:
           runMigration();
           EOF
 
-          node run-migration.js
+          node run-migration.mjs
 
       - name: Summary
         if: success()
