@@ -449,6 +449,33 @@ export default function App() {
       attempts++;
     }
     
+    // Si después de 3 intentos no existe, crearlo manualmente (trigger falló)
+    if (!data) {
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
+      
+      if (user) {
+        const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Usuario";
+        const username = 'user_' + user.id.substring(0, 8);
+        
+        const { error: insertError } = await supabase.from("profiles").insert({
+          id: user.id,
+          username,
+          name,
+          birthday: '2000-01-01',
+          role: 'celebrant',
+          email: user.email,
+          email_verified: !!user.email_confirmed_at
+        });
+        
+        if (!insertError) {
+          // Re-fetch el profile recién creado
+          const { data: newProfile } = await supabase.from("profiles").select("*").eq("id", userId).single();
+          data = newProfile;
+        }
+      }
+    }
+    
     clearTimeout(profileTimeout);
     if (data) {
       // Detectar si es usuario nuevo de Google: username auto-generado Y sin birthday/phone
