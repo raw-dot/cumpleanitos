@@ -437,12 +437,12 @@ export default function AdminPage({ profile, onBack }) {
   const loadUsers = async () => {
     setLoading(true);
     
-    // Traer todos los perfiles ACTIVOS (no eliminados)
+    // Traer todos los perfiles ACTIVOS (no eliminados) desde VIEW
     const { data: profilesData } = await supabase
-      .from("profiles")
+      .from("profiles_with_auth")
       .select("*")
-      .is("deleted_at", null)  // Solo usuarios NO eliminados
-      .order("created_at", { ascending: false });
+      .is("profile_deleted_at", null)  // Solo usuarios NO eliminados
+      .order("profile_created_at", { ascending: false });
       
     if (!profilesData) { setLoading(false); return; }
     
