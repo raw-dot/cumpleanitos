@@ -165,6 +165,9 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
   const [saved,    setSaved]    = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error,    setError]    = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteText, setDeleteText] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const uploadFile = async (file, folder) => {
     const ext = file.name.split(".").pop();
@@ -473,6 +476,101 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         <button onClick={handleSave} disabled={saving || uploading} style={{ width: "100%", padding: 14, background: `linear-gradient(135deg, ${C.primary}, ${C.dark})`, color: C.white, border: "none", borderRadius: 12, fontSize: 15, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 16px rgba(124,58,237,0.3)", opacity: (saving || uploading) ? 0.6 : 1 }}>
           {uploading ? "Subiendo imagen..." : saving ? "Guardando..." : "Guardar cambios"}
         </button>
+      </div>
+
+      {/* ── ZONA PELIGROSA: ELIMINAR CUENTA ── */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#EF4444", textTransform: "uppercase", letterSpacing: "0.5px", padding: "24px 16px 8px" }}>Zona peligrosa</div>
+      <div style={{ background: C.white, margin: "0 12px 16px", borderRadius: 14, border: "1px solid #FECACA", padding: 14 }}>
+        {!showDeleteConfirm ? (
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text, marginBottom: 4 }}>Eliminar mi cuenta</div>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>
+              Se eliminarán todos tus datos, regalos, aportes y configuración. Esta acción no se puede deshacer.
+            </div>
+            <button
+              onClick={() => setShowDeleteConfirm(true)}
+              style={{
+                width: "100%", padding: 12,
+                background: "transparent", color: "#EF4444",
+                border: "1.5px solid #FECACA", borderRadius: 10,
+                fontSize: 14, fontWeight: 600, cursor: "pointer",
+              }}
+            >
+              Eliminar cuenta
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#991B1B", marginBottom: 4 }}>¿Estás seguro?</div>
+            <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5, marginBottom: 12 }}>
+              Escribí <strong>ELIMINAR</strong> para confirmar la eliminación permanente de tu cuenta.
+            </div>
+            <input
+              type="text"
+              value={deleteText}
+              onChange={e => setDeleteText(e.target.value)}
+              placeholder="Escribí ELIMINAR"
+              style={{
+                width: "100%", padding: "10px 12px",
+                border: "1.5px solid #FECACA", borderRadius: 8,
+                fontSize: 14, color: C.text, outline: "none",
+                background: "#FEF2F2", boxSizing: "border-box",
+                marginBottom: 10,
+              }}
+            />
+            <div style={{ display: "flex", gap: 8 }}>
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setDeleteText(""); }}
+                style={{
+                  flex: 1, padding: 11,
+                  background: C.white, color: C.text,
+                  border: "1.5px solid " + C.border, borderRadius: 10,
+                  fontSize: 13, fontWeight: 600, cursor: "pointer",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={async () => {
+                  if (deleteText !== "ELIMINAR") return;
+                  setDeleting(true);
+                  try {
+                    const userId = session.user.id;
+                    // Eliminar gift_items de las campañas del usuario
+                    const { data: camps } = await supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId);
+                    if (camps && camps.length > 0) {
+                      const campIds = camps.map(c => c.id);
+                      await supabase.from("gift_items").delete().in("campaign_id", campIds);
+                      await supabase.from("contributions").delete().in("campaign_id", campIds);
+                    }
+                    // Eliminar campañas
+                    await supabase.from("gift_campaigns").delete().eq("birthday_person_id", userId);
+                    // Eliminar friends
+                    await supabase.from("friends").delete().or(`user_id.eq.${userId},friend_id.eq.${userId}`);
+                    // Eliminar perfil
+                    await supabase.from("profiles").delete().eq("id", userId);
+                    // Sign out
+                    await supabase.auth.signOut();
+                    window.location.href = "/";
+                  } catch (err) {
+                    setError("Error eliminando cuenta: " + err.message);
+                    setDeleting(false);
+                  }
+                }}
+                disabled={deleteText !== "ELIMINAR" || deleting}
+                style={{
+                  flex: 1, padding: 11,
+                  background: deleteText === "ELIMINAR" ? "#EF4444" : "#FCA5A5",
+                  color: C.white, border: "none", borderRadius: 10,
+                  fontSize: 13, fontWeight: 700, cursor: deleteText === "ELIMINAR" ? "pointer" : "not-allowed",
+                  opacity: deleting ? 0.6 : 1,
+                }}
+              >
+                {deleting ? "Eliminando..." : "Confirmar eliminación"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
