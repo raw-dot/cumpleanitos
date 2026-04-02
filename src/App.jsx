@@ -432,7 +432,23 @@ export default function App() {
       setLoading(false);
       setHasCampaign(prev => prev === null ? false : prev);
     }, 6000);
-    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    
+    // Retry logic: esperar a que el trigger cree el profile (máximo 3 intentos con delay)
+    let data = null;
+    let attempts = 0;
+    const maxAttempts = 3;
+    
+    while (attempts < maxAttempts && !data) {
+      const result = await supabase.from("profiles").select("*").eq("id", userId).single();
+      data = result.data;
+      
+      if (!data && attempts < maxAttempts - 1) {
+        // Esperar 500ms antes del siguiente intento
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      attempts++;
+    }
+    
     clearTimeout(profileTimeout);
     if (data) {
       // Detectar si es usuario nuevo de Google: username auto-generado Y sin birthday/phone
