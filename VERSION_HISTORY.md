@@ -41,6 +41,7 @@
 | **0.10.6** | 02-abr | 3026950 | Fix trigger v2 | Campos obligatorios | ❌ No arregló | "listo ahi se ve resultado" - Intento 3 FALLÓ |
 | **0.10.7** | 02-abr | 6926b9e | Fix trigger v3 | Bypass RLS | ❌ No arregló | "Sigue dando error" - Intento 4 FALLÓ |
 | **0.10.8** | 02-abr | 38c481a | Docs changelogs | Changelogs debugging | 📄 Docs | "volcalo en tabla, versionada" |
+| **0.10.9** | 02-abr | 9b6801d | Fix OAuth con retry logic | Retry 3x500ms en loadProfile espera trigger | ✅ TESTING | "no funciono" - trigger OK, app esperaba antes que profile exista |
 
 ---
 
