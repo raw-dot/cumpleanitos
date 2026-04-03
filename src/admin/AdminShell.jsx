@@ -5,6 +5,8 @@ import AdminUsuariosPage from "./pages/AdminUsuariosPage";
 import AdminCumpleanosPage from "./pages/AdminCumpleanosPage";
 import AdminRegalosPage from "./pages/AdminRegalosPage";
 import AdminFinanzasPage from "./pages/AdminFinanzasPage";
+import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
+import AdminAlertasPage from "./pages/AdminAlertasPage";
 
 // Placeholders para las páginas que se van a construir
 const Placeholder = ({ title, icon }) => (
@@ -21,8 +23,8 @@ const PAGE_COMPONENTS = {
   cumpleanos:    <AdminCumpleanosPage />,
   regalos:       <AdminRegalosPage />,
   finanzas:      <AdminFinanzasPage />,
-  analytics:     <Placeholder title="Analytics de Comportamiento" icon="📈" />,
-  alertas:       <Placeholder title="Alertas Operativas" icon="⚠️" />,
+  analytics:     <AdminAnalyticsPage />,
+  alertas:       <AdminAlertasPage />,
   moderacion:    <Placeholder title="Moderación de Contenido" icon="🛡️" />,
   configuracion: <Placeholder title="Configuración Admin" icon="⚙️" />,
 };
