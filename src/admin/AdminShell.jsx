@@ -4,6 +4,7 @@ import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsuariosPage from "./pages/AdminUsuariosPage";
 import AdminCumpleanosPage from "./pages/AdminCumpleanosPage";
 import AdminRegalosPage from "./pages/AdminRegalosPage";
+import AdminFinanzasPage from "./pages/AdminFinanzasPage";
 
 // Placeholders para las páginas que se van a construir
 const Placeholder = ({ title, icon }) => (
@@ -19,7 +20,7 @@ const PAGE_COMPONENTS = {
   usuarios:      <AdminUsuariosPage />,
   cumpleanos:    <AdminCumpleanosPage />,
   regalos:       <AdminRegalosPage />,
-  finanzas:      <Placeholder title="Dashboard Financiero" icon="💰" />,
+  finanzas:      <AdminFinanzasPage />,
   analytics:     <Placeholder title="Analytics de Comportamiento" icon="📈" />,
   alertas:       <Placeholder title="Alertas Operativas" icon="⚠️" />,
   moderacion:    <Placeholder title="Moderación de Contenido" icon="🛡️" />,
