@@ -536,25 +536,22 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
                   setDeleting(true);
                   try {
                     const userId = session.user.id;
-                    // Eliminar gift_items de las campañas del usuario
-                    const { data: camps } = await supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId);
-                    if (camps && camps.length > 0) {
-                      const campIds = camps.map(c => c.id);
-                      await supabase.from("gift_items").delete().in("campaign_id", campIds);
-                      await supabase.from("contributions").delete().in("campaign_id", campIds);
-                    }
-                    // Eliminar campañas
-                    await supabase.from("gift_campaigns").delete().eq("birthday_person_id", userId);
-                    // Eliminar friends
-                    await supabase.from("friends").delete().or(`user_id.eq.${userId},friend_id.eq.${userId}`);
-                    // Eliminar perfil
-                    await supabase.from("profiles").delete().eq("id", userId);
-                    // Eliminar usuario de auth (NUEVO - hard delete completo)
-                    const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
-                    if (deleteAuthError) {
-                      console.error("Error eliminando auth.users:", deleteAuthError);
-                      // Continuar igual - el profile ya se borró
-                    }
+                    
+                    // SOFT DELETE: marcar como eliminado en vez de borrar
+                    const now = new Date().toISOString();
+                    
+                    // Marcar perfil como eliminado
+                    await supabase.from("profiles").update({ 
+                      deleted_at: now,
+                      is_active: false 
+                    }).eq("id", userId);
+                    
+                    // Desactivar campañas (no borrar)
+                    await supabase.from("gift_campaigns").update({ 
+                      status: 'deleted',
+                      deleted_at: now 
+                    }).eq("birthday_person_id", userId);
+                    
                     // Sign out
                     await supabase.auth.signOut();
                     window.location.href = "/";
