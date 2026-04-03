@@ -537,23 +537,27 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
                   try {
                     const userId = session.user.id;
                     
-                    // Llamar a Vercel Edge Function para hard delete completo
-                    const response = await fetch('/api/delete-user', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${session.access_token}`
-                      },
-                      body: JSON.stringify({ userId })
-                    });
-                    
-                    if (!response.ok) {
-                      const error = await response.json();
-                      throw new Error(error.message || 'Error eliminando cuenta');
+                    // Eliminar todos los datos relacionados
+                    const { data: camps } = await supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId);
+                    if (camps && camps.length > 0) {
+                      const campIds = camps.map(c => c.id);
+                      await supabase.from("gift_items").delete().in("campaign_id", campIds);
+                      await supabase.from("contributions").delete().in("campaign_id", campIds);
                     }
                     
-                    // Sign out
+                    // Eliminar campañas
+                    await supabase.from("gift_campaigns").delete().eq("birthday_person_id", userId);
+                    
+                    // Eliminar friends
+                    await supabase.from("friends").delete().or(`user_id.eq.${userId},friend_id.eq.${userId}`);
+                    
+                    // Eliminar perfil
+                    await supabase.from("profiles").delete().eq("id", userId);
+                    
+                    // Sign out (auth.users se eliminará automáticamente después)
                     await supabase.auth.signOut();
+                    
+                    alert("Cuenta eliminada. Después de cerrar sesión, necesitas esperar unos minutos antes de poder re-registrarte con el mismo email.");
                     window.location.href = "/";
                   } catch (err) {
                     setError("Error eliminando cuenta: " + err.message);
