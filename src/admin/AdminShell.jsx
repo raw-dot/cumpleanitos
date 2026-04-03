@@ -2,6 +2,7 @@ import { useState } from "react";
 import AdminLayout from "./AdminLayout";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsuariosPage from "./pages/AdminUsuariosPage";
+import AdminCumpleanosPage from "./pages/AdminCumpleanosPage";
 
 // Placeholders para las páginas que se van a construir
 const Placeholder = ({ title, icon }) => (
@@ -15,7 +16,7 @@ const Placeholder = ({ title, icon }) => (
 const PAGE_COMPONENTS = {
   dashboard:     <AdminDashboardPage />,
   usuarios:      <AdminUsuariosPage />,
-  cumpleanos:    <Placeholder title="Seguimiento de Cumpleaños" icon="🎂" />,
+  cumpleanos:    <AdminCumpleanosPage />,
   regalos:       <Placeholder title="Dashboard de Regalos" icon="🎁" />,
   finanzas:      <Placeholder title="Dashboard Financiero" icon="💰" />,
   analytics:     <Placeholder title="Analytics de Comportamiento" icon="📈" />,
