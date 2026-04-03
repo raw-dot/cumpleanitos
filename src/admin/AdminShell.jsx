@@ -8,6 +8,7 @@ import AdminFinanzasPage from "./pages/AdminFinanzasPage";
 import AdminAnalyticsPage from "./pages/AdminAnalyticsPage";
 import AdminAlertasPage from "./pages/AdminAlertasPage";
 import AdminModeracionPage from "./pages/AdminModeracionPage";
+import AdminConfiguracionPage from "./pages/AdminConfiguracionPage";
 
 // Placeholders para las páginas que se van a construir
 const Placeholder = ({ title, icon }) => (
@@ -27,7 +28,7 @@ const PAGE_COMPONENTS = {
   analytics:     <AdminAnalyticsPage />,
   alertas:       <AdminAlertasPage />,
   moderacion:    <AdminModeracionPage />,
-  configuracion: <Placeholder title="Configuración Admin" icon="⚙️" />,
+  configuracion: <AdminConfiguracionPage />,
 };
 
 export default function AdminShell({ profile, onExit }) {
