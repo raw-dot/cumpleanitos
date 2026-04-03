@@ -537,20 +537,20 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
                   try {
                     const userId = session.user.id;
                     
-                    // SOFT DELETE: marcar como eliminado en vez de borrar
-                    const now = new Date().toISOString();
+                    // Llamar a Vercel Edge Function para hard delete completo
+                    const response = await fetch('/api/delete-user', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${session.access_token}`
+                      },
+                      body: JSON.stringify({ userId })
+                    });
                     
-                    // Marcar perfil como eliminado
-                    await supabase.from("profiles").update({ 
-                      deleted_at: now,
-                      is_active: false 
-                    }).eq("id", userId);
-                    
-                    // Desactivar campañas (no borrar)
-                    await supabase.from("gift_campaigns").update({ 
-                      status: 'deleted',
-                      deleted_at: now 
-                    }).eq("birthday_person_id", userId);
+                    if (!response.ok) {
+                      const error = await response.json();
+                      throw new Error(error.message || 'Error eliminando cuenta');
+                    }
                     
                     // Sign out
                     await supabase.auth.signOut();
