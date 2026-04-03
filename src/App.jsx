@@ -364,6 +364,16 @@ export default function App() {
       setLoading(false);
       setHasCampaign(prev => prev === null ? false : prev);
     }, 8000);
+    
+    // LISTENER: detectar cuando app vuelve del background
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // App vuelve a foreground → desbloquear si estaba colgada
+        setLoading(false);
+        setHasCampaign(prev => prev === null ? false : prev);
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
     // getSession: carga inicial, corre una sola vez
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
@@ -423,7 +433,14 @@ export default function App() {
         setSession(s);
       }
     });
-    return () => subscription.unsubscribe();
+    
+    // CLEANUP: limpiar todos los timers y listeners al desmontar
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(globalTimeout);
+      if (hasCampaignTimeoutRef.current) clearTimeout(hasCampaignTimeoutRef.current);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const loadProfile = async (userId) => {
