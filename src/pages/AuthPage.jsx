@@ -142,7 +142,10 @@ export default function AuthPage({ initialMode = "login", onAuth, onNavigate }) 
       provider: "google",
       options: { 
         redirectTo,
-        prompt: 'select_account'  // Fuerza selector de cuentas Google
+        queryParams: {
+          prompt: 'select_account',
+          access_type: 'offline'
+        }
       },
     });
     if (err) { setError(err.message); setLoading(false); }
