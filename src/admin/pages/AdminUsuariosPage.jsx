@@ -230,6 +230,7 @@ function InfoRow({ label, value }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function AdminUsuariosPage() {
+  const isMobile = useIsMobile();
   const { users, loading, saving, toast, load, toggleActive, toggleAdmin, saveUser, bulkDisable, bulkEnable } = useUsuarios();
 
   const [search,   setSearch]   = useState("");
@@ -352,7 +353,7 @@ export default function AdminUsuariosPage() {
             Sin usuarios que coincidan
           </div>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+          <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}><table style={{ width: "100%", minWidth: 600, borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `0.5px solid ${C.border}` }}>
                 <th style={th()}>
@@ -448,7 +449,7 @@ export default function AdminUsuariosPage() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
 

@@ -1,3 +1,4 @@
+import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabaseClient";
 import { getRealAlias } from "../../utils/paymentAliasHelpers";
@@ -185,7 +186,7 @@ function TabResumen({ data, loading }) {
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
       {/* KPIs fila 1 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0,1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, minmax(0,1fr))", gap: 10 }}>
         <KpiCard label="Total recaudado"     value={fmtARS(k?.totalRaised)}    sub="histórico acumulado"     color={C.success} />
         <KpiCard label="Últimos 30 días"     value={fmtARS(k?.raised30)}       sub="aportes recientes"      color={C.primary} />
         <KpiCard label="Últimos 7 días"      value={fmtARS(k?.raised7)}        sub="esta semana"            color={C.primary} />
@@ -193,7 +194,7 @@ function TabResumen({ data, loading }) {
       </div>
 
       {/* KPIs fila 2 */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, minmax(0,1fr))", gap: 10 }}>
         <KpiCard label="Aportes totales"        value={k?.totalCount}                sub="registrados"        />
         <KpiCard label="Campañas con recaudación" value={k?.activeCampsWithRaised}   sub="al menos 1 aporte"  color={C.success} />
         <KpiCard label="Aportes anónimos"        value={`${k?.anonPct}%`}            sub="del total"          color={C.accent} />
@@ -283,7 +284,7 @@ function TabCampanas({ data, loading }) {
             </div>
             <div style={{ flex: 1, overflowY: "auto", padding: 20, display: "flex", flexDirection: "column", gap: 14 }}>
               {/* KPIs */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 8 }}>
                 <div style={{ background: C.primaryBg, borderRadius: 8, padding: 12, textAlign: "center" }}>
                   <div style={{ fontSize: 22, fontWeight: 700, color: C.primary }}>{fmtARS(detail.raised)}</div>
                   <div style={{ fontSize: 10, color: C.primaryLight, marginTop: 2 }}>recaudado</div>
@@ -521,6 +522,7 @@ function PagBtn({ children, onClick, disabled, active }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function AdminFinanzasPage() {
+  const isMobile = useIsMobile();
   const { data, loading, load } = useFinanzas();
   const [activeTab, setActiveTab] = useState("resumen");
 

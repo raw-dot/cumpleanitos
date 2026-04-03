@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { supabase } from "../../supabaseClient";
 
 const C = {
@@ -284,6 +285,7 @@ function Panel({ title, action, onAction, children }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AdminDashboardPage({ onNavigate }) {
+  const isMobile = useIsMobile();
   const { data, loading, reload, lastUpdate } = useDashboard();
   const [activeKpi,    setActiveKpi]    = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
@@ -312,7 +314,7 @@ export default function AdminDashboardPage({ onNavigate }) {
       {showActivity  && <ActivityModal items={data?.activity || []} onClose={() => setShowActivity(false)} onUserClick={setSelectedUser} />}
 
       {/* KPI GRID */}
-      <div style={{ display:"grid", gridTemplateColumns:"repeat(6, minmax(0,1fr))", gap:10 }}>
+      <div style={{ display:"grid", gridTemplateColumns: rg.kpi6(isMobile), gap:10 }}>
         {loading
           ? Array.from({length:6}).map((_,i) => <KpiSkeleton key={i}/>)
           : KPIS.map(kpi => (
@@ -324,7 +326,7 @@ export default function AdminDashboardPage({ onNavigate }) {
       {!loading && <div style={{ fontSize:10, color:C.textMuted, textAlign:"right", marginTop:-8 }}>↑ Tocá una tarjeta para ir al módulo</div>}
 
       {/* CHARTS */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 280px", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns: rg.chartPanel(isMobile), gap:14 }}>
         <Panel title="Aportes por día — últimos 7 días">
           {loading
             ? <div style={{ height:130, background:C.bg, borderRadius:6 }}/>
@@ -355,7 +357,7 @@ export default function AdminDashboardPage({ onNavigate }) {
       </div>
 
       {/* BOTTOM */}
-      <div style={{ display:"grid", gridTemplateColumns:"1fr 300px", gap:14 }}>
+      <div style={{ display:"grid", gridTemplateColumns: rg.tablePanel(isMobile), gap:14 }}>
 
         {/* Tabla cumpleaños activos */}
         <Panel title="Cumpleaños activos" action="ver todos →" onAction={() => onNavigate("cumpleanos")}>

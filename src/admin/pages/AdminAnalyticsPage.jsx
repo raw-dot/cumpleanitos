@@ -1,3 +1,4 @@
+import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabaseClient";
 
@@ -285,7 +286,7 @@ function Skeleton({ h = 200 }) {
 
 // ─── TAB CONVERSIÓN ───────────────────────────────────────────────────────────
 function TabConversion({ data, loading }) {
-  if (loading) return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>{Array.from({length:4}).map((_,i) => <Skeleton key={i} h={180} />)}</div>;
+  if (loading) return <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>{Array.from({length:4}).map((_,i) => <Skeleton key={i} h={180} />)}</div>;
   const cv = data?.conversion;
   if (!cv) return null;
 
@@ -298,7 +299,7 @@ function TabConversion({ data, loading }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       {/* fila superior */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr 1fr", gap: 14 }}>
         <Panel title="Embudo de conversión" sub="usuarios → cumpleaños → aportes">
           <Funnel steps={funnelSteps} />
           <div style={{ display: "flex", gap: 16, marginTop: 14, justifyContent: "center" }}>
@@ -337,7 +338,7 @@ function TabConversion({ data, loading }) {
 
       {/* fila inferior: desglose del embudo */}
       <Panel title="Desglose completo">
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 10 }}>
+        <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
           {[
             { label: "Usuarios totales",        value: cv.totalUsers,         color: C.text    },
             { label: "Con cumpleaños",           value: cv.usersWithCamp,      color: C.primary },
@@ -540,6 +541,7 @@ function TabDemografico({ data, loading }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AdminAnalyticsPage() {
+  const isMobile = useIsMobile();
   const { data, loading, load } = useAnalytics();
   const [activeTab, setActiveTab] = useState("conversion");
 

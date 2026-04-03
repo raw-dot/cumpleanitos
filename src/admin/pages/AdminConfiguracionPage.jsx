@@ -1,3 +1,4 @@
+import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabaseClient";
 
@@ -424,16 +425,17 @@ function SeccionAbout({ config, onReset }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AdminConfiguracionPage() {
+  const isMobile = useIsMobile();
   const { config, save, reset } = useConfig();
   const { admins, candidates, loading, toast, search, setSearch, toggleAdmin } = useAdmins();
   const [activeSection, setActiveSection] = useState("plataforma");
 
   return (
-    <div style={{ display: "flex", gap: 20, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+    <div style={{ display: "flex", gap: 20, flexDirection: isMobile ? "column" : "row", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <Toast toast={toast} />
 
       {/* Sidebar de secciones */}
-      <div style={{ width: 200, flexShrink: 0 }}>
+      <div style={{ width: isMobile ? "100%" : 200, flexShrink: 0 }}>
         <div style={{ background: C.surface, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: 8, position: "sticky", top: 0 }}>
           {SECTIONS.map(s => (
             <button key={s.id} onClick={() => setActiveSection(s.id)} style={{
