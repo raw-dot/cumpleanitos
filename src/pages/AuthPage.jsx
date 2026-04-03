@@ -140,7 +140,10 @@ export default function AuthPage({ initialMode = "login", onAuth, onNavigate }) 
     const redirectTo = isProd ? "https://cumpleanitos.com" : window.location.origin;
     const { error: err } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo },
+      options: { 
+        redirectTo,
+        prompt: 'select_account'  // Fuerza selector de cuentas Google
+      },
     });
     if (err) { setError(err.message); setLoading(false); }
   };
