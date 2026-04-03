@@ -481,8 +481,9 @@ export default function App() {
       // Detectar si es usuario nuevo de Google: username auto-generado Y sin birthday/phone
       const isGoogleUser = data.username && data.username.startsWith("user_");
       const isIncomplete = !data.birthday || !data.phone;
+      const wasDeleted = data.deleted_at !== null;  // Usuario eliminado que vuelve
 
-      if (isGoogleUser && isIncomplete) {
+      if ((isGoogleUser && isIncomplete) || wasDeleted) {
         // Generar username sugerido desde el email (parte antes del @)
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
