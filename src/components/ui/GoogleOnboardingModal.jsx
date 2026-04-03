@@ -52,6 +52,7 @@ export default function GoogleOnboardingModal({ user, initialUsername, onComplet
     const age = getAge(birthday);
     const days_to_birthday = getDaysToBirthday(birthday);
 
+    // RESETEAR datos si el usuario fue eliminado previamente
     const { error: err } = await supabase.from("profiles").upsert({
       id: user.id,
       username: username.trim(),
@@ -60,6 +61,8 @@ export default function GoogleOnboardingModal({ user, initialUsername, onComplet
       age,
       days_to_birthday,
       name,
+      deleted_at: null,        // Resetear soft delete
+      is_active: true,         // Reactivar usuario
     }, { onConflict: "id" });
 
     if (err) { setError(err.message); setLoading(false); return; }
