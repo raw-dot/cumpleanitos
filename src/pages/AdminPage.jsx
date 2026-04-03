@@ -437,11 +437,11 @@ export default function AdminPage({ profile, onBack }) {
   const loadUsers = async () => {
     setLoading(true);
     
-    // Traer todos los perfiles ACTIVOS (no eliminados) desde VIEW
+    // Traer todos los perfiles ACTIVOS (no eliminados)
     const { data: profilesData, error: queryError } = await supabase
-      .from("profiles_with_auth")
+      .from("profiles")
       .select("*")
-      .order("profile_created_at", { ascending: false });
+      .order("created_at", { ascending: false });
     
     if (queryError) {
       console.error("Error loading profiles:", queryError);
