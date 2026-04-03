@@ -418,6 +418,7 @@ export default function App() {
       } else if (event === "TOKEN_REFRESHED" && s) {
         // Token refrescado: actualizar session sin re-cargar perfil ni mostrar spinner
         setSession(s);
+        setLoading(false); // Desbloquear UI si estaba colgada
         // Si hasCampaign es null (estado colgado), resolverlo
         setHasCampaign(prev => prev === null ? false : prev);
 
