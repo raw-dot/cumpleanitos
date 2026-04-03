@@ -663,7 +663,7 @@ export default function App() {
       case "profile":
         return <ProfilePage username={profileTarget?.username} campaignId={profileTarget?.campaignId} currentSession={session} currentProfile={profile} />;
       case "admin":
-        return <AdminShell profile={profile} onExit={() => setPage("home")} />;
+        return null; // handled by early return above
       default:
         return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
     }
@@ -687,6 +687,11 @@ export default function App() {
         />
       </div>
     );
+  }
+
+  // Admin ocupa toda la pantalla sin navbar ni footer
+  if (page === "admin") {
+    return <AdminShell profile={profile} onExit={() => setPage("home")} />;
   }
 
   return (

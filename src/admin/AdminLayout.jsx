@@ -263,14 +263,20 @@ export default function AdminLayout({ activePage, onNavigate, profile, onExit, c
             ↻
           </button>
 
-          {/* Avatar */}
-          <div style={{
-            width: 30, height: 30, borderRadius: "50%",
-            background: A.primary, color: "#fff",
-            fontSize: 11, fontWeight: 600,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            {profile?.username ? profile.username.slice(0, 2).toUpperCase() : "AD"}
+          {/* Avatar + nombre */}
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, fontWeight: 500, color: A.textLight }}>
+              {profile?.name || profile?.username || "Admin"}
+            </span>
+            <div style={{
+              width: 30, height: 30, borderRadius: "50%",
+              background: A.primary, color: "#fff",
+              fontSize: 11, fontWeight: 600,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              flexShrink: 0,
+            }}>
+              {profile?.username ? profile.username.slice(0, 2).toUpperCase() : "AD"}
+            </div>
           </div>
         </header>
 
