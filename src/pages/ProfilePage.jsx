@@ -7,9 +7,37 @@ import {
 } from "../shared";
 import { getRealAlias } from "../utils/paymentAliasHelpers";
 
-const PRESET_AMOUNTS = [200, 500, 1050, 2000, 5000];
+// Leer montos desde config (localStorage con fallback a defaults)
+const getPresetAmounts = () => {
+  try {
+    const cfg = localStorage.getItem('admin_config');
+    if (cfg) {
+      const parsed = JSON.parse(cfg);
+      if (Array.isArray(parsed.gift_amounts) && parsed.gift_amounts.length >= 2) {
+        return parsed.gift_amounts;
+      }
+    }
+  } catch {}
+  return [500, 1000, 2000, 5000];
+};
 
 export default function ProfilePage({ username, campaignId, currentSession, currentProfile }) {
+  const [presetAmounts, setPresetAmounts] = useState(getPresetAmounts());
+
+  // Sincronizar montos desde Supabase al montar (para que funcione en todos los navegadores)
+  useEffect(() => {
+    supabase.from('app_config').select('value').eq('key', 'platform').single()
+      .then(({ data }) => {
+        if (data?.value?.gift_amounts?.length >= 2) {
+          setPresetAmounts(data.value.gift_amounts);
+          try {
+            const existing = JSON.parse(localStorage.getItem('admin_config') || '{}');
+            localStorage.setItem('admin_config', JSON.stringify({ ...existing, gift_amounts: data.value.gift_amounts }));
+          } catch {}
+        }
+      });
+  }, []);
+
   const [profile, setProfile] = useState(null);
   const [campaign, setCampaign] = useState(null);
   const [items, setItems] = useState([]);
@@ -66,8 +94,14 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
       const { data: p } = await supabase.from("profiles").select("*").eq("username", username).single();
       prof = p;
       if (p) {
+        // Primero buscar campaña activa; si no hay, mostrar la más reciente
         const { data: c } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).single();
-        camp = c;
+        if (c) {
+          camp = c;
+        } else {
+          const { data: cAny } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).order("created_at", { ascending: false }).limit(1).single();
+          camp = cAny;
+        }
       }
     }
 
@@ -413,7 +447,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             <p style={{ color: COLORS.textLight, marginBottom: 24 }}>Montos sugeridos</p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-              {PRESET_AMOUNTS.map(amount => (
+              {presetAmounts.map(amount => (
                 <button
                   key={amount}
                   onClick={() => {
@@ -443,7 +477,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                     }
                   }}
                 >
-                  DAR {formatMoney(amount)}
+                  REGALAR {formatMoney(amount)}
                 </button>
               ))}
             </div>

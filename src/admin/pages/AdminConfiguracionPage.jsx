@@ -28,7 +28,7 @@ const DEFAULT_CONFIG = {
   support_email:     "",
 };
 
-// ─── HOOK CONFIG LOCAL ────────────────────────────────────────────────────────
+// ─── HOOK CONFIG (Supabase + localStorage fallback) ──────────────────────────
 function useConfig() {
   const [config, setConfig] = useState(() => {
     try {
@@ -36,19 +36,36 @@ function useConfig() {
       return saved ? { ...DEFAULT_CONFIG, ...JSON.parse(saved) } : DEFAULT_CONFIG;
     } catch { return DEFAULT_CONFIG; }
   });
+  const [syncing, setSyncing] = useState(false);
 
-  const save = (updates) => {
+  // Al montar: leer desde Supabase
+  useEffect(() => {
+    supabase.from("app_config").select("value").eq("key", "platform").single()
+      .then(({ data }) => {
+        if (data?.value) {
+          const merged = { ...DEFAULT_CONFIG, ...data.value };
+          setConfig(merged);
+          localStorage.setItem("admin_config", JSON.stringify(merged));
+        }
+      });
+  }, []);
+
+  const save = async (updates) => {
     const next = { ...config, ...updates };
     setConfig(next);
     localStorage.setItem("admin_config", JSON.stringify(next));
+    setSyncing(true);
+    await supabase.from("app_config").upsert({ key: "platform", value: next }, { onConflict: "key" });
+    setSyncing(false);
   };
 
-  const reset = () => {
+  const reset = async () => {
     setConfig(DEFAULT_CONFIG);
     localStorage.removeItem("admin_config");
+    await supabase.from("app_config").upsert({ key: "platform", value: DEFAULT_CONFIG }, { onConflict: "key" });
   };
 
-  return { config, save, reset };
+  return { config, save, reset, syncing };
 }
 
 // ─── HOOK ADMINS ──────────────────────────────────────────────────────────────
