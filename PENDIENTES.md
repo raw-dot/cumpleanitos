@@ -1,44 +1,52 @@
 # 📋 Pendientes cumpleanitos.com
 
-## 🔴 Alta Prioridad
+## 🔴 Alta Prioridad - CRÍTICO
 
-### 1. Eliminar cuenta - Hard Delete completo
+### 1. Eliminar cuenta - Hard Delete NO FUNCIONA
 **Problema:** Al eliminar y re-registrar, sigue recordando datos antiguos.
 
-**Status actual (v0.13.2):**
-- ✅ Soft delete implementado (marca deleted_at)
-- ✅ Onboarding detecta usuarios eliminados
-- ❌ Al completar onboarding, NO resetea todos los campos
-- ❌ Persisten: username viejo, campañas viejas, etc.
+**Intentos fallidos (v0.13 - v0.14.1):**
+- ❌ Soft delete con deleted_at (marca pero no borra)
+- ❌ admin.deleteUser() desde frontend (sin service_role)
+- ❌ Vercel Edge Function /api/delete-user (no funciona en Vite SPA)
+- ❌ SQL Trigger on profile delete (no se ejecutó o falló)
 
-**Solución pendiente:**
-- Opción A: Hard delete real via backend/edge function (requiere service_role)
-- Opción B: Reset completo de TODOS los campos en onboarding cuando `deleted_at !== null`
-  ```javascript
-  // En GoogleOnboardingModal.jsx línea 55
-  const { error: err } = await supabase.from("profiles").update({
-    username: username.trim(),
-    phone: phone.trim(),
-    birthday,
-    age,
-    days_to_birthday,
-    name,
-    deleted_at: null,
-    is_active: true,
-    avatar_url: null,           // ← AGREGAR
-    payment_alias: null,        // ← AGREGAR
-    // Resetear TODOS los campos custom
-  }).eq("id", user.id);
-  
-  // También borrar gift_campaigns viejas
-  await supabase.from("gift_campaigns")
-    .delete()
-    .eq("birthday_person_id", user.id)
-    .not("deleted_at", "is", null);
-  ```
+**Root cause:**
+- `auth.users` requiere service_role para DELETE
+- Frontend solo tiene anon key
+- Triggers en profiles no tienen permisos sobre auth.users
 
-**Prioridad:** Media-Alta
-**Estimación:** 30 min
+**Soluciones pendientes a probar:**
+1. **Supabase Edge Function** (nativo, tiene service_role)
+   - Crear función en Supabase Dashboard
+   - Llamarla desde frontend
+   - Puede borrar auth.users
+   
+2. **RPC Function con SECURITY DEFINER**
+   ```sql
+   CREATE OR REPLACE FUNCTION hard_delete_user(user_id UUID)
+   RETURNS void AS $$
+   BEGIN
+     -- Borrar datos relacionados
+     DELETE FROM gift_items WHERE campaign_id IN (
+       SELECT id FROM gift_campaigns WHERE birthday_person_id = user_id
+     );
+     DELETE FROM contributions WHERE campaign_id IN (
+       SELECT id FROM gift_campaigns WHERE birthday_person_id = user_id
+     );
+     DELETE FROM gift_campaigns WHERE birthday_person_id = user_id;
+     DELETE FROM friends WHERE user_id = user_id OR friend_id = user_id;
+     DELETE FROM profiles WHERE id = user_id;
+     DELETE FROM auth.users WHERE id = user_id;
+   END;
+   $$ LANGUAGE plpgsql SECURITY DEFINER;
+   ```
+   Llamar desde frontend: `supabase.rpc('hard_delete_user', { user_id })`
+
+3. **Workaround temporal:** Dejar soft delete y limpiar manualmente desde Supabase Dashboard
+
+**Prioridad:** CRÍTICA (múltiples bugs reportados)
+**Estimación:** 1-2 hrs debugging + implementación
 
 ---
 
