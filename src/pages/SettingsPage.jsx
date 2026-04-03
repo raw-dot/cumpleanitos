@@ -549,6 +549,12 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
                     await supabase.from("friends").delete().or(`user_id.eq.${userId},friend_id.eq.${userId}`);
                     // Eliminar perfil
                     await supabase.from("profiles").delete().eq("id", userId);
+                    // Eliminar usuario de auth (NUEVO - hard delete completo)
+                    const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
+                    if (deleteAuthError) {
+                      console.error("Error eliminando auth.users:", deleteAuthError);
+                      // Continuar igual - el profile ya se borró
+                    }
                     // Sign out
                     await supabase.auth.signOut();
                     window.location.href = "/";
