@@ -3,7 +3,7 @@ import { supabase } from "./supabaseClient";
 import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
 import AuthPage from "./pages/AuthPage";
-import AdminPage from "./pages/AdminPage";
+import AdminShell from "./admin/AdminShell";
 import CelebrantDashboard from "./pages/CelebrantDashboard";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import ExplorePage from "./pages/ExplorePage";
@@ -663,7 +663,7 @@ export default function App() {
       case "profile":
         return <ProfilePage username={profileTarget?.username} campaignId={profileTarget?.campaignId} currentSession={session} currentProfile={profile} />;
       case "admin":
-        return <AdminPage profile={profile} />;
+        return <AdminShell profile={profile} onExit={() => setPage("home")} />;
       default:
         return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
     }
