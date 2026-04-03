@@ -8,6 +8,7 @@ import Textarea from "../ui/Textarea";
 import Alert from "../ui/Alert";
 import { getInitials, truncate } from "../../utils/formatters";
 import { formatBirthday, getAge } from "../../utils/dateHelpers";
+import { getRealAlias } from "../../utils/paymentAliasHelpers";
 
 /**
  * Página de perfil personal del usuario
@@ -90,7 +91,7 @@ function MyProfilePage({ profile, session }) {
             <span>🎂 {age} años</span>
             <span>📅 {formatBirthday(profile.birthday)}</span>
             {profile.payment_alias && (
-              <span>💳 {truncate(profile.payment_alias, 20)}</span>
+              <span>💳 {truncate(getRealAlias(profile.payment_alias), 20)}</span>
             )}
           </div>
         </div>

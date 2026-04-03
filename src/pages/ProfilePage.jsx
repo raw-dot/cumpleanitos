@@ -5,6 +5,7 @@ import {
   ProgressBar,
   getInitials, formatMoney, formatBirthday, daysUntilBirthday,
 } from "../shared";
+import { getRealAlias } from "../utils/paymentAliasHelpers";
 
 const PRESET_AMOUNTS = [200, 500, 1050, 2000, 5000];
 
@@ -157,7 +158,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
     setShowContributeForm(false);
     setPreSelectedItem(null);
     setForm({ amount: "", name: "", contact: "", message: "", anonymous: false });
-    setSuccess(`¡Gracias por tu regalo! 🎉 Ahora hacé la transferencia de ${formatMoney(amount)} al alias: ${profile?.payment_alias || "pendiente de confirmar"}`);
+    setSuccess(`¡Gracias por tu regalo! 🎉 Ahora hacé la transferencia de ${formatMoney(amount)} al alias: ${getRealAlias(profile?.payment_alias) || "pendiente de confirmar"}`);
   };
 
   if (loading) {
@@ -496,7 +497,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             {profile?.payment_alias && (
               <Card style={{ background: "#FEFCE8", border: `1px solid #FDE68A`, padding: 16, marginBottom: 16 }}>
                 <div style={{ fontSize: 14, color: "#92400E" }}>
-                  💳 <strong>Regalá por medio de alias de Mercado Pago:</strong> <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{profile.payment_alias}</span>
+                  💳 <strong>Regalá por medio de alias de Mercado Pago:</strong> <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{getRealAlias(profile.payment_alias)}</span>
                 </div>
               </Card>
             )}
