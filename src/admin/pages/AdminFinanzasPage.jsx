@@ -525,9 +525,9 @@ function PagBtn({ children, onClick, disabled, active }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
-export default function AdminFinanzasPage() {
+export default function AdminFinanzasPage({ initialFilter } = {}) {
   const { data, loading, load } = useFinanzas();
-  const [activeTab, setActiveTab] = useState("resumen");
+  const [activeTab, setActiveTab] = useState(initialFilter || "resumen");
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>

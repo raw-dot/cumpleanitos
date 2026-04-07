@@ -12,21 +12,14 @@ import AdminAlertasPage from "./pages/AdminAlertasPage";
 import AdminModeracionPage from "./pages/AdminModeracionPage";
 import AdminConfiguracionPage from "./pages/AdminConfiguracionPage";
 
-const Placeholder = ({ title, icon }) => (
-  <div style={{ background: "#fff", border: "0.5px solid #E5E7EB", borderRadius: 10, padding: "48px 32px", textAlign: "center", color: "#9CA3AF", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
-    <div style={{ fontSize: 32, marginBottom: 12 }}>{icon}</div>
-    <div style={{ fontSize: 15, fontWeight: 500, color: "#1F2937", marginBottom: 6 }}>{title}</div>
-    <div style={{ fontSize: 13 }}>Próximamente</div>
-  </div>
-);
-
 export default function AdminShell({ profile, onExit }) {
-  const [activePage, setActivePage] = useState("dashboard");
+  const [activePage,   setActivePage]   = useState("dashboard");
+  const [initialFilter, setInitialFilter] = useState(null);
 
-  // Mantener sesión activa: refrescar proactivamente al volver al panel
+  // Refresh sesión al volver al panel
   useEffect(() => {
-    const handleVisibility = async () => {
-      if (document.visibilityState === 'visible') {
+    const handle = async () => {
+      if (document.visibilityState === "visible") {
         try {
           const { data: { session } } = await supabase.auth.getSession();
           if (session) {
@@ -35,38 +28,44 @@ export default function AdminShell({ profile, onExit }) {
               await supabase.auth.refreshSession();
             }
           }
-        } catch(e) { /* silencioso */ }
+        } catch(e) {}
       }
     };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
+    document.addEventListener("visibilitychange", handle);
+    return () => document.removeEventListener("visibilitychange", handle);
   }, []);
+
+  // Navegar con filtro opcional
+  const navigate = (page, filter = null) => {
+    setInitialFilter(filter);
+    setActivePage(page);
+  };
 
   const renderPage = () => {
     switch (activePage) {
-      case "dashboard":     return <AdminDashboardPage onNavigate={setActivePage} />;
-      case "usuarios":      return <AdminUsuariosPage />;
-      case "cumpleanos":    return <AdminCumpleanosPage />;
-      case "regalos":       return <AdminRegalosPage />;
-      case "finanzas":      return <AdminFinanzasPage />;
-      case "analytics":     return <AdminAnalyticsPage />;
+      case "dashboard":     return <AdminDashboardPage onNavigate={navigate} />;
+      case "usuarios":      return <AdminUsuariosPage   initialFilter={initialFilter} />;
+      case "cumpleanos":    return <AdminCumpleanosPage initialFilter={initialFilter} />;
+      case "regalos":       return <AdminRegalosPage    initialFilter={initialFilter} />;
+      case "finanzas":      return <AdminFinanzasPage   initialFilter={initialFilter} />;
+      case "analytics":     return <AdminAnalyticsPage  initialFilter={initialFilter} />;
       case "alertas":       return <AdminAlertasPage />;
       case "moderacion":    return <AdminModeracionPage />;
       case "configuracion": return <AdminConfiguracionPage />;
-      default:              return <AdminDashboardPage onNavigate={setActivePage} />;
+      default:              return <AdminDashboardPage onNavigate={navigate} />;
     }
   };
 
   return (
     <AdminProvider>
-    <AdminLayout
-      activePage={activePage}
-      onNavigate={setActivePage}
-      profile={profile}
-      onExit={onExit}
-    >
-      {renderPage()}
-    </AdminLayout>
+      <AdminLayout
+        activePage={activePage}
+        onNavigate={setActivePage}
+        profile={profile}
+        onExit={onExit}
+      >
+        {renderPage()}
+      </AdminLayout>
     </AdminProvider>
   );
 }

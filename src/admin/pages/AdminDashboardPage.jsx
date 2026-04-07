@@ -64,9 +64,16 @@ function useDashboard() {
       const todayStr        = new Date().toISOString().split("T")[0];
       const totalUsers      = profiles.length;
       const newToday        = profiles.filter(p => p.created_at?.startsWith(todayStr)).length;
-      const activeUsers7d   = profiles.filter(p => p.created_at >= daysAgo(7)).length;
+      // "Nuevos 7 días" = registrados en los últimos 7 días (no "activos")
+      const newUsers7d      = profiles.filter(p => p.created_at >= daysAgo(7)).length;
+      // "Sin cumpleaños" = usuarios que no tienen ninguna campaña
+      const campOwners      = new Set(campaigns.map(c => c.birthday_person_id));
+      const usersNoCampaign = profiles.filter(p => !campOwners.has(p.id)).length;
       const totalCampaigns  = campaigns.length;
       const activeCampaigns = campaigns.filter(c => c.status === "active").length;
+      // "Sin aportes" = campañas activas sin ningún aporte
+      const campIdsWithContrib = new Set(contributions.map(c => c.campaign_id));
+      const activeSinAporte = campaigns.filter(c => c.status === "active" && !campIdsWithContrib.has(c.id)).length;
       const totalContribs   = contributions.length;
       const totalRaised     = contributions.reduce((s, c) => s + (c.amount || 0), 0);
       const avgGift         = totalContribs > 0 ? Math.round(totalRaised / totalContribs) : 0;
@@ -107,7 +114,7 @@ function useDashboard() {
         return { key, label, count: contributions.filter(c => c.created_at?.startsWith(key)).length };
       });
 
-      setData({ kpis: { totalUsers, newToday, activeUsers7d, totalCampaigns, activeCampaigns, totalContribs, totalRaised, avgGift, withContribs, convRate, anonCount, anonPct }, activeCampsList, activity, chart7d });
+      setData({ kpis: { totalUsers, newToday, newUsers7d, usersNoCampaign, activeSinAporte, totalCampaigns, activeCampaigns, totalContribs, totalRaised, avgGift, withContribs, convRate, anonCount, anonPct }, activeCampsList, activity, chart7d });
       setLastUpdate(new Date());
     } catch(e) {
       console.error("Dashboard error:", e);
@@ -154,7 +161,7 @@ function UserModal({ user, onClose, onNavigate }) {
             </div>
           ))}
         </div>
-        <button onClick={() => { onNavigate("usuarios"); onClose(); }} style={{ width:"100%", padding:"9px 0", borderRadius:8, border:"none", background:C.primary, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
+        <button onClick={() => { onNavigate("usuarios", null); onClose(); }} style={{ width:"100%", padding:"9px 0", borderRadius:8, border:"none", background:C.primary, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
           Ver en gestión de usuarios →
         </button>
       </div>
@@ -298,17 +305,38 @@ export default function AdminDashboardPage({ onNavigate }) {
   const k = data?.kpis;
 
   const KPIS = [
-    { id:"usuarios",   label:"Usuarios totales",   value: fmt(k?.totalUsers),      delta: k?.newToday > 0 ? `▲ ${k.newToday} hoy` : null, deltaType:"up", nav:"usuarios" },
-    { id:"activos",    label:"Activos 7 días",      value: fmt(k?.activeUsers7d),   sub:"nuevos registros",                                                 nav:"usuarios" },
-    { id:"cumpleanos", label:"Cumpleaños activos",  value: fmt(k?.activeCampaigns), sub:`de ${fmt(k?.totalCampaigns)} totales`,                             nav:"cumpleanos" },
-    { id:"aportes",    label:"Aportes recibidos",   value: fmt(k?.totalContribs),   sub:"total histórico",                                                  nav:"regalos" },
-    { id:"recaudado",  label:"Total recaudado",     value: fmtARS(k?.totalRaised),  sub:"suma de aportes",                                                  nav:"finanzas" },
-    { id:"promedio",   label:"Ticket promedio",     value: fmtARS(k?.avgGift),      sub:"por aporte",                                                       nav:"finanzas" },
+    // Usuarios totales → vista usuarios sin filtro
+    { id:"usuarios",   label:"Usuarios totales",    value: fmt(k?.totalUsers),
+      delta: k?.newToday > 0 ? `▲ ${k.newToday} hoy` : null, deltaType:"up",
+      nav:"usuarios", filter: null },
+    // Nuevos 7 días → vista usuarios filtrada por nuevos
+    { id:"nuevos7d",   label:"Nuevos últimos 7 días", value: fmt(k?.newUsers7d),
+      sub:"registros recientes",
+      nav:"usuarios", filter: "new7d" },
+    // Cumpleaños activos → vista cumpleaños filtrada por activos
+    { id:"cumpleanos", label:"Cumpleaños activos",   value: fmt(k?.activeCampaigns),
+      sub:`de ${fmt(k?.totalCampaigns)} totales`,
+      nav:"cumpleanos", filter: "active" },
+    // Aportes → vista regalos tab aportes
+    { id:"aportes",    label:"Aportes recibidos",    value: fmt(k?.totalContribs),
+      sub:"total histórico",
+      nav:"regalos", filter: "contribs" },
+    // Total recaudado → vista finanzas tab resumen
+    { id:"recaudado",  label:"Total recaudado",      value: fmtARS(k?.totalRaised),
+      sub:"suma de aportes",
+      nav:"finanzas", filter: "resumen" },
+    // Sin aportes → cumpleaños activos sin ningún aporte
+    { id:"sinAporte",  label:"Cumples sin aportes",  value: fmt(k?.activeSinAporte),
+      sub:"campañas activas vacías",
+      nav:"cumpleanos", filter: "nogift" },
   ];
 
   const handleKpi = (kpi) => {
     setActiveKpi(kpi.id);
-    setTimeout(() => { setActiveKpi(null); onNavigate(kpi.nav); }, 250);
+    setTimeout(() => {
+      setActiveKpi(null);
+      onNavigate(kpi.nav, kpi.filter); // pasar filtro a la página destino
+    }, 250);
   };
 
   return (
@@ -364,7 +392,7 @@ export default function AdminDashboardPage({ onNavigate }) {
       <div style={{ display:"grid", gridTemplateColumns: rg.tablePanel(isMobile), gap:14 }}>
 
         {/* Tabla cumpleaños activos */}
-        <Panel title="Cumpleaños activos" action="ver todos →" onAction={() => onNavigate("cumpleanos")}>
+        <Panel title="Cumpleaños activos" action="ver todos →" onAction={() => onNavigate("cumpleanos", "active")}>
           {loading
             ? <div style={{ height:160, background:C.bg, borderRadius:6 }}/>
             : !data?.activeCampsList?.length

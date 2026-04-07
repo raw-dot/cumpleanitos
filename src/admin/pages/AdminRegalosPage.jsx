@@ -495,9 +495,9 @@ function PagBtn({ children, onClick, disabled, active }) {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
-export default function AdminRegalosPage() {
+export default function AdminRegalosPage({ initialFilter } = {}) {
   const { items, contribs, loading, load } = useRegalos();
-  const [activeTab,      setActiveTab]      = useState("contribs");
+  const [activeTab,      setActiveTab]      = useState(initialFilter === "items" ? "items" : "contribs");
   const [selectedItem,   setSelectedItem]   = useState(null);
   const [selectedContrib,setSelectedContrib]= useState(null);
 

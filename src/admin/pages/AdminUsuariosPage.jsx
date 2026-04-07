@@ -24,12 +24,15 @@ const ROLE_LABELS = {
   gifter:    { label: "Regalador",   color: C.success,  bg: C.successBg },
 };
 
+const daysAgo7 = () => new Date(Date.now() - 7 * 86400000).toISOString();
+
 const FILTERS = [
-  { id: "all",      label: "Todos"       },
-  { id: "active",   label: "Activos"     },
-  { id: "disabled", label: "Inactivos"   },
-  { id: "admin",    label: "Admins"      },
-  { id: "nocampaign", label: "Sin cumple"},
+  { id: "all",       label: "Todos"         },
+  { id: "new7d",     label: "Nuevos 7 días"  },
+  { id: "active",    label: "Activos"        },
+  { id: "disabled",  label: "Inactivos"      },
+  { id: "admin",     label: "Admins"         },
+  { id: "nocampaign",label: "Sin cumple"     },
 ];
 
 const PER_PAGE = 15;
@@ -237,7 +240,7 @@ export default function AdminUsuariosPage() {
   const { users, loading, saving, toast, load, toggleActive, toggleAdmin, saveUser, bulkDisable, bulkEnable } = useUsuarios();
 
   const [search,   setSearch]   = useState("");
-  const [filter,   setFilter]   = useState("all");
+  const [filter,   setFilter]   = useState(initialFilter || "all");
   const [page,     setPage]     = useState(0);
   const [selected, setSelected] = useState([]);
   const [editing,  setEditing]  = useState(null);
@@ -248,6 +251,7 @@ export default function AdminUsuariosPage() {
     const q = search.toLowerCase();
     const matchSearch = !q || u.name?.toLowerCase().includes(q) || u.username?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
     const matchFilter =
+      filter === "new7d"      ? u.created_at >= daysAgo7() :
       filter === "active"     ? u.is_active !== false :
       filter === "disabled"   ? u.is_active === false :
       filter === "admin"      ? u.is_admin :
