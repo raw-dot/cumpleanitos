@@ -83,19 +83,59 @@ function SecondaryBtn({ onClick, children }) {
 
 // ── Modal FOTO ─────────────────────────────────────────────────────────────
 function FotoModal({ open, onClose, onConfirm }) {
-  const [tab, setTab]         = useState("subir");
-  const [preview, setPreview] = useState(null);
-  const [fileObj, setFileObj] = useState(null);
-  const [error, setError]     = useState("");
+  const [tab, setTab]             = useState("subir");
+  const [preview, setPreview]     = useState(null);   // blob url para mostrar
+  const [fileObj, setFileObj]     = useState(null);   // File real
+  const [error, setError]         = useState("");
   const [uploading, setUploading] = useState(false);
 
-  // Refs a inputs reales — siempre montados cuando el modal está abierto
-  const inputFileRef   = useRef(null);
-  const inputCameraRef = useRef(null);
+  // Cámara (getUserMedia) — solo para el tab "camara"
+  const [camStream, setCamStream]     = useState(null);  // MediaStream activo
+  const [camReady, setCamReady]       = useState(false); // webcam lista
+  const [captured, setCaptured]       = useState(null);  // blob url de la captura
+  const videoLiveRef = useRef(null);  // <video> live de la webcam
+  const canvasRef    = useRef(null);  // canvas para capturar frame
+  const inputFileRef = useRef(null);  // input file oculto
+
+  // Arrancar cámara cuando se cambia al tab "camara"
+  useEffect(() => {
+    if (!open || tab !== "camara") return;
+    let stream;
+    (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        setCamStream(stream);
+        setCamReady(true);
+        if (videoLiveRef.current) {
+          videoLiveRef.current.srcObject = stream;
+        }
+      } catch (e) {
+        setError("No se pudo acceder a la cámara. Verificá los permisos del navegador.");
+      }
+    })();
+    return () => {
+      if (stream) stream.getTracks().forEach(t => t.stop());
+      setCamStream(null); setCamReady(false);
+    };
+  }, [open, tab]);
+
+  // Asignar srcObject cuando el video element está listo
+  useEffect(() => {
+    if (camStream && videoLiveRef.current && !videoLiveRef.current.srcObject) {
+      videoLiveRef.current.srcObject = camStream;
+    }
+  }, [camStream]);
+
+  const stopCam = () => {
+    if (camStream) camStream.getTracks().forEach(t => t.stop());
+    setCamStream(null); setCamReady(false); setCaptured(null);
+  };
 
   const reset = useCallback(() => {
-    setPreview(null); setFileObj(null); setError(""); setTab("subir"); setUploading(false);
-  }, []);
+    stopCam();
+    setPreview(null); setFileObj(null); setError(""); setTab("subir");
+    setUploading(false); setCaptured(null);
+  }, []); // eslint-disable-line
 
   const handleClose = () => { reset(); onClose(); };
 
@@ -108,17 +148,34 @@ function FotoModal({ open, onClose, onConfirm }) {
     setPreview(URL.createObjectURL(file));
   };
 
+  // Capturar frame de la webcam → canvas → File
+  const handleCapture = () => {
+    const video = videoLiveRef.current;
+    const canvas = canvasRef.current;
+    if (!video || !canvas) return;
+    canvas.width  = video.videoWidth  || 640;
+    canvas.height = video.videoHeight || 480;
+    canvas.getContext("2d").drawImage(video, 0, 0);
+    canvas.toBlob((blob) => {
+      if (!blob) return;
+      const file = new File([blob], `foto_camara_${Date.now()}.jpg`, { type: "image/jpeg" });
+      const url  = URL.createObjectURL(blob);
+      setCaptured(url);
+      setFileObj(file);
+      setPreview(url);
+      stopCam();
+    }, "image/jpeg", 0.92);
+  };
+
   const handleConfirm = async () => {
     if (!fileObj) return;
-    setUploading(true);
-    setError("");
+    setUploading(true); setError("");
     try {
       const url = await uploadToStorage(fileObj, "foto");
       onConfirm({ name: fileObj.name, type: "foto", previewUrl: preview, storageUrl: url });
       handleClose();
     } catch (e) {
       console.error(e);
-      // Si falla el upload a Storage (ej: bucket no existe aún), usar previewUrl local como fallback
       onConfirm({ name: fileObj.name, type: "foto", previewUrl: preview, storageUrl: preview });
       handleClose();
     } finally {
@@ -126,11 +183,16 @@ function FotoModal({ open, onClose, onConfirm }) {
     }
   };
 
+  const switchTab = (t) => {
+    if (t !== "camara") stopCam();
+    setTab(t); setPreview(null); setFileObj(null); setError(""); setCaptured(null);
+  };
+
   if (!open) return null;
 
   return (
     <Modal open={open} onClose={handleClose} title="Agregar foto 📷">
-      {/* Inputs siempre montados — nunca dentro de sub-componentes */}
+      {/* Input file oculto — siempre montado */}
       <input
         ref={inputFileRef}
         type="file"
@@ -138,55 +200,125 @@ function FotoModal({ open, onClose, onConfirm }) {
         style={{ display:"none" }}
         onChange={(e) => processFile(e.target.files?.[0])}
       />
-      <input
-        ref={inputCameraRef}
-        type="file"
-        accept="image/*"
-        capture={IS_MOBILE ? "environment" : undefined}
-        style={{ display:"none" }}
-        onChange={(e) => processFile(e.target.files?.[0])}
-      />
+      {/* Canvas oculto para capturar frame */}
+      <canvas ref={canvasRef} style={{ display:"none" }} />
 
       <Tabs
-        tabs={[{ id:"subir", label:"📁 Subir archivo" }, { id:"camara", label: IS_MOBILE ? "📸 Sacar foto" : "📂 Desde cámara" }]}
+        tabs={[{ id:"subir", label:"📁 Subir archivo" }, { id:"camara", label:"📸 Sacar foto" }]}
         active={tab}
-        onChange={(t) => { setTab(t); setPreview(null); setFileObj(null); setError(""); }}
+        onChange={switchTab}
       />
 
-      {/* Zona de clic/drop */}
-      {!preview ? (
-        <div
-          onClick={() => tab === "camara" ? inputCameraRef.current?.click() : inputFileRef.current?.click()}
-          onDrop={(e) => { e.preventDefault(); processFile(e.dataTransfer.files?.[0]); }}
-          onDragOver={(e) => e.preventDefault()}
-          style={{ border:`2px dashed ${tab === "camara" ? "#86EFAC" : "#DDD6FE"}`, borderRadius:14, padding:"32px 20px", textAlign:"center", background:tab === "camara" ? "#F0FDF4" : "#FAFAFA", marginBottom:16, cursor:"pointer" }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.primary}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = tab === "camara" ? "#86EFAC" : "#DDD6FE"}
-        >
-          <div style={{ fontSize:36, marginBottom:10 }}>{tab === "camara" ? "📸" : "🖼️"}</div>
-          <div style={{ fontSize:15, fontWeight:600, color:COLORS.text, marginBottom:4 }}>
-            {tab === "camara"
-              ? (IS_MOBILE ? "Abrir cámara" : "Abrir selector de archivos")
-              : "Tocá para elegir una foto"}
+      {/* ── TAB SUBIR ── */}
+      {tab === "subir" && (
+        !preview ? (
+          <div
+            onClick={() => inputFileRef.current?.click()}
+            onDrop={(e) => { e.preventDefault(); processFile(e.dataTransfer.files?.[0]); }}
+            onDragOver={(e) => e.preventDefault()}
+            style={{ border:"2px dashed #DDD6FE", borderRadius:14, padding:"32px 20px", textAlign:"center", background:"#FAFAFA", marginBottom:16, cursor:"pointer" }}
+            onMouseEnter={(e) => e.currentTarget.style.borderColor = COLORS.primary}
+            onMouseLeave={(e) => e.currentTarget.style.borderColor = "#DDD6FE"}
+          >
+            <div style={{ fontSize:36, marginBottom:10 }}>🖼️</div>
+            <div style={{ fontSize:15, fontWeight:600, color:COLORS.text, marginBottom:4 }}>Tocá para elegir una foto</div>
+            <div style={{ fontSize:12, color:COLORS.textLight }}>JPG, PNG, WEBP · máx. 10 MB</div>
           </div>
-          <div style={{ fontSize:12, color:COLORS.textLight, lineHeight:1.5 }}>
-            {tab === "camara"
-              ? (IS_MOBILE ? "Usá la cámara del dispositivo" : "Seleccioná una imagen de tu computadora")
-              : "JPG, PNG, WEBP · máx. 10 MB"}
+        ) : (
+          <div style={{ marginBottom:16 }}>
+            <img src={preview} alt="preview" style={{ width:"100%", borderRadius:12, maxHeight:220, objectFit:"cover", display:"block" }} />
+            <button onClick={() => { setPreview(null); setFileObj(null); }} style={{ background:"none", border:"none", color:COLORS.error, cursor:"pointer", fontSize:13, marginTop:8 }}>× Cambiar foto</button>
           </div>
-        </div>
-      ) : (
+        )
+      )}
+
+      {/* ── TAB CÁMARA — getUserMedia en desktop + capture en mobile ── */}
+      {tab === "camara" && (
         <div style={{ marginBottom:16 }}>
-          <img src={preview} alt="preview" style={{ width:"100%", borderRadius:12, maxHeight:220, objectFit:"cover", display:"block" }} />
-          <button onClick={() => { setPreview(null); setFileObj(null); }} style={{ background:"none", border:"none", color:COLORS.error, cursor:"pointer", fontSize:13, marginTop:8 }}>
-            × Cambiar foto
-          </button>
+          {/* Foto ya capturada */}
+          {preview ? (
+            <div>
+              <img src={preview} alt="captura" style={{ width:"100%", borderRadius:12, maxHeight:220, objectFit:"cover", display:"block" }} />
+              <button
+                onClick={() => { setPreview(null); setFileObj(null); setCaptured(null);
+                  // Reiniciar cámara
+                  navigator.mediaDevices?.getUserMedia({ video:{ facingMode:"environment" }, audio:false })
+                    .then(s => { setCamStream(s); setCamReady(true); if(videoLiveRef.current) videoLiveRef.current.srcObject = s; })
+                    .catch(() => setError("No se pudo reiniciar la cámara."));
+                }}
+                style={{ background:"none", border:"none", color:COLORS.error, cursor:"pointer", fontSize:13, marginTop:8 }}
+              >
+                × Sacar otra foto
+              </button>
+            </div>
+          ) : IS_MOBILE ? (
+            /* En mobile: usar input capture (más confiable que getUserMedia en Safari iOS) */
+            <>
+              <input
+                type="file" accept="image/*" capture="environment"
+                style={{ display:"none" }}
+                id="cam-input-mobile"
+                onChange={(e) => processFile(e.target.files?.[0])}
+              />
+              <div
+                onClick={() => document.getElementById("cam-input-mobile")?.click()}
+                style={{ border:"2px dashed #86EFAC", borderRadius:14, padding:"32px 20px", textAlign:"center", background:"#F0FDF4", cursor:"pointer" }}
+              >
+                <div style={{ fontSize:36, marginBottom:10 }}>📸</div>
+                <div style={{ fontSize:15, fontWeight:600, color:COLORS.text, marginBottom:4 }}>Abrir cámara</div>
+                <div style={{ fontSize:12, color:COLORS.textLight }}>Usá la cámara del dispositivo</div>
+              </div>
+            </>
+          ) : (
+            /* En desktop: getUserMedia con video live + botón capturar */
+            <div>
+              {error ? (
+                <div style={{ background:"#FEE2E2", border:"1px solid #FCA5A5", borderRadius:12, padding:16, textAlign:"center", marginBottom:12 }}>
+                  <div style={{ fontSize:24, marginBottom:8 }}>🚫</div>
+                  <div style={{ fontSize:13, color:"#991B1B", marginBottom:8 }}>{error}</div>
+                  <button
+                    onClick={() => { setError("");
+                      navigator.mediaDevices?.getUserMedia({ video:{ facingMode:"environment" }, audio:false })
+                        .then(s => { setCamStream(s); setCamReady(true); if(videoLiveRef.current) videoLiveRef.current.srcObject = s; })
+                        .catch(() => setError("No se pudo acceder a la cámara. Verificá los permisos."));
+                    }}
+                    style={{ fontSize:13, color:COLORS.primary, background:"none", border:`1px solid ${COLORS.primary}`, borderRadius:8, padding:"6px 14px", cursor:"pointer" }}
+                  >
+                    Reintentar
+                  </button>
+                </div>
+              ) : (
+                <div style={{ position:"relative", borderRadius:12, overflow:"hidden", background:"#000", marginBottom:12 }}>
+                  <video
+                    ref={videoLiveRef}
+                    autoPlay
+                    playsInline
+                    muted
+                    style={{ width:"100%", maxHeight:240, display:"block", objectFit:"cover" }}
+                  />
+                  {!camReady && (
+                    <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.5)" }}>
+                      <div style={{ color:"#fff", fontSize:13 }}>Iniciando cámara...</div>
+                    </div>
+                  )}
+                </div>
+              )}
+              {camReady && !error && (
+                <button
+                  onClick={handleCapture}
+                  style={{ width:"100%", padding:14, borderRadius:12, background:COLORS.primary, color:"#fff", border:"none", fontSize:15, fontWeight:700, cursor:"pointer", marginBottom:10 }}
+                >
+                  📸 Capturar foto
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
-      {error && <div style={{ color:COLORS.error, fontSize:13, marginBottom:10 }}>⚠️ {error}</div>}
+      {error && tab !== "camara" && <div style={{ color:COLORS.error, fontSize:13, marginBottom:10 }}>⚠️ {error}</div>}
       <PrimaryBtn onClick={handleConfirm} disabled={!fileObj} loading={uploading}>
-        {fileObj ? "Confirmar foto →" : "Elegí una foto primero"}
+        {fileObj ? "Confirmar foto →" : "Elegí o sacá una foto primero"}
       </PrimaryBtn>
       <SecondaryBtn onClick={handleClose}>Cancelar</SecondaryBtn>
     </Modal>
