@@ -428,9 +428,17 @@ export default function App() {
           setHasCampaign(prev => prev === null ? false : prev);
         }, 4000);
         await loadProfile(s.user.id);
-        window.history.replaceState({}, "", "/");
+        // Respetar la ruta actual si es una ruta interna válida
+        const currentPath = window.location.pathname;
+        const isInternalRoute = Object.values(PAGE_ROUTES).includes(currentPath) || currentPath.startsWith('/u/');
         const params = new URLSearchParams(window.location.search);
-        if (!params.get("u") && !params.get("c")) { window.history.replaceState({}, "", "/perfil"); navigate("perfil"); }
+        if (params.get("u") || params.get("c")) {
+          // query params de perfil — ya manejados por el useEffect de URL
+        } else if (currentPath === '/' || !isInternalRoute) {
+          // Solo redirigir a perfil si está en home o ruta desconocida
+          navigate("perfil");
+        }
+        // Si está en /explorar, /admin, /configuracion, etc. — no tocar nada
       } else {
         setHasCampaign(false);
       }
@@ -452,9 +460,8 @@ export default function App() {
           setHasCampaign(prev => prev === null ? false : prev);
         }, 4000);
         await loadProfile(s.user.id);
-        window.history.replaceState({}, "", "/");
-        const params = new URLSearchParams(window.location.search);
-        if (!params.get("u") && !params.get("c")) { window.history.replaceState({}, "", "/perfil"); setPage("perfil"); }
+        // En SIGNED_IN real (vino de login), siempre ir a perfil
+        navigate("perfil");
 
       } else if (event === "TOKEN_REFRESHED" && s) {
         // Token refrescado: actualizar session sin re-cargar perfil ni mostrar spinner
