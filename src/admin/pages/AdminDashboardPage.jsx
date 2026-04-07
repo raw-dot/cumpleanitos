@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { rg } from "../useAdminBreakpoint";
 import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
+import { ensureAdminSession } from "../adminFetch";
 
 const C = {
   primary:   "#7C3AED", primaryBg: "#EDE9FE", primaryLight: "#A78BFA",
@@ -36,6 +37,8 @@ function useDashboard() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Verificar sesión antes de queries — refresca si está por expirar
+      await ensureAdminSession();
       // Todas las queries en paralelo
       const [r1, r2, r3, r4, r5, r6] = await Promise.all([
         supabase.from("profiles").select("id, created_at, is_active, username, name, email, role, birthday, avatar_url"),

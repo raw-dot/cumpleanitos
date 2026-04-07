@@ -366,11 +366,25 @@ export default function App() {
     }, 8000);
     
     // LISTENER: detectar cuando app vuelve del background
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
         // App vuelve a foreground → desbloquear si estaba colgada
         setLoading(false);
         setHasCampaign(prev => prev === null ? false : prev);
+        // Refrescar el token proactivamente para evitar queries fallidas
+        try {
+          const { data: { session: currentSession } } = await supabase.auth.getSession();
+          if (currentSession) {
+            // Verificar si el token expira en menos de 5 minutos
+            const expiresAt = currentSession.expires_at;
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (expiresAt && (expiresAt - nowSec) < 300) {
+              await supabase.auth.refreshSession();
+            }
+          }
+        } catch(e) {
+          // silencioso — no bloquear la UI por esto
+        }
       }
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);

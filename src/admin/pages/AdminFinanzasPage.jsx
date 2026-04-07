@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
+import { ensureAdminSession } from "../adminFetch";
 import { getRealAlias } from "../../utils/paymentAliasHelpers";
 
 const C = {
@@ -33,6 +34,7 @@ function useFinanzas() {
 
   const load = useCallback(async () => {
     setLoading(true);
+      await ensureAdminSession();
 
     const [
       { data: contribs },

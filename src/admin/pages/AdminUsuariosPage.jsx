@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
+import { ensureAdminSession } from "../adminFetch";
 
 const C = {
   primary:   "#7C3AED", primaryBg: "#EDE9FE", primaryLight: "#A78BFA",
@@ -47,6 +48,7 @@ function useUsuarios() {
 
   const load = useCallback(async () => {
     setLoading(true);
+      await ensureAdminSession();
     const [{ data: profiles }, { data: campaigns }] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
       supabase.from("gift_campaigns").select("birthday_person_id, status, id"),

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../../supabaseClient";
+import { ensureAdminSession } from "../adminFetch";
 
 const C = {
   primary:   "#7C3AED", primaryBg: "#EDE9FE", primaryLight: "#A78BFA",
@@ -46,6 +47,7 @@ function useAlertas() {
 
   const load = useCallback(async () => {
     setLoading(true);
+      await ensureAdminSession();
     const [
       { data: campaigns },
       { data: contributions },

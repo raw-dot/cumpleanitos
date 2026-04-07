@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { AdminProvider } from "./AdminContext";
+import { supabase } from "../supabaseClient";
 import AdminLayout from "./AdminLayout";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsuariosPage from "./pages/AdminUsuariosPage";
@@ -21,6 +22,25 @@ const Placeholder = ({ title, icon }) => (
 
 export default function AdminShell({ profile, onExit }) {
   const [activePage, setActivePage] = useState("dashboard");
+
+  // Mantener sesión activa: refrescar proactivamente al volver al panel
+  useEffect(() => {
+    const handleVisibility = async () => {
+      if (document.visibilityState === 'visible') {
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session) {
+            const nowSec = Math.floor(Date.now() / 1000);
+            if (session.expires_at && (session.expires_at - nowSec) < 600) {
+              await supabase.auth.refreshSession();
+            }
+          }
+        } catch(e) { /* silencioso */ }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const renderPage = () => {
     switch (activePage) {
