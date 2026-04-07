@@ -57,17 +57,17 @@ function useCumpleanos() {
     setLoading(true);
     try {
       await ensureAdminSession();
-    const [
-      { data: camps },
-      { data: contribs },
-      { data: items },
-      { data: profiles },
-    ] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       supabase.from("gift_campaigns").select("*").order("created_at", { ascending: false }),
       supabase.from("contributions").select("amount, campaign_id, anonymous"),
       supabase.from("gift_items").select("id, campaign_id"),
       supabase.from("profiles").select("id, username, name, email"),
     ]);
+    if (r1.error) console.error("campaigns error:", r1.error);
+    const camps    = r1.data || [];
+    const contribs = r2.data || [];
+    const items    = r3.data || [];
+    const profiles = r4.data || [];
 
     // mapas rápidos
     const contribMap = {};

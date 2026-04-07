@@ -471,41 +471,25 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
             <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20, color: COLORS.text }}>Aportar para el regalo</h2>
 
             <Card style={{ padding: 24 }}>
-              {/* ── Stepper ── */}
+              {/* ── Stepper — 2 pasos ── */}
               <div style={{ display: "flex", marginBottom: 24 }}>
                 {[
                   { n: 1, label: "Monto" },
-                  { n: 2, label: "Datos" },
-                  { n: 3, label: "Mensaje" },
-                  { n: 4, label: "Confirmar" },
+                  { n: 2, label: "Mensaje y confirmar" },
                 ].map(({ n, label }, idx, arr) => (
                   <div key={n} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
-                    {/* línea conectora */}
                     {idx < arr.length - 1 && (
-                      <div style={{
-                        position: "absolute", top: 12, left: "55%", width: "90%", height: 1,
-                        background: n < step ? COLORS.primary : COLORS.border, zIndex: 0,
-                      }} />
+                      <div style={{ position: "absolute", top: 12, left: "55%", width: "90%", height: 1, background: n < step ? COLORS.primary : COLORS.border, zIndex: 0 }} />
                     )}
-                    <div style={{
-                      width: 24, height: 24, borderRadius: "50%", zIndex: 1,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 11, fontWeight: 700, marginBottom: 4,
-                      background: n < step ? COLORS.primary : n === step ? COLORS.primary : COLORS.border,
-                      color: n <= step ? "#fff" : COLORS.textLight,
-                      boxShadow: n === step ? `0 0 0 4px ${COLORS.primaryLight}40` : "none",
-                    }}>
+                    <div style={{ width: 24, height: 24, borderRadius: "50%", zIndex: 1, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, marginBottom: 4, background: n < step ? COLORS.primary : n === step ? COLORS.primary : COLORS.border, color: n <= step ? "#fff" : COLORS.textLight, boxShadow: n === step ? `0 0 0 4px ${COLORS.primaryLight}40` : "none" }}>
                       {n < step ? "✓" : n}
                     </div>
-                    <div style={{
-                      fontSize: 10, color: n === step ? COLORS.primary : COLORS.textLight,
-                      fontWeight: n === step ? 700 : 400,
-                    }}>{label}</div>
+                    <div style={{ fontSize: 10, color: n === step ? COLORS.primary : COLORS.textLight, fontWeight: n === step ? 700 : 400 }}>{label}</div>
                   </div>
                 ))}
               </div>
 
-              {/* ── PASO 1: Monto ── */}
+              {/* ── PASO 1: Monto + nombre si no está logueado ── */}
               {step === 1 && (
                 <div>
                   <p style={{ color: COLORS.textLight, marginBottom: 16, fontSize: 14 }}>Montos sugeridos</p>
@@ -514,22 +498,27 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                       <button
                         key={amount}
                         onClick={() => { setForm(p => ({ ...p, amount: amount.toString() })); setPreSelectedItem(null); }}
-                        style={{
-                          padding: "14px 8px", borderRadius: 12,
-                          border: `1px solid ${form.amount === amount.toString() ? COLORS.primary : COLORS.border}`,
-                          background: form.amount === amount.toString() ? COLORS.primary : COLORS.card,
-                          color: form.amount === amount.toString() ? "#fff" : COLORS.text,
-                          fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
-                        }}
+                        style={{ padding: "14px 8px", borderRadius: 12, border: `1px solid ${form.amount === amount.toString() ? COLORS.primary : COLORS.border}`, background: form.amount === amount.toString() ? COLORS.primary : COLORS.card, color: form.amount === amount.toString() ? "#fff" : COLORS.text, fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "all 0.15s" }}
                       >
                         {formatMoney(amount)}
                       </button>
                     ))}
                   </div>
-                  <div style={{ marginBottom: 20 }}>
+                  <div style={{ marginBottom: 16 }}>
                     <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>O ingresá otro monto</label>
                     <Input type="number" value={form.amount} onChange={v => setForm(p => ({ ...p, amount: v }))} placeholder="Monto en ARS" min="1" />
                   </div>
+                  {/* Nombre solo si NO está logueado */}
+                  {!currentSession && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>Tu nombre <span style={{ fontSize: 11, opacity: 0.7 }}>(opcional)</span></label>
+                      <Input value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="¿Cómo querés que te vea el festejado?" />
+                    </div>
+                  )}
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 14, marginBottom: 20 }}>
+                    <input type="checkbox" checked={form.anonymous} onChange={e => setForm(p => ({ ...p, anonymous: e.target.checked }))} style={{ width: 18, height: 18, cursor: "pointer", accentColor: COLORS.primary }} />
+                    <span>Aportar de forma anónima</span>
+                  </label>
                   <Alert message={error} type="error" />
                   <Button size="lg" style={{ width: "100%" }} onClick={() => {
                     if (!form.amount || parseFloat(form.amount) <= 0) { setError("Ingresá un monto válido"); return; }
@@ -540,121 +529,37 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                 </div>
               )}
 
-              {/* ── PASO 2: Datos personales ── */}
+              {/* ── PASO 2: Mensaje emocional + alias + confirmar ── */}
               {step === 2 && (
-                <div>
-                  {!form.anonymous && !currentSession && (
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>Tu nombre</label>
-                      <Input value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Nombre completo" />
-                    </div>
-                  )}
-                  {!form.anonymous && (
-                    <div style={{ marginBottom: 14 }}>
-                      <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>
-                        Teléfono o email <span style={{ fontSize: 11, opacity: 0.7 }}>(opcional)</span>
-                      </label>
-                      <Input value={form.contact} onChange={v => setForm(p => ({ ...p, contact: v }))} placeholder="+5491155556666 o email" />
-                    </div>
-                  )}
-                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 14, marginBottom: 20 }}>
-                    <input type="checkbox" checked={form.anonymous} onChange={e => setForm(p => ({ ...p, anonymous: e.target.checked }))} style={{ width: 18, height: 18, cursor: "pointer", accentColor: COLORS.primary }} />
-                    <span>Aportar de forma anónima</span>
-                  </label>
-                  <Alert message={error} type="error" />
-                  <Button size="lg" style={{ width: "100%", marginBottom: 10 }} onClick={() => {
-                    if (!form.anonymous && !currentSession && !form.name.trim()) { setError("Ingresá tu nombre o marcá la opción anónimo"); return; }
-                    setError(""); setStep(3);
-                  }}>
-                    Continuar →
-                  </Button>
-                  <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => {
-                    setError(""); setStep(3);
-                  }}>
-                    Omitir datos
-                  </Button>
-                </div>
-              )}
-
-              {/* ── PASO 3: Mensaje emocional ── */}
-              {step === 3 && (
                 <div>
                   <EmotionalStep
                     value={emotional}
                     onChange={setEmotional}
                     birthdayDate={profile?.birthday || campaign?.birthday_date || null}
                   />
-                  <div style={{ marginTop: 16 }}>
-                    <Button size="lg" style={{ width: "100%", marginBottom: 10 }} onClick={() => { setError(""); setStep(4); }}>
-                      Continuar →
-                    </Button>
-                    <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => { setError(""); setStep(4); }}>
-                      Omitir este paso
-                    </Button>
-                  </div>
-                </div>
-              )}
 
-              {/* ── PASO 4: Confirmar ── */}
-              {step === 4 && (
-                <div>
-                  {/* Resumen */}
-                  <div style={{ background: COLORS.bg, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${COLORS.border}`, fontSize: 14 }}>
-                      <span style={{ color: COLORS.textLight }}>Monto</span>
-                      <span style={{ fontWeight: 700 }}>{formatMoney(parseFloat(form.amount))}</span>
-                    </div>
-                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${COLORS.border}`, fontSize: 14 }}>
-                      <span style={{ color: COLORS.textLight }}>De parte de</span>
-                      <span>{form.anonymous ? "Anónimo 💝" : (form.name || (currentProfile?.name || ""))}</span>
-                    </div>
-                    {(emotional.message || emotional.foto || emotional.video) && (
-                      <div style={{ padding: "6px 0", fontSize: 14 }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: (emotional.foto || emotional.video) ? 10 : 0 }}>
-                          <span style={{ color: COLORS.textLight }}>Mensaje especial</span>
-                          <span style={{ color: COLORS.primary, fontWeight: 600 }}>
-                            {[emotional.message && "Texto", emotional.foto && "Foto", emotional.video && "Video"].filter(Boolean).join(" + ")} 🎁
-                          </span>
-                        </div>
-                        {emotional.message && (
-                          <div style={{ fontSize: 13, color: COLORS.textLight, fontStyle: "italic", background: COLORS.bg, borderRadius: 8, padding: "8px 12px", marginBottom: (emotional.foto || emotional.video) ? 8 : 0 }}>
-                            "{emotional.message}"
-                          </div>
-                        )}
-                        {emotional.foto?.previewUrl && (
-                          <img src={emotional.foto.previewUrl} alt="foto" style={{ width: "100%", maxHeight: 140, borderRadius: 10, objectFit: "cover", display: "block", marginBottom: emotional.video ? 8 : 0 }} />
-                        )}
-                        {emotional.video?.previewUrl && (
-                          <video src={emotional.video.previewUrl} muted playsInline style={{ width: "100%", maxHeight: 140, borderRadius: 10, objectFit: "cover", display: "block", background: "#000" }} />
-                        )}
-                      </div>
-                    )}
-                  </div>
-
+                  {/* Alias de pago */}
                   {profile?.payment_alias && (
-                    <Card style={{ background: "#FEFCE8", border: `1px solid #FDE68A`, padding: 16, marginBottom: 16 }}>
-                      <div style={{ fontSize: 14, color: "#92400E" }}>
-                        💳 <strong>Transferí al alias de Mercado Pago:</strong>
-                        <span style={{ display: "block", fontFamily: "monospace", fontWeight: 700, fontSize: 16, marginTop: 4 }}>
+                    <Card style={{ background: "#FEFCE8", border: `1px solid #FDE68A`, padding: 14, marginTop: 16, marginBottom: 4 }}>
+                      <div style={{ fontSize: 13, color: "#92400E" }}>
+                        💳 <strong>Transferí {formatMoney(parseFloat(form.amount))} al alias:</strong>
+                        <span style={{ display: "block", fontFamily: "monospace", fontWeight: 700, fontSize: 15, marginTop: 4 }}>
                           {getRealAlias(profile.payment_alias)}
                         </span>
                       </div>
                     </Card>
                   )}
 
-                  <Alert message={error} type="error" />
+                  <Alert message={error} type="error" style={{ marginTop: 12 }} />
 
-                  <Button
-                    size="lg"
-                    onClick={submitContribution}
-                    disabled={submitting}
-                    style={{ width: "100%", marginBottom: 10 }}
-                  >
-                    {submitting ? "Procesando..." : "Confirmar regalo 🎉"}
-                  </Button>
-                  <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => setStep(3)}>
-                    ← Volver
-                  </Button>
+                  <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+                    <Button size="lg" onClick={submitContribution} disabled={submitting} style={{ width: "100%" }}>
+                      {submitting ? "Procesando..." : "Confirmar regalo 🎉"}
+                    </Button>
+                    <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => setStep(1)}>
+                      ← Volver
+                    </Button>
+                  </div>
                 </div>
               )}
             </Card>

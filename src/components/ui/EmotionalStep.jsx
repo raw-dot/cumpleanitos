@@ -105,7 +105,7 @@ function FotoModal({ open, onClose, onConfirm }) {
     let stream;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
         setCamStream(stream);
         setCamReady(true);
         if (videoLiveRef.current) {
@@ -244,7 +244,7 @@ function FotoModal({ open, onClose, onConfirm }) {
               <button
                 onClick={() => { setPreview(null); setFileObj(null); setCaptured(null);
                   // Reiniciar cámara
-                  navigator.mediaDevices?.getUserMedia({ video:{ facingMode:"environment" }, audio:false })
+                  navigator.mediaDevices?.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false })
                     .then(s => { setCamStream(s); setCamReady(true); if(videoLiveRef.current) videoLiveRef.current.srcObject = s; })
                     .catch(() => setError("No se pudo reiniciar la cámara."));
                 }}
@@ -280,7 +280,7 @@ function FotoModal({ open, onClose, onConfirm }) {
                   <div style={{ fontSize:13, color:"#991B1B", marginBottom:8 }}>{error}</div>
                   <button
                     onClick={() => { setError("");
-                      navigator.mediaDevices?.getUserMedia({ video:{ facingMode:"environment" }, audio:false })
+                      navigator.mediaDevices?.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false })
                         .then(s => { setCamStream(s); setCamReady(true); if(videoLiveRef.current) videoLiveRef.current.srcObject = s; })
                         .catch(() => setError("No se pudo acceder a la cámara. Verificá los permisos."));
                     }}

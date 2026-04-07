@@ -44,7 +44,7 @@ function useModeracion() {
       { data: campaigns     },
       { data: items         },
     ] = await Promise.all([
-      supabase.from("contributions").select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous, emotional_foto_url, emotional_video_url").not("message", "is", null).order("created_at", { ascending: false }),
+      supabase.from("contributions").select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, username, name, bio, avatar_url, email, is_active, created_at, role").order("created_at", { ascending: false }),
       supabase.from("gift_campaigns").select("id, title, description, image_url, birthday_person_id, birthday_person_name, status, created_at").order("created_at", { ascending: false }),
       supabase.from("gift_items").select("id, campaign_id, name, description, image_url, price, created_at").order("created_at", { ascending: false }),
@@ -74,8 +74,10 @@ function useModeracion() {
       gifterProfile: c.gifter_id ? gifterMap[c.gifter_id] : null,
     }));
 
+    // Solo mostrar en moderación los que tienen mensaje de texto
+    const conMensaje = enrichedContribs.filter(c => c.message && c.message.trim());
     setData({
-      mensajes:  enrichedContribs,
+      mensajes:  conMensaje,
       perfiles:  profiles || [],
       campanas:  enrichedCamps,
       regalos:   enrichedItems,
@@ -251,27 +253,22 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
 
   const flagWords = ["odio", "estafa", "fraude", "spam", "http", "www.", ".com", "whatsapp", "telegram", "puta", "mierda", "pelotud"];
   const isFlagged = (msg) => msg && flagWords.some(w => msg.toLowerCase().includes(w));
-  const hasMedia  = (c) => !!(c.emotional_foto_url || c.emotional_video_url);
 
   const filtered = mensajes.filter(c => {
     const q = search.toLowerCase();
     return !q || c.message?.toLowerCase().includes(q) || c.gifter_name?.toLowerCase().includes(q) || c.campaign?.birthday_person_name?.toLowerCase().includes(q);
   });
 
-  const withMedia  = filtered.filter(c => hasMedia(c));
-  const flagged    = filtered.filter(c => !hasMedia(c) && isFlagged(c.message));
-  const normal     = filtered.filter(c => !hasMedia(c) && !isFlagged(c.message));
-
-  const totalMedia = mensajes.filter(c => hasMedia(c)).length;
+  const flagged = filtered.filter(c => isFlagged(c.message));
+  const normal  = filtered.filter(c => !isFlagged(c.message));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {[
-          { label: "Total mensajes",    value: mensajes.length,  color: C.text    },
-          { label: "Con foto o video",  value: totalMedia,       color: C.primary },
-          { label: "Posible revisión",  value: mensajes.filter(c => isFlagged(c.message)).length, color: C.warn },
-          { label: "Sin issues",        value: mensajes.length - mensajes.filter(c => isFlagged(c.message)).length - totalMedia, color: C.success },
+          { label: "Total mensajes",   value: mensajes.length,  color: C.text    },
+          { label: "Posible revisión", value: mensajes.filter(c => isFlagged(c.message)).length, color: C.warn },
+          { label: "Sin issues",       value: mensajes.length - mensajes.filter(c => isFlagged(c.message)).length, color: C.success },
         ].map(s => (
           <div key={s.label} style={{ background: C.surface, border: `0.5px solid ${C.border}`, borderRadius: 8, padding: "10px 16px", display: "flex", gap: 8, alignItems: "baseline" }}>
             <span style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</span>
@@ -337,11 +334,8 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
 
 function MensajeCard({ contrib, flagged, onClear, onClearMedia, onDisable }) {
   const isAnon = contrib.is_anonymous || contrib.anonymous;
-  const hasFoto  = !!contrib.emotional_foto_url;
-  const hasVideo = !!contrib.emotional_video_url;
-  const hasMedia = hasFoto || hasVideo;
   return (
-    <ContentCard flagged={flagged || hasMedia}>
+    <ContentCard flagged={flagged}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <Avatar name={isAnon ? "?" : (contrib.gifter_name || "?")} size={30} />
         <div style={{ flex: 1 }}>
@@ -354,44 +348,17 @@ function MensajeCard({ contrib, flagged, onClear, onClearMedia, onDisable }) {
               {contrib.campaign?.birthday_person_name || "—"}
             </span>
             {flagged && <span style={{ fontSize: 9, fontWeight: 700, background: C.warnBg, color: C.warn, padding: "2px 6px", borderRadius: 4 }}>REVISAR</span>}
-            {hasFoto  && <span style={{ fontSize: 9, fontWeight: 700, background: "#EDE9FE", color: C.primary, padding: "2px 6px", borderRadius: 4 }}>📷 FOTO</span>}
-            {hasVideo && <span style={{ fontSize: 9, fontWeight: 700, background: "#EDE9FE", color: C.primary, padding: "2px 6px", borderRadius: 4 }}>🎬 VIDEO</span>}
           </div>
-          {contrib.message && (
-            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, marginTop: 6, background: C.bg, borderRadius: 7, padding: "8px 10px", fontStyle: "italic" }}>
-              "{contrib.message}"
-            </div>
-          )}
-          {/* Preview foto */}
-          {hasFoto && (
-            <div style={{ marginTop: 8 }}>
-              <img
-                src={contrib.emotional_foto_url}
-                alt="foto adjunta"
-                style={{ maxWidth: "100%", maxHeight: 160, borderRadius: 8, objectFit: "cover", border: `0.5px solid ${C.border}` }}
-                onError={(e) => { e.target.style.display = "none"; }}
-              />
-            </div>
-          )}
-          {/* Preview video */}
-          {hasVideo && (
-            <div style={{ marginTop: 8 }}>
-              <video
-                src={contrib.emotional_video_url}
-                controls
-                style={{ maxWidth: "100%", maxHeight: 160, borderRadius: 8, background: "#000" }}
-              />
-            </div>
-          )}
+          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, marginTop: 6, background: C.bg, borderRadius: 7, padding: "8px 10px", fontStyle: "italic" }}>
+            "{contrib.message}"
+          </div>
           <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
             <Meta label="Fecha"  value={fmtDate(contrib.created_at)} />
             <Meta label="Monto"  value={`$${Math.round(contrib.amount || 0).toLocaleString("es-AR")}`} />
-            {hasMedia && <Meta label="Media" value={[hasFoto && "foto", hasVideo && "video"].filter(Boolean).join(" + ")} />}
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
           <ActionBtn label="Borrar msg" color={C.error} onClick={onClear} confirm="¿Eliminar este mensaje?" />
-          {hasMedia && onClearMedia && <ActionBtn label="Borrar media" color={C.warn} onClick={onClearMedia} confirm="¿Eliminar foto/video de este aporte?" />}
           {onDisable && !isAnon && <ActionBtn label="Deshabilitar user" color={C.warn} onClick={onDisable} confirm="¿Deshabilitar al usuario?" />}
         </div>
       </div>
