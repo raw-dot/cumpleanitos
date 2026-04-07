@@ -34,7 +34,7 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
   const role = profile?.role;
 
   const copyProfileLink = () => {
-    navigator.clipboard.writeText(window.location.origin + "?u=" + profile?.username);
+    navigator.clipboard.writeText(window.location.origin + "/u/" + profile?.username);
     setShowMenu(false);
   };
 
@@ -335,7 +335,15 @@ function Footer({ isMobile }) {
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
-  const [page, setPage] = useState("home");
+  const getInitialPage = () => {
+    const path = window.location.pathname;
+    if (path === '/login') return 'login';
+    if (path === '/registro') return 'register';
+    if (path.startsWith('/u/')) return 'profile';
+    if (path === '/admin') return 'admin';
+    return 'home';
+  };
+  const [page, setPage] = useState(getInitialPage);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -350,9 +358,13 @@ export default function App() {
   const isMobile = useIsMobile();
 
   useEffect(() => {
+    const path = window.location.pathname;
     const params = new URLSearchParams(window.location.search);
     const u = params.get("u"); const c = params.get("c");
-    if (u) { setProfileTarget({ username: u }); setPage("profile"); }
+    if (path.startsWith('/u/')) {
+      const username = path.slice(3);
+      if (username) { setProfileTarget({ username }); setPage("profile"); }
+    } else if (u) { setProfileTarget({ username: u }); setPage("profile"); }
     else if (c) { setProfileTarget({ campaignId: c }); setPage("profile"); }
   }, []);
 
@@ -586,15 +598,15 @@ export default function App() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     setSession(null); setProfile(null); setPage("home");
-    window.history.replaceState({}, "", window.location.pathname);
+    window.history.pushState({}, "", "/");
   };
 
-  const viewProfile = (username) => { setProfileTarget({ username }); setPage("profile"); };
+  const viewProfile = (username) => { setProfileTarget({ username }); setPage("profile"); window.history.pushState({}, "", "/u/" + username); };
 
   const navigateTo = (p) => {
-    if (p === "register") window.history.replaceState({}, "", "/registro");
-    else if (p === "login") window.history.replaceState({}, "", "/login");
-    else window.history.replaceState({}, "", "/");
+    if (p === "register") window.history.pushState({}, "", "/registro");
+    else if (p === "login") window.history.pushState({}, "", "/login");
+    else window.history.pushState({}, "", "/");
     setPage(p);
   };
 
