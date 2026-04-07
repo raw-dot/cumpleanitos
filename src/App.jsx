@@ -39,10 +39,10 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
   };
 
   const menuItems = [
-    { icon: "🎂", label: "Mi regalo", action: () => { setPage("dashboard"); setShowMenu(false); } },
-    { icon: "⚙️", label: "Configuración", action: () => { setPage("settings-mobile"); setShowMenu(false); } },
-    { icon: "🔗", label: "Compartir mi perfil", action: () => { setPage("share"); setShowMenu(false); } },
-    ...(profile?.is_admin ? [{ icon: "🛡️", label: "Panel Admin", action: () => { setPage("admin"); setShowMenu(false); }, color: "#92400E" }] : []),
+    { icon: "🎂", label: "Mi regalo", action: () => { navigate("dashboard"); setShowMenu(false); } },
+    { icon: "⚙️", label: "Configuración", action: () => { navigate("settings-mobile"); setShowMenu(false); } },
+    { icon: "🔗", label: "Compartir mi perfil", action: () => { navigate("share"); setShowMenu(false); } },
+    ...(profile?.is_admin ? [{ icon: "🛡️", label: "Panel Admin", action: () => { navigate("admin"); setShowMenu(false); }, color: "#92400E" }] : []),
     { icon: "🚪", label: "Cerrar sesión", action: () => { onLogout(); setShowMenu(false); }, color: COLORS.error },
   ];
 
@@ -57,22 +57,22 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
         padding: isMobile ? "0 16px" : "0 20px",
         display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12,
       }}>
-        <div onClick={() => setPage("home")} style={{ cursor: "pointer", flexShrink: 0 }}>
+        <div onClick={() => navigate("home")} style={{ cursor: "pointer", flexShrink: 0 }}>
           <Logo size={isMobile ? 20 : 24} />
         </div>
 
         {!isMobile && (
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => setPage("explore")}>Explorar</Button>
+            <Button variant={page === "explore" ? "outline" : "ghost"} size="sm" onClick={() => navigate("explore")}>Explorar</Button>
             {session ? (
               <>
                 {role === "manager" ? (
-                  <Button variant="ghost" size="sm" onClick={() => setPage("dashboard")}>🎁 Mis regalos</Button>
+                  <Button variant="ghost" size="sm" onClick={() => navigate("dashboard")}>🎁 Mis regalos</Button>
                 ) : (
                   <Button variant="ghost" size="sm" onClick={onViewLanding}>🎂 Mi cumple</Button>
                 )}
                 <div style={{ position: "relative", marginLeft: 4, display: "flex", alignItems: "center", gap: 2 }}>
-                  <div onClick={() => { setPage("settings"); setShowMenu(false); }}
+                  <div onClick={() => { navigate("settings"); setShowMenu(false); }}
                     style={{ cursor: "pointer", borderRadius: "50%", border: "2px solid transparent", transition: "border 0.15s" }}
                     onMouseEnter={e => e.currentTarget.style.border = "2px solid " + COLORS.primary}
                     onMouseLeave={e => e.currentTarget.style.border = "2px solid transparent"}>
@@ -129,7 +129,7 @@ function Navbar({ page, setPage, navigateTo, session, profile, onLogout, onRoleS
         {isMobile && (
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {session ? (
-              <div onClick={() => setPage("perfil")} style={{ cursor: "pointer" }}>
+              <div onClick={() => navigate("perfil")} style={{ cursor: "pointer" }}>
                 <Avatar initials={profile ? getInitials(profile.name) : "?"} src={profile?.avatar_url} size={34} />
               </div>
             ) : (
@@ -159,15 +159,15 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats, onAva
 
   const spaceCards = [
     { icon: "🎂", title: "Regalo", color: COLORS.primary, bg: "#F5F0FF", action: () => onViewLanding() },
-    { icon: "📋", title: "Deseos", color: COLORS.accent, bg: "#FFFBEB", action: () => setPage("wishlist") },
-    { icon: "🎁", title: "Regalé", color: "#10B981", bg: "#F0FDF9", action: () => setPage("gifts-given") },
-    { icon: "🛍️", title: "Gestionar", color: "#3B82F6", bg: "#EFF6FF", action: () => setPage("manage-gifts") },
+    { icon: "📋", title: "Deseos", color: COLORS.accent, bg: "#FFFBEB", action: () => navigate("wishlist") },
+    { icon: "🎁", title: "Regalé", color: "#10B981", bg: "#F0FDF9", action: () => navigate("gifts-given") },
+    { icon: "🛍️", title: "Gestionar", color: "#3B82F6", bg: "#EFF6FF", action: () => navigate("manage-gifts") },
   ];
 
   const accountItems = [
-    { icon: "⚙️", label: "Configuración", sub: "Editar perfil y datos", bg: "#F3F4F6", action: () => setPage("settings-mobile") },
-    { icon: "🔗", label: "Compartir mi perfil", sub: "Link de cumpleaños público", bg: "#F3F4F6", action: () => setPage("share") },
-    ...(profile?.is_admin ? [{ icon: "🛡️", label: "Panel Admin", sub: "Gestión de usuarios", bg: "#FEF3C7", action: () => setPage("admin") }] : []),
+    { icon: "⚙️", label: "Configuración", sub: "Editar perfil y datos", bg: "#F3F4F6", action: () => navigate("settings-mobile") },
+    { icon: "🔗", label: "Compartir mi perfil", sub: "Link de cumpleaños público", bg: "#F3F4F6", action: () => navigate("share") },
+    ...(profile?.is_admin ? [{ icon: "🛡️", label: "Panel Admin", sub: "Gestión de usuarios", bg: "#FEF3C7", action: () => navigate("admin") }] : []),
     { icon: "🚪", label: "Cerrar sesión", sub: null, bg: "#FEF2F2", danger: true, action: onLogout },
   ];
 
@@ -301,11 +301,11 @@ function BottomNav({ page, setPage, profile, onViewLanding }) {
   if (!isMobile) return null;
   const role = profile?.role;
   const items = [
-    { icon: "🏠", label: "Inicio", key: "home", action: () => setPage("home") },
-    { icon: "🔍", label: "Explorar", key: "explore", action: () => setPage("explore") },
+    { icon: "🏠", label: "Inicio", key: "home", action: () => navigate("home") },
+    { icon: "🔍", label: "Explorar", key: "explore", action: () => navigate("explore") },
     { icon: "🎂", label: "Mi regalo", key: "miregalo", action: () => onViewLanding() },
-    { icon: "🔔", label: "Notif.", key: "notif", action: () => setPage("notif") },
-    { icon: "👤", label: "Perfil", key: "perfil", action: () => setPage("perfil") },
+    { icon: "🔔", label: "Notif.", key: "notif", action: () => navigate("notif") },
+    { icon: "👤", label: "Perfil", key: "perfil", action: () => navigate("perfil") },
   ];
   return (
     <nav style={{ position: "fixed", bottom: 0, left: 0, right: 0, height: 70, background: "#fff", borderTop: "1px solid " + COLORS.border, display: "flex", alignItems: "stretch", boxShadow: "0 -4px 24px rgba(124,58,237,0.10)", zIndex: 200 }}>
@@ -335,13 +335,28 @@ function Footer({ isMobile }) {
 
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
+  const PAGE_ROUTES = {
+    'home': '/',
+    'perfil': '/perfil',
+    'explore': '/explorar',
+    'login': '/login',
+    'register': '/registro',
+    'dashboard': '/dashboard',
+    'wishlist': '/deseos',
+    'gifts-given': '/regalos',
+    'manage-gifts': '/gestionar',
+    'share': '/compartir',
+    'settings-mobile': '/configuracion',
+    'settings': '/configuracion',
+    'notif': '/notificaciones',
+    'admin': '/admin',
+  };
+  const ROUTE_PAGES = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([k, v]) => [v, k]));
+
   const getInitialPage = () => {
     const path = window.location.pathname;
-    if (path === '/login') return 'login';
-    if (path === '/registro') return 'register';
     if (path.startsWith('/u/')) return 'profile';
-    if (path === '/admin') return 'admin';
-    return 'home';
+    return ROUTE_PAGES[path] || 'home';
   };
   const [page, setPage] = useState(getInitialPage);
   const [session, setSession] = useState(null);
@@ -363,7 +378,7 @@ export default function App() {
     const u = params.get("u"); const c = params.get("c");
     if (path.startsWith('/u/')) {
       const username = path.slice(3);
-      if (username) { setProfileTarget({ username }); setPage("profile"); }
+      if (username) { setProfileTarget({ username }); setPage("profile"); window.history.replaceState({}, "", "/u/" + username); }
     } else if (u) { setProfileTarget({ username: u }); setPage("profile"); }
     else if (c) { setProfileTarget({ campaignId: c }); setPage("profile"); }
   }, []);
@@ -415,7 +430,7 @@ export default function App() {
         await loadProfile(s.user.id);
         window.history.replaceState({}, "", "/");
         const params = new URLSearchParams(window.location.search);
-        if (!params.get("u") && !params.get("c")) setPage("perfil");
+        if (!params.get("u") && !params.get("c")) { window.history.replaceState({}, "", "/perfil"); navigate("perfil"); }
       } else {
         setHasCampaign(false);
       }
@@ -439,7 +454,7 @@ export default function App() {
         await loadProfile(s.user.id);
         window.history.replaceState({}, "", "/");
         const params = new URLSearchParams(window.location.search);
-        if (!params.get("u") && !params.get("c")) setPage("perfil");
+        if (!params.get("u") && !params.get("c")) { window.history.replaceState({}, "", "/perfil"); setPage("perfil"); }
 
       } else if (event === "TOKEN_REFRESHED" && s) {
         // Token refrescado: actualizar session sin re-cargar perfil ni mostrar spinner
@@ -454,7 +469,7 @@ export default function App() {
         setProfile(null);
         setHasCampaign(false);
         setLoading(false);
-        setPage("home");
+        window.history.replaceState({}, "", "/"); setPage("home");
 
       } else if (event === "USER_UPDATED" && s) {
         setSession(s);
@@ -591,17 +606,15 @@ export default function App() {
   const handleAuth = async (user) => {
     setHasCampaign(null);
     await loadProfile(user.id);
-    window.history.replaceState({}, "", "/");
-    setPage("perfil");
+    navigate("perfil");
   };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    setSession(null); setProfile(null); setPage("home");
-    window.history.pushState({}, "", "/");
+    setSession(null); setProfile(null); navigate("home");
   };
 
-  const viewProfile = (username) => { setProfileTarget({ username }); setPage("profile"); window.history.pushState({}, "", "/u/" + username); };
+  const viewProfile = (username) => navigate("profile", username);
 
   const navigateTo = (p) => {
     if (p === "register") window.history.pushState({}, "", "/registro");
@@ -610,9 +623,22 @@ export default function App() {
     setPage(p);
   };
 
+  // navigate() centralizado: actualiza page state + URL juntos
+  const navigate = (p, username) => {
+    if (p === 'profile' && username) {
+      setProfileTarget({ username });
+      setPage('profile');
+      window.history.pushState({}, '', '/u/' + username);
+    } else {
+      const url = PAGE_ROUTES[p] || '/';
+      window.history.pushState({}, '', url);
+      setPage(p);
+    }
+  };
+
   const handleRoleSwitch = async (newRole) => {
     const { error } = await supabase.from("profiles").update({ role: newRole }).eq("id", session.user.id);
-    if (!error) { setProfile(prev => ({ ...prev, role: newRole })); setPage("dashboard"); }
+    if (!error) { setProfile(prev => ({ ...prev, role: newRole })); navigate("dashboard"); }
   };
 
   const handleProfileUpdated = (updated) => setProfile(updated);
@@ -658,26 +684,26 @@ export default function App() {
     switch (page) {
       case "home":
         if (session && hasCampaign === false) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
-        return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
+        return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
       case "notif": return <NotificationsPage session={session} />;
-      case "wishlist": return <WishListPage onBack={() => setPage("perfil")} />;
-      case "gifts-given": return <GiftsGivenPage onBack={() => setPage("perfil")} />;
-      case "manage-gifts": return <ManageGiftsPage onBack={() => setPage("perfil")} />;
-      case "share": return <ShareProfilePage profile={profile} onBack={() => setPage("perfil")} onViewProfile={viewProfile} />;
+      case "wishlist": return <WishListPage onBack={() => navigate("perfil")} />;
+      case "gifts-given": return <GiftsGivenPage onBack={() => navigate("perfil")} />;
+      case "manage-gifts": return <ManageGiftsPage onBack={() => navigate("perfil")} />;
+      case "share": return <ShareProfilePage profile={profile} onBack={() => navigate("perfil")} onViewProfile={viewProfile} />;
       case "settings-mobile":
-        return <SettingsPage profile={profile} session={session} onBack={() => setPage("perfil")} onProfileUpdated={handleProfileUpdated} />;
+        return <SettingsPage profile={profile} session={session} onBack={() => navigate("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
         if (hasCampaign === null) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
         if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
-        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
+        return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />;
       case "login":
       case "register":
         if (session) {
           if (hasCampaign === null) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
           if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
-          return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />;
+          return <ProfileScreen profile={profile} setPage={setPage} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />;
         }
         return <AuthPage key={page} initialMode={page} onAuth={handleAuth} onNavigate={navigateTo} />;
       case "dashboard":
@@ -695,7 +721,7 @@ export default function App() {
       case "admin":
         return null; // handled by early return above
       default:
-        return <HomePage onRegister={() => setPage("register")} onExplore={() => setPage("explore")} />;
+        return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }
   };
 
@@ -721,17 +747,17 @@ export default function App() {
 
   // Admin ocupa toda la pantalla sin navbar ni footer
   if (page === "admin") {
-    return <AdminShell profile={profile} onExit={() => setPage("home")} />;
+    return <AdminShell profile={profile} onExit={() => navigate("home")} />;
   }
 
   return (
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh", color: COLORS.text }}>
-      <Navbar page={page} setPage={setPage} navigateTo={navigateTo} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />
+      <Navbar page={page} setPage={setPage} navigateTo={navigateTo} session={session} profile={profile} onLogout={handleLogout} onRoleSwitch={handleRoleSwitch} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />
       <main style={{ paddingBottom: isMobile && session ? 70 : 0 }}>
         {renderPage()}
       </main>
       {!hideFooter && <Footer isMobile={isMobile} />}
-      {session && <BottomNav page={page} setPage={setPage} profile={profile} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />}
+      {session && <BottomNav page={page} setPage={setPage} profile={profile} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />}
     </div>
   );
 }
