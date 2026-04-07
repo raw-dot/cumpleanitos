@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabaseClient";
 import { COLORS, Logo, Button, Avatar, getInitials, ROLES } from "./shared";
+import { Analytics } from "@vercel/analytics/react";
 import CompleteProfilePage from "./pages/CompleteProfilePage";
 import AuthPage from "./pages/AuthPage";
 import AdminShell from "./admin/AdminShell";
@@ -716,6 +717,7 @@ export default function App() {
       </main>
       {!hideFooter && <Footer isMobile={isMobile} />}
       {session && <BottomNav page={page} setPage={setPage} profile={profile} onViewLanding={() => profile?.username ? viewProfile(profile.username) : setPage("dashboard")} />}
+      <Analytics />
     </div>
   );
 }
