@@ -85,43 +85,47 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
 
   const loadData = async () => {
     setLoading(true);
-    let camp = null;
-    let prof = null;
+    try {
+      let camp = null;
+      let prof = null;
 
-    if (campaignId) {
-      const { data } = await supabase.from("gift_campaigns").select("*").eq("id", campaignId).single();
-      camp = data;
-      if (camp?.birthday_person_id) {
-        const { data: p } = await supabase.from("profiles").select("*").eq("id", camp.birthday_person_id).single();
+      if (campaignId) {
+        const { data } = await supabase.from("gift_campaigns").select("*").eq("id", campaignId).single();
+        camp = data;
+        if (camp?.birthday_person_id) {
+          const { data: p } = await supabase.from("profiles").select("*").eq("id", camp.birthday_person_id).single();
+          prof = p;
+        }
+      } else if (username) {
+        const { data: p } = await supabase.from("profiles").select("*").eq("username", username).single();
         prof = p;
-      }
-    } else if (username) {
-      const { data: p } = await supabase.from("profiles").select("*").eq("username", username).single();
-      prof = p;
-      if (p) {
-        // Primero buscar campaña activa; si no hay, mostrar la más reciente
-        const { data: c } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).single();
-        if (c) {
-          camp = c;
-        } else {
-          const { data: cAny } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).order("created_at", { ascending: false }).limit(1).single();
-          camp = cAny;
+        if (p) {
+          const { data: c } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).single();
+          if (c) {
+            camp = c;
+          } else {
+            const { data: cAny } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).order("created_at", { ascending: false }).limit(1).single();
+            camp = cAny;
+          }
         }
       }
-    }
 
-    setProfile(prof);
-    setCampaign(camp);
+      setProfile(prof);
+      setCampaign(camp);
 
-    if (camp) {
-      const [{ data: itemsData }, { data: contribData }] = await Promise.all([
-        supabase.from("gift_items").select("*").eq("campaign_id", camp.id).order("created_at"),
-        supabase.from("contributions").select("*").eq("campaign_id", camp.id).order("created_at", { ascending: false }),
-      ]);
-      if (itemsData) setItems(itemsData);
-      if (contribData) setContributions(contribData);
+      if (camp) {
+        const [{ data: itemsData }, { data: contribData }] = await Promise.all([
+          supabase.from("gift_items").select("*").eq("campaign_id", camp.id).order("created_at"),
+          supabase.from("contributions").select("*").eq("campaign_id", camp.id).order("created_at", { ascending: false }),
+        ]);
+        if (itemsData) setItems(itemsData);
+        if (contribData) setContributions(contribData);
+      }
+    } catch (e) {
+      console.error("loadData error:", e);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const openContributeForItem = (item) => {
@@ -180,6 +184,10 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
       const amount = parseFloat(form.amount);
       const gifterName = form.anonymous ? null : (currentSession ? (currentProfile?.name || currentSession.user.email) : form.name);
       const finalMessage = emotional.message || form.message || null;
+      // Fase 1: guardamos URLs de preview local como placeholder.
+      // En Fase 2 se subirán a Supabase Storage y se reemplazarán por URLs reales.
+      const fotoUrl = emotional.foto?.previewUrl || null;
+      const videoUrl = emotional.video?.previewUrl || null;
       const { error: err } = await supabase.from("contributions").insert({
         campaign_id: campaign.id,
         gifter_id: currentSession?.user?.id || null,
@@ -188,6 +196,8 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
         amount: amount,
         message: finalMessage,
         is_anonymous: form.anonymous,
+        emotional_foto_url: fotoUrl,
+        emotional_video_url: videoUrl,
       });
 
       if (err) { setError("Error al registrar el regalo. Intentá de nuevo."); return; }

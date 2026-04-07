@@ -77,9 +77,10 @@ function FotoModal({ open, onClose, onConfirm }) {
     handleClose();
   };
 
+  const isMobile = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
   const DropZone = ({ inputR, capture }) => (
     <>
-      <input ref={inputR} type="file" accept={capture ? "image/*" : "image/jpeg,image/jpg,image/png,image/webp,image/heic"} capture={capture||undefined} style={{ display:"none" }} onChange={(e)=>processFile(e.target.files?.[0])} />
+      <input ref={inputR} type="file" accept={capture ? "image/*" : "image/jpeg,image/jpg,image/png,image/webp,image/heic"} capture={capture && isMobile ? "environment" : undefined} style={{ display:"none" }} onChange={(e)=>processFile(e.target.files?.[0])} />
       {!preview ? (
         <div
           onClick={()=>inputR.current?.click()}
@@ -143,6 +144,7 @@ function VideoModal({ open, onClose, onConfirm }) {
     tmp.src = url;
   };
 
+  const isMobileDevice = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
   const needsTrim = duration !== null && duration > 30;
   const clipDuration = clipEnd - clipStart;
   const clipValid = clipDuration > 0 && clipDuration <= 30;
@@ -154,9 +156,10 @@ function VideoModal({ open, onClose, onConfirm }) {
     handleClose();
   };
 
+  const isMobile = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
   const DropZone = ({ inputR, capture }) => (
     <>
-      <input ref={inputR} type="file" accept="video/mp4,video/quicktime,video/webm,video/*" capture={capture||undefined} style={{ display:"none" }} onChange={(e)=>processVideo(e.target.files?.[0])} />
+      <input ref={inputR} type="file" accept="video/mp4,video/quicktime,video/webm,video/*" capture={capture && isMobile ? "environment" : undefined} style={{ display:"none" }} onChange={(e)=>processVideo(e.target.files?.[0])} />
       {!preview ? (
         <div
           onClick={()=>inputR.current?.click()}
@@ -164,9 +167,9 @@ function VideoModal({ open, onClose, onConfirm }) {
           onDragOver={(e)=>e.preventDefault()}
           style={{ border:`2px dashed ${capture?"#FDBA74":"#DDD6FE"}`,borderRadius:14,padding:"32px 20px",textAlign:"center",background:capture?"#FFF7ED":"#FAFAFA",marginBottom:16,cursor:"pointer" }}
         >
-          <div style={{ fontSize:36,marginBottom:10 }}>{capture?"🔴":"🎥"}</div>
-          <div style={{ fontSize:15,fontWeight:600,color:COLORS.text,marginBottom:4 }}>{capture?"Grabar video":"Tocá para elegir un video"}</div>
-          <div style={{ fontSize:12,color:COLORS.textLight,lineHeight:1.5 }}>{capture?"Hasta 60 seg desde la cámara":"MP4, MOV · hasta 60 seg · máx. 100 MB"}</div>
+          <div style={{ fontSize:36,marginBottom:10 }}>{capture?(isMobile?"🔴":"📂"):"🎥"}</div>
+          <div style={{ fontSize:15,fontWeight:600,color:COLORS.text,marginBottom:4 }}>{capture?(isMobile?"Grabar video":"Subir video"):"Tocá para elegir un video"}</div>
+          <div style={{ fontSize:12,color:COLORS.textLight,lineHeight:1.5 }}>{capture?(isMobile?"Hasta 60 seg desde la cámara":"Seleccioná un video de tu computadora"):"MP4, MOV · hasta 60 seg · máx. 100 MB"}</div>
         </div>
       ) : (
         <div style={{ marginBottom:12 }}>
@@ -179,7 +182,7 @@ function VideoModal({ open, onClose, onConfirm }) {
 
   return (
     <Modal open={open} onClose={handleClose} title="Agregar video 🎬">
-      <ModalTabs tabs={[{id:"subir",label:"📁 Subir archivo"},{id:"grabar",label:"🔴 Grabar"}]} active={tab} onChange={(t)=>{setTab(t);setPreview(null);setFileObj(null);setDuration(null);setError("");}} />
+      <ModalTabs tabs={[{id:"subir",label:"📁 Subir archivo"},{id:"grabar",label:isMobileDevice?"🔴 Grabar":"📂 Otro archivo"}]} active={tab} onChange={(t)=>{setTab(t);setPreview(null);setFileObj(null);setDuration(null);setError("");}} />
       {tab==="subir" && <DropZone inputR={inputRef} />}
       {tab==="grabar" && <DropZone inputR={cameraRef} capture="environment" />}
 
