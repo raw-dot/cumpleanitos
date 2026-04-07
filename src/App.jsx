@@ -242,8 +242,8 @@ function ProfileScreen({ profile, setPage, onLogout, onViewLanding, stats, onAva
             if (r >= 1000) return "$" + Math.round(r/1000) + "k";
             return "$" + Math.round(r).toLocaleString("es-AR");
           })(), l: "Recaudado" },
-          { n: stats.gifters, l: "Regalos" },
-          { n: stats.friends, l: "Amigos" },
+          { n: stats.giftsGiven || 0, l: "Regalé" },
+          { n: stats.gifters, l: "Recibidos" },
         ].map((s, i) => (
           <div key={i} style={{ flex: 1, padding: "12px 4px", textAlign: "center", borderRight: i < 2 ? "1px solid " + COLORS.border : "none" }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: COLORS.text }}>{s.n}</div>
@@ -543,14 +543,18 @@ export default function App() {
   };
 
   const loadStats = async (userId) => {
-    // Safety timeout: si tarda más de 5s, asumir que no tiene campaign
     const timeout = setTimeout(() => setHasCampaign(prev => prev === null ? false : prev), 5000);
     try {
-      const [campRes, friendsRes] = await Promise.all([
+      const [campRes, friendsRes, giftedRes] = await Promise.all([
         supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId).eq("status", "active").limit(1).single(),
         supabase.from("friends").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        // Aportes que el usuario HIZO como regalador
+        supabase.from("contributions").select("amount").eq("gifter_id", userId),
       ]);
       const friendCount = friendsRes.count || 0;
+      const gifted = giftedRes.data || [];
+      const giftsGiven = gifted.length;
+      const totalGifted = gifted.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
       const hasCamp = !!campRes.data?.id;
       if (hasCampaignTimeoutRef.current) { clearTimeout(hasCampaignTimeoutRef.current); hasCampaignTimeoutRef.current = null; }
       setHasCampaign(hasCamp);
@@ -558,16 +562,16 @@ export default function App() {
         const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
         const contribs = contribRes.data || [];
         const raised = contribs.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-        setStats({ raised, gifters: contribs.length, friends: friendCount });
+        setStats({ raised, gifters: contribs.length, friends: friendCount, giftsGiven, totalGifted });
       } else {
-        setStats({ raised: 0, gifters: 0, friends: friendCount });
+        setStats({ raised: 0, gifters: 0, friends: friendCount, giftsGiven, totalGifted });
       }
       clearTimeout(timeout);
       return hasCamp;
     } catch(e) {
       clearTimeout(timeout);
       setHasCampaign(false);
-      setStats({ raised: 0, gifters: 0, friends: 0 });
+      setStats({ raised: 0, gifters: 0, friends: 0, giftsGiven: 0, totalGifted: 0 });
       return false;
     }
   };
