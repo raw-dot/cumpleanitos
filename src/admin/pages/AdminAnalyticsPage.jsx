@@ -37,7 +37,7 @@ function useAnalytics() {
       { data: contributions },
       { data: items },
     ] = await Promise.all([
-      supabase.from("profiles").select("id, created_at, role, birthday, age, is_active"),
+      supabase.from("profiles").select("id, created_at, role, birthday, age, is_active, username, name"),
       supabase.from("gift_campaigns").select("id, birthday_person_id, status, goal_amount, created_at, birthday_date"),
       supabase.from("contributions").select("id, campaign_id, amount, created_at, is_anonymous, anonymous"),
       supabase.from("gift_items").select("id, campaign_id, price, created_at"),
@@ -45,20 +45,37 @@ function useAnalytics() {
 
     // ── CONVERSIÓN ──────────────────────────────────────────────────────────
     const totalUsers       = (profiles || []).length;
+    // Usuarios únicos que tienen al menos 1 campaña
     const usersWithCamp    = new Set((campaigns || []).map(c => c.birthday_person_id)).size;
+    // Campañas que tienen al menos 1 aporte
     const campWithContrib  = new Set((contributions || []).map(c => c.campaign_id)).size;
     const totalCamps       = (campaigns || []).length;
     const activeCamps      = (campaigns || []).filter(c => c.status === "active").length;
     const totalContribs    = (contributions || []).length;
     const totalRaised      = (contributions || []).reduce((s, c) => s + (c.amount || 0), 0);
 
-    // Embudo: usuarios → crearon campaña → recibieron al menos 1 aporte
-    const convUserToCamp   = totalUsers > 0 ? (usersWithCamp / totalUsers) * 100 : 0;
-    const convCampToContrib = totalCamps > 0 ? (campWithContrib / totalCamps) * 100 : 0;
+    // Embudo consistente: todos en la misma unidad (usuarios)
+    // Usuarios sin campaña = no llegaron al paso 2
+    const usersNoCamp = totalUsers - usersWithCamp;
+    // De los que tienen campaña, cuántos recibieron al menos 1 aporte
+    const campIdSet = new Set((campaigns || []).map(c => c.id));
+    const campIdsWithContrib = new Set((contributions || []).map(c => c.campaign_id));
+    const usersWithContrib = (campaigns || [])
+      .filter(c => campIdsWithContrib.has(c.id))
+      .map(c => c.birthday_person_id);
+    const usersWithContribUnique = new Set(usersWithContrib).size;
+
+    // Conversiones bien calculadas
+    const convUserToCamp    = totalUsers    > 0 ? (usersWithCamp / totalUsers) * 100 : 0;
+    const convCampToContrib = usersWithCamp > 0 ? (usersWithContribUnique / usersWithCamp) * 100 : 0;
+
+    // Promedios (sobre campañas que tienen aportes, no sobre todas)
     const avgContribPerCamp = campWithContrib > 0 ? totalContribs / campWithContrib : 0;
-    const avgRaisedPerCamp  = campWithContrib > 0 ? totalRaised  / campWithContrib : 0;
-    const avgRaisedPerUser  = usersWithCamp   > 0 ? totalRaised  / usersWithCamp   : 0;
-    const anonPct           = totalContribs   > 0 ? ((contributions || []).filter(c => c.is_anonymous || c.anonymous).length / totalContribs) * 100 : 0;
+    const avgRaisedPerCamp  = campWithContrib > 0 ? totalRaised / campWithContrib : 0;
+    const avgRaisedPerUser  = usersWithCamp > 0 ? totalRaised / usersWithCamp : 0;
+    const anonPct           = totalContribs > 0
+      ? ((contributions || []).filter(c => c.is_anonymous || c.anonymous).length / totalContribs) * 100
+      : 0;
     const withGoal          = (campaigns || []).filter(c => c.goal_amount > 0);
     const reachedGoal       = withGoal.filter(c => {
       const campContribs = (contributions || []).filter(x => x.campaign_id === c.id);
@@ -97,9 +114,10 @@ function useAnalytics() {
     const regByDay = days30.map(day => ({
       day,
       label: new Date(day + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "numeric" }),
-      users: (profiles || []).filter(p => p.created_at?.startsWith(day)).length,
+      users:    (profiles    || []).filter(p => p.created_at?.startsWith(day)).length,
+      camps:    (campaigns   || []).filter(c => c.created_at?.startsWith(day)).length,
       contribs: (contributions || []).filter(c => c.created_at?.startsWith(day)).length,
-      raised: (contributions || []).filter(c => c.created_at?.startsWith(day)).reduce((s, c) => s + (c.amount || 0), 0),
+      raised:   (contributions || []).filter(c => c.created_at?.startsWith(day)).reduce((s, c) => s + (c.amount || 0), 0),
     }));
 
     // Aportes por hora del día
@@ -118,15 +136,28 @@ function useAnalytics() {
     });
 
     // ── DEMOGRÁFICO ──────────────────────────────────────────────────────────
-    // Distribución por rol
+    // Distribución por rol — contar todos los valores reales
+    const allRoles = (profiles || []).map(p => p.role || "sin_rol");
+    const roleCount = allRoles.reduce((acc, r) => { acc[r] = (acc[r] || 0) + 1; return acc; }, {});
     const roleDist = {
-      celebrant: (profiles || []).filter(p => p.role === "celebrant").length,
-      manager:   (profiles || []).filter(p => p.role === "manager").length,
-      gifter:    (profiles || []).filter(p => p.role === "gifter").length,
-      other:     (profiles || []).filter(p => !p.role || !["celebrant","manager","gifter"].includes(p.role)).length,
+      celebrant: roleCount["celebrant"] || 0,
+      manager:   roleCount["manager"]   || 0,
+      gifter:    roleCount["gifter"]    || 0,
+      other:     (roleCount["other"] || 0) + (roleCount["sin_rol"] || 0),
     };
 
-    // Distribución por edad
+    // Distribución por edad — calcular desde birthday si age no existe
+    const calcAge = (p) => {
+      if (p.age) return p.age;
+      if (!p.birthday) return null;
+      const today = new Date();
+      const bday  = new Date(p.birthday + "T12:00:00");
+      let age = today.getFullYear() - bday.getFullYear();
+      const m = today.getMonth() - bday.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < bday.getDate())) age--;
+      return age > 0 && age < 120 ? age : null;
+    };
+
     const ageRanges = [
       { label: "13-17", min: 13, max: 17, count: 0 },
       { label: "18-24", min: 18, max: 24, count: 0 },
@@ -136,7 +167,7 @@ function useAnalytics() {
       { label: "Sin dato", min: -1, max: -1, count: 0 },
     ];
     (profiles || []).forEach(p => {
-      const age = p.age;
+      const age = calcAge(p);
       if (!age) { ageRanges[5].count++; return; }
       const range = ageRanges.find(r => r.min !== -1 && age >= r.min && age <= r.max);
       if (range) range.count++;
@@ -157,7 +188,7 @@ function useAnalytics() {
     const inactiveUsers = (profiles || []).filter(p => p.is_active === false).length;
 
     setData({
-      conversion: { totalUsers, usersWithCamp, totalCamps, campWithContrib, totalContribs, convUserToCamp, convCampToContrib, avgContribPerCamp, avgRaisedPerCamp, avgRaisedPerUser, anonPct, goalReachedPct, avgDaysToFirst },
+      conversion: { totalUsers, usersWithCamp, usersWithContribUnique, usersNoCamp, totalCamps, activeCamps, campWithContrib, totalContribs, convUserToCamp, convCampToContrib, avgContribPerCamp, avgRaisedPerCamp, avgRaisedPerUser, anonPct, goalReachedPct, avgDaysToFirst },
       temporal:   { regByDay, hourBuckets, weekBuckets },
       demografico: { roleDist, ageRanges, monthBuckets, activeUsers, inactiveUsers, totalUsers },
     });
@@ -343,11 +374,11 @@ function TabConversion({ data, loading }) {
       <Panel title="Desglose completo">
         <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(5, 1fr)", gap: 10 }}>
           {[
-            { label: "Usuarios totales",        value: cv.totalUsers,         color: C.text    },
-            { label: "Con cumpleaños",           value: cv.usersWithCamp,      color: C.primary },
-            { label: "Campañas totales",         value: cv.totalCamps,         color: C.primary },
-            { label: "Con al menos 1 aporte",   value: cv.campWithContrib,    color: C.success },
-            { label: "Aportes registrados",      value: cv.totalContribs,      color: C.success },
+            { label: "Usuarios totales",          value: cv.totalUsers,              color: C.text    },
+            { label: "Con cumpleaños",             value: cv.usersWithCamp,           color: C.primary },
+            { label: "Campañas activas",           value: cv.activeCamps,             color: C.primary },
+            { label: "Con al menos 1 aporte",     value: cv.usersWithContribUnique,  color: C.success },
+            { label: "Aportes registrados",        value: cv.totalContribs,           color: C.success },
           ].map(s => (
             <div key={s.label} style={{ textAlign: "center", padding: "14px 8px", background: C.bg, borderRadius: 8 }}>
               <div style={{ fontSize: 22, fontWeight: 700, color: s.color }}>{s.value.toLocaleString("es-AR")}</div>
