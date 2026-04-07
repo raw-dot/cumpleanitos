@@ -235,12 +235,20 @@ function InfoRow({ label, value }) {
 }
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
-export default function AdminUsuariosPage() {
+export default function AdminUsuariosPage({ initialFilter } = {}) {
   const { isMobile } = useAdmin();
   const { users, loading, saving, toast, load, toggleActive, toggleAdmin, saveUser, bulkDisable, bulkEnable } = useUsuarios();
 
   const [search,   setSearch]   = useState("");
   const [filter,   setFilter]   = useState(initialFilter || "all");
+
+  // Aplicar filtro cuando cambia (navegación desde dashboard)
+  useEffect(() => {
+    if (initialFilter) {
+      setFilter(initialFilter);
+      setPage(0);
+    }
+  }, [initialFilter]);
   const [page,     setPage]     = useState(0);
   const [selected, setSelected] = useState([]);
   const [editing,  setEditing]  = useState(null);

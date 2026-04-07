@@ -498,6 +498,11 @@ function PagBtn({ children, onClick, disabled, active }) {
 export default function AdminRegalosPage({ initialFilter } = {}) {
   const { items, contribs, loading, load } = useRegalos();
   const [activeTab,      setActiveTab]      = useState(initialFilter === "items" ? "items" : "contribs");
+
+  useEffect(() => {
+    if (initialFilter === "items") setActiveTab("items");
+    else if (initialFilter === "contribs") setActiveTab("contribs");
+  }, [initialFilter]);
   const [selectedItem,   setSelectedItem]   = useState(null);
   const [selectedContrib,setSelectedContrib]= useState(null);
 

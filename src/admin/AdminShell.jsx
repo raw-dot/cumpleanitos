@@ -42,12 +42,14 @@ export default function AdminShell({ profile, onExit }) {
   };
 
   const renderPage = () => {
+    // key={activePage + initialFilter} fuerza re-mount cuando cambia el filtro
+    const filterKey = (initialFilter || "all");
     switch (activePage) {
       case "dashboard":     return <AdminDashboardPage onNavigate={navigate} />;
-      case "usuarios":      return <AdminUsuariosPage   initialFilter={initialFilter} />;
-      case "cumpleanos":    return <AdminCumpleanosPage initialFilter={initialFilter} />;
-      case "regalos":       return <AdminRegalosPage    initialFilter={initialFilter} />;
-      case "finanzas":      return <AdminFinanzasPage   initialFilter={initialFilter} />;
+      case "usuarios":      return <AdminUsuariosPage   key={filterKey} initialFilter={initialFilter} />;
+      case "cumpleanos":    return <AdminCumpleanosPage key={filterKey} initialFilter={initialFilter} />;
+      case "regalos":       return <AdminRegalosPage    key={filterKey} initialFilter={initialFilter} />;
+      case "finanzas":      return <AdminFinanzasPage   key={filterKey} initialFilter={initialFilter} />;
       case "analytics":     return <AdminAnalyticsPage  initialFilter={initialFilter} />;
       case "alertas":       return <AdminAlertasPage />;
       case "moderacion":    return <AdminModeracionPage />;

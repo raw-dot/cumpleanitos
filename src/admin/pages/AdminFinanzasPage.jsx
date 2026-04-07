@@ -529,6 +529,10 @@ export default function AdminFinanzasPage({ initialFilter } = {}) {
   const { data, loading, load } = useFinanzas();
   const [activeTab, setActiveTab] = useState(initialFilter || "resumen");
 
+  useEffect(() => {
+    if (initialFilter) setActiveTab(initialFilter);
+  }, [initialFilter]);
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
 

@@ -275,6 +275,13 @@ export default function AdminCumpleanosPage({ initialFilter } = {}) {
   const { campaigns, loading, toast, load, toggleStatus } = useCumpleanos();
   const [search,   setSearch]   = useState("");
   const [filter,   setFilter]   = useState(initialFilter || "all");
+
+  useEffect(() => {
+    if (initialFilter) {
+      setFilter(initialFilter);
+      setPage(0);
+    }
+  }, [initialFilter]);
   const [page,     setPage]     = useState(0);
   const [detail,   setDetail]   = useState(null);
 
