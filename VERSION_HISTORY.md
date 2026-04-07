@@ -12,6 +12,7 @@
 
 | Versión | Fecha | Commit | Pedido Usuario | Descripción Técnica | Estado | Observaciones |
 |---------|-------|--------|----------------|---------------------|--------|---------------|
+| **0.12.1** | 07-abr | b3df342 | Fix upload foto/video + procesando infinito | UploadZone era decorativa sin input real. Reescrito EmotionalStep con input type=file funcional, capture=environment para cámara, lectura de duración real de video, validaciones de tipo/tamaño. submitContribution envuelto en try/finally para que setSubmitting(false) siempre se ejecute. | ✅ OK | "No permite subir fotos y videos, no funciona. Se queda procesando" |
 | **0.12** | 07-abr | 91ae288 | Regalo emocional con foto/video | Formulario de regalo refactorizado en 4 pasos: monto, datos, mensaje especial (EmotionalStep.jsx con modal foto + modal video + trimmer interactivo), confirmar. Responsive mobile/desktop. Texto emocional se guarda en contributions.message. | ✅ OK | "Agregar esta funcionalidad a la parte de regalo" + "Implementemos las dos soluciones, la mobile y la desktop" |
 | **0.1** | 31-mar 22:02 | 172b7b7 | OAuth Google a producción | `redirectTo` cumpleanitos.com | ✅ OK | "siendo que cumpleanitos tiene para poder registrarse, me gustaria hacer andar que se registre con google acount" |
 | **0.2** | 31-mar 22:14 | daf2823 | Username desde Google | `loadProfile()` genera username desde metadata | ✅ OK | Mejora auto-generación username |
