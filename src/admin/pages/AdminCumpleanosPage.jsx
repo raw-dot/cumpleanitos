@@ -55,6 +55,7 @@ function useCumpleanos() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
     const [
       { data: camps },
@@ -100,7 +101,11 @@ function useCumpleanos() {
     });
 
     setCampaigns(enriched);
-    setLoading(false);
+    } catch(e) {
+      console.error("Admin load error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

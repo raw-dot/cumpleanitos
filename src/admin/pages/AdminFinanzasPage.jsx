@@ -34,6 +34,7 @@ function useFinanzas() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
 
     const [
@@ -112,7 +113,11 @@ function useFinanzas() {
       kpis: { totalRaised, totalCount, avgPerContrib, raised30, raised7, anonPct, activeCampsWithRaised },
       top5,
     });
-    setLoading(false);
+    } catch(e) {
+      console.error("Admin load error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

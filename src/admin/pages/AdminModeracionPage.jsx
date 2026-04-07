@@ -36,6 +36,7 @@ function useModeracion() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
     const [
       { data: contributions },
@@ -79,7 +80,11 @@ function useModeracion() {
       campanas:  enrichedCamps,
       regalos:   enrichedItems,
     });
-    setLoading(false);
+    } catch(e) {
+      console.error("Admin load error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

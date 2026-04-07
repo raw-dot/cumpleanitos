@@ -30,37 +30,42 @@ function useAnalytics() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
-    const [
-      { data: profiles },
-      { data: campaigns },
-      { data: contributions },
-      { data: items },
-    ] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       supabase.from("profiles").select("id, created_at, role, birthday, age, is_active, username, name"),
       supabase.from("gift_campaigns").select("id, birthday_person_id, status, goal_amount, created_at, birthday_date"),
       supabase.from("contributions").select("id, campaign_id, amount, created_at, is_anonymous, anonymous"),
       supabase.from("gift_items").select("id, campaign_id, price, created_at"),
     ]);
 
+    if (r1.error) console.error("profiles error:", r1.error);
+    if (r2.error) console.error("campaigns error:", r2.error);
+    if (r3.error) console.error("contributions error:", r3.error);
+
+    const profiles      = r1.data || [];
+    const campaigns     = r2.data || [];
+    const contributions = r3.data || [];
+    const items         = r4.data || [];
+
     // ── CONVERSIÓN ──────────────────────────────────────────────────────────
-    const totalUsers       = (profiles || []).length;
+    const totalUsers       = profiles.length;
     // Usuarios únicos que tienen al menos 1 campaña
-    const usersWithCamp    = new Set((campaigns || []).map(c => c.birthday_person_id)).size;
+    const usersWithCamp    = new Set(campaigns.map(c => c.birthday_person_id)).size;
     // Campañas que tienen al menos 1 aporte
-    const campWithContrib  = new Set((contributions || []).map(c => c.campaign_id)).size;
-    const totalCamps       = (campaigns || []).length;
-    const activeCamps      = (campaigns || []).filter(c => c.status === "active").length;
-    const totalContribs    = (contributions || []).length;
-    const totalRaised      = (contributions || []).reduce((s, c) => s + (c.amount || 0), 0);
+    const campWithContrib  = new Set(contributions.map(c => c.campaign_id)).size;
+    const totalCamps       = campaigns.length;
+    const activeCamps      = campaigns.filter(c => c.status === "active").length;
+    const totalContribs    = contributions.length;
+    const totalRaised      = contributions.reduce((s, c) => s + (c.amount || 0), 0);
 
     // Embudo consistente: todos en la misma unidad (usuarios)
     // Usuarios sin campaña = no llegaron al paso 2
     const usersNoCamp = totalUsers - usersWithCamp;
     // De los que tienen campaña, cuántos recibieron al menos 1 aporte
-    const campIdSet = new Set((campaigns || []).map(c => c.id));
-    const campIdsWithContrib = new Set((contributions || []).map(c => c.campaign_id));
-    const usersWithContrib = (campaigns || [])
+    const campIdSet = new Set(campaigns.map(c => c.id));
+    const campIdsWithContrib = new Set(contributions.map(c => c.campaign_id));
+    const usersWithContrib = campaigns
       .filter(c => campIdsWithContrib.has(c.id))
       .map(c => c.birthday_person_id);
     const usersWithContribUnique = new Set(usersWithContrib).size;
@@ -74,11 +79,11 @@ function useAnalytics() {
     const avgRaisedPerCamp  = campWithContrib > 0 ? totalRaised / campWithContrib : 0;
     const avgRaisedPerUser  = usersWithCamp > 0 ? totalRaised / usersWithCamp : 0;
     const anonPct           = totalContribs > 0
-      ? ((contributions || []).filter(c => c.is_anonymous || c.anonymous).length / totalContribs) * 100
+      ? (contributions.filter(c => c.is_anonymous || c.anonymous).length / totalContribs) * 100
       : 0;
-    const withGoal          = (campaigns || []).filter(c => c.goal_amount > 0);
+    const withGoal          = campaigns.filter(c => c.goal_amount > 0);
     const reachedGoal       = withGoal.filter(c => {
-      const campContribs = (contributions || []).filter(x => x.campaign_id === c.id);
+      const campContribs = contributions.filter(x => x.campaign_id === c.id);
       const raised = campContribs.reduce((s, x) => s + (x.amount || 0), 0);
       return raised >= c.goal_amount;
     });
@@ -86,12 +91,12 @@ function useAnalytics() {
 
     // Tiempo hasta primer aporte (días desde creación de campaña)
     const campContribMap = {};
-    (contributions || []).forEach(c => {
+    contributions.forEach(c => {
       if (!campContribMap[c.campaign_id] || c.created_at < campContribMap[c.campaign_id])
         campContribMap[c.campaign_id] = c.created_at;
     });
     const campCreatedMap = {};
-    (campaigns || []).forEach(c => { campCreatedMap[c.id] = c.created_at; });
+    campaigns.forEach(c => { campCreatedMap[c.id] = c.created_at; });
     const daysToFirstContrib = Object.entries(campContribMap)
       .map(([cid, firstAt]) => {
         const created = campCreatedMap[cid];
@@ -116,13 +121,13 @@ function useAnalytics() {
       label: new Date(day + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "numeric" }),
       users:    (profiles    || []).filter(p => p.created_at?.startsWith(day)).length,
       camps:    (campaigns   || []).filter(c => c.created_at?.startsWith(day)).length,
-      contribs: (contributions || []).filter(c => c.created_at?.startsWith(day)).length,
-      raised:   (contributions || []).filter(c => c.created_at?.startsWith(day)).reduce((s, c) => s + (c.amount || 0), 0),
+      contribs: contributions.filter(c => c.created_at?.startsWith(day)).length,
+      raised:   contributions.filter(c => c.created_at?.startsWith(day)).reduce((s, c) => s + (c.amount || 0), 0),
     }));
 
     // Aportes por hora del día
     const hourBuckets = Array.from({ length: 24 }, (_, h) => ({ hour: h, count: 0, label: `${h}h` }));
-    (contributions || []).forEach(c => {
+    contributions.forEach(c => {
       if (!c.created_at) return;
       const h = new Date(c.created_at).getHours();
       hourBuckets[h].count++;
@@ -130,14 +135,14 @@ function useAnalytics() {
 
     // Aportes por día de semana
     const weekBuckets = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"].map(label => ({ label, count: 0 }));
-    (contributions || []).forEach(c => {
+    contributions.forEach(c => {
       if (!c.created_at) return;
       weekBuckets[new Date(c.created_at).getDay()].count++;
     });
 
     // ── DEMOGRÁFICO ──────────────────────────────────────────────────────────
     // Distribución por rol — contar todos los valores reales
-    const allRoles = (profiles || []).map(p => p.role || "sin_rol");
+    const allRoles = profiles.map(p => p.role || "sin_rol");
     const roleCount = allRoles.reduce((acc, r) => { acc[r] = (acc[r] || 0) + 1; return acc; }, {});
     const roleDist = {
       celebrant: roleCount["celebrant"] || 0,
@@ -166,7 +171,7 @@ function useAnalytics() {
       { label: "45+",   min: 45, max: 999, count: 0 },
       { label: "Sin dato", min: -1, max: -1, count: 0 },
     ];
-    (profiles || []).forEach(p => {
+    profiles.forEach(p => {
       const age = calcAge(p);
       if (!age) { ageRanges[5].count++; return; }
       const range = ageRanges.find(r => r.min !== -1 && age >= r.min && age <= r.max);
@@ -177,22 +182,26 @@ function useAnalytics() {
     // Cumpleaños por mes
     const monthBuckets = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"]
       .map((label, i) => ({ label, count: 0, month: i + 1 }));
-    (profiles || []).forEach(p => {
+    profiles.forEach(p => {
       if (!p.birthday) return;
       const m = new Date(p.birthday + "T12:00:00").getMonth();
       monthBuckets[m].count++;
     });
 
     // Usuarios activos vs inactivos
-    const activeUsers   = (profiles || []).filter(p => p.is_active !== false).length;
-    const inactiveUsers = (profiles || []).filter(p => p.is_active === false).length;
+    const activeUsers   = profiles.filter(p => p.is_active !== false).length;
+    const inactiveUsers = profiles.filter(p => p.is_active === false).length;
 
     setData({
       conversion: { totalUsers, usersWithCamp, usersWithContribUnique, usersNoCamp, totalCamps, activeCamps, campWithContrib, totalContribs, convUserToCamp, convCampToContrib, avgContribPerCamp, avgRaisedPerCamp, avgRaisedPerUser, anonPct, goalReachedPct, avgDaysToFirst },
       temporal:   { regByDay, hourBuckets, weekBuckets },
       demografico: { roleDist, ageRanges, monthBuckets, activeUsers, inactiveUsers, totalUsers },
     });
-    setLoading(false);
+    } catch(e) {
+      console.error("Admin load error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

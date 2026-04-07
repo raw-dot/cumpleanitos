@@ -51,6 +51,7 @@ function useUsuarios() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
     const [{ data: profiles }, { data: campaigns }] = await Promise.all([
       supabase.from("profiles").select("*").order("created_at", { ascending: false }),
@@ -62,7 +63,11 @@ function useUsuarios() {
       campMap[c.birthday_person_id].push(c);
     });
     setUsers((profiles || []).map(u => ({ ...u, campaigns: campMap[u.id] || [] })));
-    setLoading(false);
+    } catch(e) {
+      console.error("Admin load error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

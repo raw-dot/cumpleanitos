@@ -31,6 +31,7 @@ function useRegalos() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
     const [
       { data: giftItems },
@@ -62,7 +63,11 @@ function useRegalos() {
 
     setItems(enrichedItems);
     setContribs(enrichedContribs);
-    setLoading(false);
+    } catch(e) {
+      console.error("Admin load error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);

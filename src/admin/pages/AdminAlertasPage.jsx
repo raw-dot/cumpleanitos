@@ -47,18 +47,18 @@ function useAlertas() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    try {
       await ensureAdminSession();
-    const [
-      { data: campaigns },
-      { data: contributions },
-      { data: profiles },
-      { data: items },
-    ] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       supabase.from("gift_campaigns").select("id, title, birthday_person_name, birthday_person_id, status, goal_amount, birthday_date, created_at"),
       supabase.from("contributions").select("id, campaign_id, amount, created_at"),
       supabase.from("profiles").select("id, username, name, is_active, created_at, payment_alias"),
       supabase.from("gift_items").select("id, campaign_id, price"),
     ]);
+    const campaigns     = r1.data || [];
+    const contributions = r2.data || [];
+    const profiles      = r3.data || [];
+    const items         = r4.data || [];
 
     // Construir mapas
     const contribMap = {};
@@ -208,7 +208,11 @@ function useAlertas() {
       });
 
     setAlerts(generated);
-    setLoading(false);
+    } catch(e) {
+      console.error("Alertas error:", e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { load(); }, [load]);
