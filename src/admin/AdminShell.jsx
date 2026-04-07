@@ -43,7 +43,7 @@ export default function AdminShell({ profile, onExit }) {
 
   const renderPage = () => {
     // key={activePage + initialFilter} fuerza re-mount cuando cambia el filtro
-    const filterKey = (initialFilter || "all");
+    const filterKey = `${activePage}-${initialFilter || "default"}`;
     switch (activePage) {
       case "dashboard":     return <AdminDashboardPage onNavigate={navigate} />;
       case "usuarios":      return <AdminUsuariosPage   key={filterKey} initialFilter={initialFilter} />;
@@ -62,7 +62,7 @@ export default function AdminShell({ profile, onExit }) {
     <AdminProvider>
       <AdminLayout
         activePage={activePage}
-        onNavigate={setActivePage}
+        onNavigate={(page) => navigate(page, null)}
         profile={profile}
         onExit={onExit}
       >
