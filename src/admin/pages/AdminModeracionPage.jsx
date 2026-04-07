@@ -38,17 +38,18 @@ function useModeracion() {
     setLoading(true);
     try {
       await ensureAdminSession();
-    const [
-      { data: contributions },
-      { data: profiles      },
-      { data: campaigns     },
-      { data: items         },
-    ] = await Promise.all([
+    const [r1, r2, r3, r4] = await Promise.all([
       supabase.from("contributions").select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous").order("created_at", { ascending: false }),
       supabase.from("profiles").select("id, username, name, bio, avatar_url, email, is_active, created_at, role").order("created_at", { ascending: false }),
       supabase.from("gift_campaigns").select("id, title, description, image_url, birthday_person_id, birthday_person_name, status, created_at").order("created_at", { ascending: false }),
       supabase.from("gift_items").select("id, campaign_id, name, description, image_url, price, created_at").order("created_at", { ascending: false }),
     ]);
+    if (r1.error) console.error("contributions:", r1.error.message);
+    if (r2.error) console.error("profiles:", r2.error.message);
+    const contributions = r1.data || [];
+    const profiles      = r2.data || [];
+    const campaigns     = r3.data || [];
+    const items         = r4.data || [];
 
     // mapear campaign → profile
     const profMap = {};

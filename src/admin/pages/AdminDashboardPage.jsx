@@ -129,11 +129,25 @@ function useDashboard() {
 
 // ─── USER MODAL ───────────────────────────────────────────────────────────────
 function UserModal({ user, onClose, onNavigate }) {
+  const [campaign, setCampaign] = useState(null);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from("gift_campaigns")
+      .select("id, title, goal_amount, status, image_url, birthday_date")
+      .eq("birthday_person_id", user.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .single()
+      .then(({ data }) => setCampaign(data || null));
+  }, [user?.id]);
+
   if (!user) return null;
   return (
     <div style={{ position:"fixed", inset:0, zIndex:600, display:"flex", alignItems:"center", justifyContent:"center" }}>
       <div onClick={onClose} style={{ position:"absolute", inset:0, background:"rgba(0,0,0,0.4)" }} />
-      <div style={{ position:"relative", background:C.surface, borderRadius:14, border:`0.5px solid ${C.border}`, padding:24, width:320, fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", boxShadow:"0 8px 32px rgba(0,0,0,0.15)" }}>
+      <div style={{ position:"relative", background:C.surface, borderRadius:14, border:`0.5px solid ${C.border}`, padding:24, width:340, fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", boxShadow:"0 8px 32px rgba(0,0,0,0.15)", maxHeight:"90vh", overflowY:"auto" }}>
         <button onClick={onClose} style={{ position:"absolute", top:14, right:14, background:"none", border:"none", cursor:"pointer", fontSize:18, color:C.textMuted }}>✕</button>
         <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:10, marginBottom:16 }}>
           <div style={{ width:56, height:56, borderRadius:"50%", background:C.primaryBg, color:C.primary, fontSize:20, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center", overflow:"hidden" }}>
@@ -147,7 +161,7 @@ function UserModal({ user, onClose, onNavigate }) {
             <div style={{ fontSize:12, color:C.primary }}>@{user.username || "—"}</div>
           </div>
         </div>
-        <div style={{ background:C.bg, borderRadius:8, padding:12, display:"flex", flexDirection:"column", gap:6, marginBottom:16 }}>
+        <div style={{ background:C.bg, borderRadius:8, padding:12, display:"flex", flexDirection:"column", gap:6, marginBottom:12 }}>
           {[
             { label:"Email",      value: user.email || "—"     },
             { label:"Rol",        value: user.role  || "—"     },
@@ -161,6 +175,26 @@ function UserModal({ user, onClose, onNavigate }) {
             </div>
           ))}
         </div>
+        {/* Campaña activa */}
+        {campaign && (
+          <div style={{ background:C.primaryBg, borderRadius:8, padding:12, marginBottom:12 }}>
+            <div style={{ fontSize:11, fontWeight:600, color:C.primary, textTransform:"uppercase", letterSpacing:"0.05em", marginBottom:8 }}>Regalo activo</div>
+            {campaign.image_url && (
+              <img src={campaign.image_url} alt="" style={{ width:"100%", height:100, objectFit:"cover", borderRadius:6, marginBottom:8, display:"block" }} />
+            )}
+            <div style={{ fontSize:13, fontWeight:600, color:C.text, marginBottom:4 }}>{campaign.title || "Sin título"}</div>
+            <div style={{ display:"flex", justifyContent:"space-between", fontSize:12 }}>
+              <span style={{ color:C.textMuted }}>Meta</span>
+              <span style={{ color:C.primary, fontWeight:600 }}>{campaign.goal_amount ? fmtARS(campaign.goal_amount) : "Libre"}</span>
+            </div>
+            {campaign.birthday_date && (
+              <div style={{ display:"flex", justifyContent:"space-between", fontSize:12, marginTop:4 }}>
+                <span style={{ color:C.textMuted }}>Fecha</span>
+                <span style={{ color:C.text }}>{fmtShort(campaign.birthday_date)}</span>
+              </div>
+            )}
+          </div>
+        )}
         <button onClick={() => { onNavigate("usuarios", null); onClose(); }} style={{ width:"100%", padding:"9px 0", borderRadius:8, border:"none", background:C.primary, color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer" }}>
           Ver en gestión de usuarios →
         </button>

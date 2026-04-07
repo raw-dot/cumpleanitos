@@ -105,13 +105,22 @@ function FotoModal({ open, onClose, onConfirm }) {
     let stream;
     (async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        // Intentar primero con facingMode ideal, luego sin restricción como fallback
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        } catch {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
         setCamStream(stream);
         setCamReady(true);
+        // Pequeño delay para asegurar que el DOM esté listo
+        await new Promise(r => setTimeout(r, 50));
         if (videoLiveRef.current) {
           videoLiveRef.current.srcObject = stream;
+          videoLiveRef.current.play().catch(() => {});
         }
       } catch (e) {
+        console.error("Camera error:", e.name, e.message);
         setError("No se pudo acceder a la cámara. Verificá los permisos del navegador.");
       }
     })();
@@ -273,38 +282,45 @@ function FotoModal({ open, onClose, onConfirm }) {
             </>
           ) : (
             /* En desktop: getUserMedia con video live + botón capturar */
+            /* El <video> SIEMPRE está montado para que videoLiveRef no sea null */
             <div>
-              {error ? (
-                <div style={{ background:"#FEE2E2", border:"1px solid #FCA5A5", borderRadius:12, padding:16, textAlign:"center", marginBottom:12 }}>
-                  <div style={{ fontSize:24, marginBottom:8 }}>🚫</div>
-                  <div style={{ fontSize:13, color:"#991B1B", marginBottom:8 }}>{error}</div>
-                  <button
-                    onClick={() => { setError("");
-                      navigator.mediaDevices?.getUserMedia({ video:{ facingMode:{ ideal:"environment" } }, audio:false })
-                        .then(s => { setCamStream(s); setCamReady(true); if(videoLiveRef.current) videoLiveRef.current.srcObject = s; })
-                        .catch(() => setError("No se pudo acceder a la cámara. Verificá los permisos."));
-                    }}
-                    style={{ fontSize:13, color:COLORS.primary, background:"none", border:`1px solid ${COLORS.primary}`, borderRadius:8, padding:"6px 14px", cursor:"pointer" }}
-                  >
-                    Reintentar
-                  </button>
-                </div>
-              ) : (
-                <div style={{ position:"relative", borderRadius:12, overflow:"hidden", background:"#000", marginBottom:12 }}>
-                  <video
-                    ref={videoLiveRef}
-                    autoPlay
-                    playsInline
-                    muted
-                    style={{ width:"100%", maxHeight:240, display:"block", objectFit:"cover" }}
-                  />
-                  {!camReady && (
-                    <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.5)" }}>
-                      <div style={{ color:"#fff", fontSize:13 }}>Iniciando cámara...</div>
-                    </div>
-                  )}
-                </div>
-              )}
+              <div style={{ position:"relative", borderRadius:12, overflow:"hidden", background:"#000", marginBottom:12 }}>
+                <video
+                  ref={videoLiveRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  style={{ width:"100%", maxHeight:240, display:"block", objectFit:"cover" }}
+                />
+                {/* Overlay de estado — encima del video, sin desmontarlo */}
+                {!camReady && !error && (
+                  <div style={{ position:"absolute", inset:0, display:"flex", alignItems:"center", justifyContent:"center", background:"rgba(0,0,0,0.7)" }}>
+                    <div style={{ color:"#fff", fontSize:13 }}>Iniciando cámara...</div>
+                  </div>
+                )}
+                {error && (
+                  <div style={{ position:"absolute", inset:0, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", background:"rgba(254,226,226,0.95)", gap:10 }}>
+                    <div style={{ fontSize:28 }}>🚫</div>
+                    <div style={{ fontSize:13, color:"#991B1B", textAlign:"center", padding:"0 16px" }}>{error}</div>
+                    <button
+                      onClick={() => {
+                        setError("");
+                        setCamReady(false);
+                        navigator.mediaDevices?.getUserMedia({ video: true, audio: false })
+                          .then(s => {
+                            setCamStream(s);
+                            setCamReady(true);
+                            if (videoLiveRef.current) videoLiveRef.current.srcObject = s;
+                          })
+                          .catch(() => setError("No se pudo acceder a la cámara. Verificá los permisos del navegador."));
+                      }}
+                      style={{ fontSize:13, color:COLORS.primary, background:"#fff", border:`1px solid ${COLORS.primary}`, borderRadius:8, padding:"7px 16px", cursor:"pointer" }}
+                    >
+                      Reintentar
+                    </button>
+                  </div>
+                )}
+              </div>
               {camReady && !error && (
                 <button
                   onClick={handleCapture}

@@ -110,11 +110,28 @@ function ContribDrawer({ contrib, onClose }) {
             {isAnon && <div style={{ fontSize: 11, background: C.accentBg, color: C.accent, padding: "4px 8px", borderRadius: 6, fontWeight: 600 }}>Aporte anónimo</div>}
           </div>
 
-          {/* mensaje */}
-          {contrib.message && (
+          {/* mensaje emocional */}
+          {(contrib.message || contrib.emotional_foto_url || contrib.emotional_video_url) && (
             <div style={{ background: C.bg, borderRadius: 8, padding: 12 }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 6 }}>Mensaje</div>
-              <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, fontStyle: "italic" }}>"{contrib.message}"</div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>Mensaje especial</div>
+              {contrib.message && (
+                <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, fontStyle: "italic", marginBottom: (contrib.emotional_foto_url || contrib.emotional_video_url) ? 10 : 0 }}>"{contrib.message}"</div>
+              )}
+              {contrib.emotional_foto_url && (
+                <img
+                  src={contrib.emotional_foto_url}
+                  alt="foto adjunta"
+                  style={{ width: "100%", borderRadius: 8, objectFit: "cover", maxHeight: 180, display: "block", marginBottom: contrib.emotional_video_url ? 8 : 0 }}
+                  onError={e => { e.target.style.display = "none"; }}
+                />
+              )}
+              {contrib.emotional_video_url && (
+                <video
+                  src={contrib.emotional_video_url}
+                  controls
+                  style={{ width: "100%", borderRadius: 8, background: "#000", maxHeight: 180, display: "block" }}
+                />
+              )}
             </div>
           )}
 
