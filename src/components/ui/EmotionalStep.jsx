@@ -121,7 +121,13 @@ function FotoModal({ open, onClose, onConfirm }) {
         }
       } catch (e) {
         console.error("Camera error:", e.name, e.message);
-        setError("No se pudo acceder a la cámara. Verificá los permisos del navegador.");
+        if (e.name === "NotReadableError" || e.name === "TrackStartError") {
+          setError("La cámara está siendo usada por otra aplicación (Zoom, Teams, etc.). Cerrá esa app y reintentá.");
+        } else if (e.name === "NotAllowedError" || e.name === "PermissionDeniedError") {
+          setError("Permiso de cámara denegado. Hacé clic en el ícono de cámara en la barra de direcciones y habilitá el acceso.");
+        } else {
+          setError("No se pudo acceder a la cámara (" + e.name + "). Podés subir una foto desde el otro tab.");
+        }
       }
     })();
     return () => {

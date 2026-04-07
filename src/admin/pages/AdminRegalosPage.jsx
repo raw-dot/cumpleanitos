@@ -401,7 +401,7 @@ function TablaContribs({ contribs, loading, onSelect }) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: `0.5px solid ${C.border}` }}>
-                {["Regalador", "Cumpleañero", "Monto", "Mensaje", "Fecha", ""].map(label => (
+                {["Regalador", "Cumpleañero", "Monto", "Mensaje", "Media", "Fecha", ""].map(label => (
                   <th key={label} style={thStyle(label === "")}>{label}</th>
                 ))}
               </tr>
@@ -448,6 +448,28 @@ function TablaContribs({ contribs, loading, onSelect }) {
                         ? <span style={{ fontSize: 12, color: C.textLight, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "block" }}>"{c.message}"</span>
                         : <span style={{ color: C.textMuted, fontSize: 12 }}>—</span>
                       }
+                    </td>
+
+                    {/* media */}
+                    <td style={tdStyle()}>
+                      <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                        {c.emotional_foto_url && (
+                          <img
+                            src={c.emotional_foto_url}
+                            alt="foto"
+                            style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", border: `0.5px solid ${C.border}`, flexShrink: 0 }}
+                            onError={e => { e.target.style.display = "none"; }}
+                          />
+                        )}
+                        {c.emotional_video_url && (
+                          <div style={{ width: 36, height: 36, borderRadius: 6, background: "#1a1a2e", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, border: `0.5px solid ${C.border}` }}>
+                            <span style={{ fontSize: 14 }}>🎬</span>
+                          </div>
+                        )}
+                        {!c.emotional_foto_url && !c.emotional_video_url && (
+                          <span style={{ color: C.textMuted, fontSize: 12 }}>—</span>
+                        )}
+                      </div>
                     </td>
 
                     {/* fecha */}

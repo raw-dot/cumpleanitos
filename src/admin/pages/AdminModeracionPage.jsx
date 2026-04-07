@@ -38,18 +38,21 @@ function useModeracion() {
     setLoading(true);
     try {
       await ensureAdminSession();
-    const [r1, r2, r3, r4] = await Promise.all([
-      supabase.from("contributions").select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous").order("created_at", { ascending: false }),
-      supabase.from("profiles").select("id, username, name, bio, avatar_url, email, is_active, created_at, role").order("created_at", { ascending: false }),
-      supabase.from("gift_campaigns").select("id, title, description, image_url, birthday_person_id, birthday_person_name, status, created_at").order("created_at", { ascending: false }),
-      supabase.from("gift_items").select("id, campaign_id, name, description, image_url, price, created_at").order("created_at", { ascending: false }),
-    ]);
-    if (r1.error) console.error("contributions:", r1.error.message);
-    if (r2.error) console.error("profiles:", r2.error.message);
-    const contributions = r1.data || [];
-    const profiles      = r2.data || [];
-    const campaigns     = r3.data || [];
-    const items         = r4.data || [];
+      // Timeout de 10s — si Supabase no responde, el finally igual corre
+      const timeout = (ms) => new Promise((_, rej) => setTimeout(() => rej(new Error("timeout")), ms));
+      const [r1, r2, r3, r4] = await Promise.race([
+        Promise.all([
+          supabase.from("contributions").select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous, emotional_foto_url, emotional_video_url").order("created_at", { ascending: false }),
+          supabase.from("profiles").select("id, username, name, bio, avatar_url, email, is_active, created_at, role").order("created_at", { ascending: false }),
+          supabase.from("gift_campaigns").select("id, title, description, image_url, birthday_person_id, birthday_person_name, status, created_at").order("created_at", { ascending: false }),
+          supabase.from("gift_items").select("id, campaign_id, name, description, image_url, price, created_at").order("created_at", { ascending: false }),
+        ]),
+        timeout(10000).then(() => [{data:[]},{data:[]},{data:[]},{data:[]}]),
+      ]);
+      const contributions = r1?.data || [];
+      const profiles      = r2?.data || [];
+      const campaigns     = r3?.data || [];
+      const items         = r4?.data || [];
 
     // mapear campaign → profile
     const profMap = {};
@@ -75,8 +78,8 @@ function useModeracion() {
       gifterProfile: c.gifter_id ? gifterMap[c.gifter_id] : null,
     }));
 
-    // Solo mostrar en moderación los que tienen mensaje de texto
-    const conMensaje = enrichedContribs.filter(c => c.message && c.message.trim());
+    // Mostrar en moderación los que tienen mensaje O media (foto/video)
+    const conMensaje = enrichedContribs.filter(c => (c.message && c.message.trim()) || c.emotional_foto_url || c.emotional_video_url);
     setData({
       mensajes:  conMensaje,
       perfiles:  profiles || [],
@@ -254,22 +257,25 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
 
   const flagWords = ["odio", "estafa", "fraude", "spam", "http", "www.", ".com", "whatsapp", "telegram", "puta", "mierda", "pelotud"];
   const isFlagged = (msg) => msg && flagWords.some(w => msg.toLowerCase().includes(w));
+  const hasMedia  = (c) => !!(c.emotional_foto_url || c.emotional_video_url);
 
   const filtered = mensajes.filter(c => {
     const q = search.toLowerCase();
     return !q || c.message?.toLowerCase().includes(q) || c.gifter_name?.toLowerCase().includes(q) || c.campaign?.birthday_person_name?.toLowerCase().includes(q);
   });
 
-  const flagged = filtered.filter(c => isFlagged(c.message));
-  const normal  = filtered.filter(c => !isFlagged(c.message));
+  const conMedia  = filtered.filter(c => hasMedia(c));
+  const flagged   = filtered.filter(c => !hasMedia(c) && isFlagged(c.message));
+  const normal    = filtered.filter(c => !hasMedia(c) && !isFlagged(c.message));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
         {[
-          { label: "Total mensajes",   value: mensajes.length,  color: C.text    },
-          { label: "Posible revisión", value: mensajes.filter(c => isFlagged(c.message)).length, color: C.warn },
-          { label: "Sin issues",       value: mensajes.length - mensajes.filter(c => isFlagged(c.message)).length, color: C.success },
+          { label: "Total",            value: mensajes.length,                                      color: C.text    },
+          { label: "Con foto/video",   value: mensajes.filter(c => hasMedia(c)).length,             color: C.primary },
+          { label: "Posible revisión", value: mensajes.filter(c => isFlagged(c.message)).length,    color: C.warn    },
+          { label: "Sin issues",       value: normal.length,                                        color: C.success },
         ].map(s => (
           <div key={s.label} style={{ background: C.surface, border: `0.5px solid ${C.border}`, borderRadius: 8, padding: "10px 16px", display: "flex", gap: 8, alignItems: "baseline" }}>
             <span style={{ fontSize: 20, fontWeight: 700, color: s.color }}>{s.value}</span>
@@ -284,27 +290,21 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
 
       {filtered.length === 0 ? <EmptyState text="Sin mensajes para revisar" /> : (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {/* Mensajes con foto o video — prioridad alta */}
-          {withMedia.length > 0 && (
+          {conMedia.length > 0 && (
             <>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.primary, textTransform: "uppercase", letterSpacing: "0.06em" }}>
-                — Con foto o video ({withMedia.length})
-              </div>
-              {withMedia.map(c => (
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.primary, textTransform: "uppercase", letterSpacing: "0.06em" }}>— Con foto o video ({conMedia.length})</div>
+              {conMedia.map(c => (
                 <MensajeCard key={c.id} contrib={c} flagged={isFlagged(c.message)}
                   onClear={() => onClearMessage(c.id)}
-                  onClearMedia={() => onClearMedia(c.id)}
+                  onClearMedia={onClearMedia ? () => onClearMedia(c.id) : null}
                   onDisable={c.gifter_id ? () => onDisableUser(c.gifter_id) : null}
                 />
               ))}
             </>
           )}
-          {/* Mensajes con palabras a revisar */}
           {flagged.length > 0 && (
             <>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.warn, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: withMedia.length ? 8 : 0 }}>
-                — Posible revisión ({flagged.length})
-              </div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.warn, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: conMedia.length ? 8 : 0 }}>— Posible revisión ({flagged.length})</div>
               {flagged.map(c => (
                 <MensajeCard key={c.id} contrib={c} flagged
                   onClear={() => onClearMessage(c.id)}
@@ -313,12 +313,9 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
               ))}
             </>
           )}
-          {/* Mensajes normales */}
           {normal.length > 0 && (
             <>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: (withMedia.length || flagged.length) ? 8 : 0 }}>
-                — Solo texto ({normal.length})
-              </div>
+              <div style={{ fontSize: 11, fontWeight: 600, color: C.textMuted, textTransform: "uppercase", letterSpacing: "0.06em", marginTop: (conMedia.length || flagged.length) ? 8 : 0 }}>— Solo texto ({normal.length})</div>
               {normal.map(c => (
                 <MensajeCard key={c.id} contrib={c}
                   onClear={() => onClearMessage(c.id)}
@@ -334,33 +331,42 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
 }
 
 function MensajeCard({ contrib, flagged, onClear, onClearMedia, onDisable }) {
-  const isAnon = contrib.is_anonymous || contrib.anonymous;
+  const isAnon  = contrib.is_anonymous || contrib.anonymous;
+  const hasFoto = !!contrib.emotional_foto_url;
+  const hasVid  = !!contrib.emotional_video_url;
   return (
     <ContentCard flagged={flagged}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
         <Avatar name={isAnon ? "?" : (contrib.gifter_name || "?")} size={30} />
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>
-              {isAnon ? "Anónimo" : (contrib.gifter_name || "Sin nombre")}
-            </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{isAnon ? "Anónimo" : (contrib.gifter_name || "Sin nombre")}</span>
             <span style={{ fontSize: 11, color: C.textMuted }}>→</span>
-            <span style={{ fontSize: 12, color: C.primary }}>
-              {contrib.campaign?.birthday_person_name || "—"}
-            </span>
-            {flagged && <span style={{ fontSize: 9, fontWeight: 700, background: C.warnBg, color: C.warn, padding: "2px 6px", borderRadius: 4 }}>REVISAR</span>}
+            <span style={{ fontSize: 12, color: C.primary }}>{contrib.campaign?.birthday_person_name || "—"}</span>
+            {flagged  && <span style={{ fontSize: 9, fontWeight: 700, background: C.warnBg, color: C.warn, padding: "2px 6px", borderRadius: 4 }}>REVISAR</span>}
+            {hasFoto  && <span style={{ fontSize: 9, fontWeight: 700, background: "#EDE9FE", color: C.primary, padding: "2px 6px", borderRadius: 4 }}>📷 FOTO</span>}
+            {hasVid   && <span style={{ fontSize: 9, fontWeight: 700, background: "#EDE9FE", color: C.primary, padding: "2px 6px", borderRadius: 4 }}>🎬 VIDEO</span>}
           </div>
-          <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, marginTop: 6, background: C.bg, borderRadius: 7, padding: "8px 10px", fontStyle: "italic" }}>
-            "{contrib.message}"
-          </div>
+          {contrib.message && (
+            <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, background: C.bg, borderRadius: 7, padding: "8px 10px", fontStyle: "italic", marginBottom: (hasFoto || hasVid) ? 8 : 0 }}>
+              "{contrib.message}"
+            </div>
+          )}
+          {hasFoto && (
+            <img src={contrib.emotional_foto_url} alt="foto" style={{ maxWidth: "100%", maxHeight: 140, borderRadius: 8, objectFit: "cover", display: "block", marginBottom: hasVid ? 6 : 0 }} onError={e => { e.target.style.display="none"; }} />
+          )}
+          {hasVid && (
+            <video src={contrib.emotional_video_url} controls style={{ maxWidth: "100%", maxHeight: 140, borderRadius: 8, background: "#000", display: "block" }} />
+          )}
           <div style={{ display: "flex", gap: 12, marginTop: 6, flexWrap: "wrap" }}>
-            <Meta label="Fecha"  value={fmtDate(contrib.created_at)} />
-            <Meta label="Monto"  value={`$${Math.round(contrib.amount || 0).toLocaleString("es-AR")}`} />
+            <Meta label="Fecha" value={fmtDate(contrib.created_at)} />
+            <Meta label="Monto" value={`$${Math.round(contrib.amount || 0).toLocaleString("es-AR")}`} />
           </div>
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
           <ActionBtn label="Borrar msg" color={C.error} onClick={onClear} confirm="¿Eliminar este mensaje?" />
-          {onDisable && !isAnon && <ActionBtn label="Deshabilitar user" color={C.warn} onClick={onDisable} confirm="¿Deshabilitar al usuario?" />}
+          {(hasFoto || hasVid) && onClearMedia && <ActionBtn label="Borrar media" color={C.warn} onClick={onClearMedia} confirm="¿Eliminar foto/video?" />}
+          {onDisable && !isAnon && <ActionBtn label="Deshabilitar" color={C.warn} onClick={onDisable} confirm="¿Deshabilitar al usuario?" />}
         </div>
       </div>
     </ContentCard>
