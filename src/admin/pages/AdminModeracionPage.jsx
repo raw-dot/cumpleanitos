@@ -28,19 +28,12 @@ function useModeracion() {
     try {
       await ensureAdminSession();
 
-      // Intentar con columnas emocionales, fallback sin ellas
-      let contribsRaw = [];
+      // select("*") — mismo patrón que AdminRegalosPage que funciona
       const r1 = await supabase.from("contributions")
-        .select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous, emotional_foto_url, emotional_video_url")
+        .select("*")
         .order("created_at", { ascending: false });
-      if (r1.error) {
-        const r1b = await supabase.from("contributions")
-          .select("id, campaign_id, gifter_name, gifter_id, message, amount, created_at, is_anonymous, anonymous")
-          .order("created_at", { ascending: false });
-        contribsRaw = r1b.data || [];
-      } else {
-        contribsRaw = r1.data || [];
-      }
+      const contribsRaw = r1.data || [];
+      if (r1.error) console.error("contributions error:", r1.error.message);
 
       const [r2, r3, r4] = await Promise.all([
         supabase.from("profiles").select("id, username, name, bio, avatar_url, email, is_active, created_at, role").order("created_at", { ascending: false }),
