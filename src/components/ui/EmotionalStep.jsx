@@ -6,10 +6,12 @@ import { supabase } from "../../supabaseClient";
 const IS_MOBILE = typeof navigator !== "undefined" && navigator.maxTouchPoints > 0;
 
 // ── Subida a Supabase Storage ──────────────────────────────────────────────
+// Usamos el mismo bucket cumple-images que ya existe y funciona,
+// con subcarpeta emotional/ para separar este contenido.
 async function uploadToStorage(file, type) {
   const ext = file.name.split(".").pop() || (type === "foto" ? "jpg" : "mp4");
   const path = `emotional/${type}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`;
-  const bucket = "emotional-media";
+  const bucket = "cumple-images";
 
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     cacheControl: "3600",
