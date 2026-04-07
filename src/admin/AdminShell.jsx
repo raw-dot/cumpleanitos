@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AdminProvider } from "./AdminContext";
 import AdminLayout from "./AdminLayout";
 import AdminDashboardPage from "./pages/AdminDashboardPage";
 import AdminUsuariosPage from "./pages/AdminUsuariosPage";
@@ -37,6 +38,7 @@ export default function AdminShell({ profile, onExit }) {
   };
 
   return (
+    <AdminProvider>
     <AdminLayout
       activePage={activePage}
       onNavigate={setActivePage}
@@ -45,5 +47,6 @@ export default function AdminShell({ profile, onExit }) {
     >
       {renderPage()}
     </AdminLayout>
+    </AdminProvider>
   );
 }

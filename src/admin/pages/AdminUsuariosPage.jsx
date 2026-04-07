@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
 
 const C = {
@@ -230,7 +231,7 @@ function InfoRow({ label, value }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function AdminUsuariosPage() {
-  const isMobile = useIsMobile();
+  const { isMobile } = useAdmin();
   const { users, loading, saving, toast, load, toggleActive, toggleAdmin, saveUser, bulkDisable, bulkEnable } = useUsuarios();
 
   const [search,   setSearch]   = useState("");

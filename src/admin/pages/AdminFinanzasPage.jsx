@@ -1,5 +1,5 @@
-import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { useState, useEffect, useCallback } from "react";
+import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
 import { getRealAlias } from "../../utils/paymentAliasHelpers";
 
@@ -173,6 +173,7 @@ function BarChart({ data }) {
 
 // ─── TAB RESUMEN ─────────────────────────────────────────────────────────────
 function TabResumen({ data, loading }) {
+  const { isMobile } = useAdmin();
   if (loading) return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
@@ -254,6 +255,7 @@ function TabResumen({ data, loading }) {
 
 // ─── TAB POR CAMPAÑA ──────────────────────────────────────────────────────────
 function TabCampanas({ data, loading }) {
+  const { isMobile } = useAdmin();
   const [search, setSearch] = useState("");
   const [page,   setPage]   = useState(0);
   const [detail, setDetail] = useState(null);
@@ -522,7 +524,6 @@ function PagBtn({ children, onClick, disabled, active }) {
 
 // ─── MAIN ────────────────────────────────────────────────────────────────────
 export default function AdminFinanzasPage() {
-  const isMobile = useIsMobile();
   const { data, loading, load } = useFinanzas();
   const [activeTab, setActiveTab] = useState("resumen");
 

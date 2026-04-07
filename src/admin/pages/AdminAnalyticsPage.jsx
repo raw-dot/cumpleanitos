@@ -1,5 +1,5 @@
-import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { useState, useEffect, useCallback } from "react";
+import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
 
 const C = {
@@ -286,6 +286,7 @@ function Skeleton({ h = 200 }) {
 
 // ─── TAB CONVERSIÓN ───────────────────────────────────────────────────────────
 function TabConversion({ data, loading }) {
+  const { isMobile } = useAdmin();
   if (loading) return <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 14 }}>{Array.from({length:4}).map((_,i) => <Skeleton key={i} h={180} />)}</div>;
   const cv = data?.conversion;
   if (!cv) return null;
@@ -359,6 +360,7 @@ function TabConversion({ data, loading }) {
 
 // ─── TAB TEMPORAL ─────────────────────────────────────────────────────────────
 function TabTemporal({ data, loading }) {
+  const { isMobile } = useAdmin();
   if (loading) return <div style={{ display: "flex", flexDirection: "column", gap: 14 }}><Skeleton h={220} /><Skeleton h={160} /></div>;
   const t = data?.temporal;
   if (!t) return null;
@@ -440,6 +442,7 @@ function TabTemporal({ data, loading }) {
 
 // ─── TAB DEMOGRÁFICO ──────────────────────────────────────────────────────────
 function TabDemografico({ data, loading }) {
+  const { isMobile } = useAdmin();
   if (loading) return <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>{Array.from({length:4}).map((_,i) => <Skeleton key={i} h={160} />)}</div>;
   const d = data?.demografico;
   if (!d) return null;
@@ -541,7 +544,6 @@ function TabDemografico({ data, loading }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AdminAnalyticsPage() {
-  const isMobile = useIsMobile();
   const { data, loading, load } = useAnalytics();
   const [activeTab, setActiveTab] = useState("conversion");
 

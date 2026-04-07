@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useIsMobile, rg } from "../useAdminBreakpoint";
+import { rg } from "../useAdminBreakpoint";
+import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
 
 const C = {
@@ -285,7 +286,7 @@ function Panel({ title, action, onAction, children }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AdminDashboardPage({ onNavigate }) {
-  const isMobile = useIsMobile();
+  const { isMobile } = useAdmin();
   const { data, loading, reload, lastUpdate } = useDashboard();
   const [activeKpi,    setActiveKpi]    = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);

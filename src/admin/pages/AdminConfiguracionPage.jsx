@@ -1,5 +1,5 @@
-import { useIsMobile, rg } from "../useAdminBreakpoint";
 import { useState, useEffect, useCallback } from "react";
+import { useAdmin } from "../AdminContext";
 import { supabase } from "../../supabaseClient";
 
 const C = {
@@ -425,7 +425,7 @@ function SeccionAbout({ config, onReset }) {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 export default function AdminConfiguracionPage() {
-  const isMobile = useIsMobile();
+  const { isMobile } = useAdmin();
   const { config, save, reset } = useConfig();
   const { admins, candidates, loading, toast, search, setSearch, toggleAdmin } = useAdmins();
   const [activeSection, setActiveSection] = useState("plataforma");
