@@ -184,10 +184,10 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
       const amount = parseFloat(form.amount);
       const gifterName = form.anonymous ? null : (currentSession ? (currentProfile?.name || currentSession.user.email) : form.name);
       const finalMessage = emotional.message || form.message || null;
-      // Fase 1: guardamos URLs de preview local como placeholder.
-      // En Fase 2 se subirán a Supabase Storage y se reemplazarán por URLs reales.
-      const fotoUrl = emotional.foto?.previewUrl || null;
-      const videoUrl = emotional.video?.previewUrl || null;
+      // Usamos storageUrl (URL pública de Supabase Storage).
+      // Si no está disponible (fallo de upload), cae a previewUrl como fallback.
+      const fotoUrl  = emotional.foto?.storageUrl  || null;
+      const videoUrl = emotional.video?.storageUrl || null;
       const { error: err } = await supabase.from("contributions").insert({
         campaign_id: campaign.id,
         gifter_id: currentSession?.user?.id || null,
@@ -609,11 +609,24 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                       <span>{form.anonymous ? "Anónimo 💝" : (form.name || (currentProfile?.name || ""))}</span>
                     </div>
                     {(emotional.message || emotional.foto || emotional.video) && (
-                      <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 14 }}>
-                        <span style={{ color: COLORS.textLight }}>Mensaje especial</span>
-                        <span style={{ color: COLORS.primary, fontWeight: 600 }}>
-                          {[emotional.message && "Texto", emotional.foto && "Foto", emotional.video && "Video"].filter(Boolean).join(" + ")} 🎁
-                        </span>
+                      <div style={{ padding: "6px 0", fontSize: 14 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: (emotional.foto || emotional.video) ? 10 : 0 }}>
+                          <span style={{ color: COLORS.textLight }}>Mensaje especial</span>
+                          <span style={{ color: COLORS.primary, fontWeight: 600 }}>
+                            {[emotional.message && "Texto", emotional.foto && "Foto", emotional.video && "Video"].filter(Boolean).join(" + ")} 🎁
+                          </span>
+                        </div>
+                        {emotional.message && (
+                          <div style={{ fontSize: 13, color: COLORS.textLight, fontStyle: "italic", background: COLORS.bg, borderRadius: 8, padding: "8px 12px", marginBottom: (emotional.foto || emotional.video) ? 8 : 0 }}>
+                            "{emotional.message}"
+                          </div>
+                        )}
+                        {emotional.foto?.previewUrl && (
+                          <img src={emotional.foto.previewUrl} alt="foto" style={{ width: "100%", maxHeight: 140, borderRadius: 10, objectFit: "cover", display: "block", marginBottom: emotional.video ? 8 : 0 }} />
+                        )}
+                        {emotional.video?.previewUrl && (
+                          <video src={emotional.video.previewUrl} muted playsInline style={{ width: "100%", maxHeight: 140, borderRadius: 10, objectFit: "cover", display: "block", background: "#000" }} />
+                        )}
                       </div>
                     )}
                   </div>
