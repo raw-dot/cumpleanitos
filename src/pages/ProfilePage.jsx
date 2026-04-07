@@ -176,32 +176,36 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
     setSubmitting(true);
     setError("");
 
-    const amount = parseFloat(form.amount);
-    const gifterName = form.anonymous ? null : (currentSession ? (currentProfile?.name || currentSession.user.email) : form.name);
-    // Incluir mensaje emocional si hay (Fase 1: solo texto; foto/video en Fase 2)
-    const finalMessage = emotional.message || form.message || null;
-    const { error: err } = await supabase.from("contributions").insert({
-      campaign_id: campaign.id,
-      gifter_id: currentSession?.user?.id || null,
-      gifter_name: gifterName,
-      gifter_contact: form.anonymous ? null : (form.contact || null),
-      amount: amount,
-      message: finalMessage,
-      is_anonymous: form.anonymous,
-    });
+    try {
+      const amount = parseFloat(form.amount);
+      const gifterName = form.anonymous ? null : (currentSession ? (currentProfile?.name || currentSession.user.email) : form.name);
+      const finalMessage = emotional.message || form.message || null;
+      const { error: err } = await supabase.from("contributions").insert({
+        campaign_id: campaign.id,
+        gifter_id: currentSession?.user?.id || null,
+        gifter_name: gifterName,
+        gifter_contact: form.anonymous ? null : (form.contact || null),
+        amount: amount,
+        message: finalMessage,
+        is_anonymous: form.anonymous,
+      });
 
-    setSubmitting(false);
-    if (err) { setError("Error al registrar el regalo. Intentá de nuevo."); return; }
+      if (err) { setError("Error al registrar el regalo. Intentá de nuevo."); return; }
 
-    const { data: contribData } = await supabase.from("contributions").select("*").eq("campaign_id", campaign.id).order("created_at", { ascending: false });
-    if (contribData) setContributions(contribData);
+      const { data: contribData } = await supabase.from("contributions").select("*").eq("campaign_id", campaign.id).order("created_at", { ascending: false });
+      if (contribData) setContributions(contribData);
 
-    setShowContributeForm(false);
-    setPreSelectedItem(null);
-    setStep(1);
-    setEmotional({ message: "", foto: null, video: null });
-    setForm({ amount: "", name: "", contact: "", message: "", anonymous: false });
-    setSuccess(`¡Gracias por tu regalo! 🎉 Ahora hacé la transferencia de ${formatMoney(amount)} al alias: ${getRealAlias(profile?.payment_alias) || "pendiente de confirmar"}`);
+      setShowContributeForm(false);
+      setPreSelectedItem(null);
+      setStep(1);
+      setEmotional({ message: "", foto: null, video: null });
+      setForm({ amount: "", name: "", contact: "", message: "", anonymous: false });
+      setSuccess(`¡Gracias por tu regalo! 🎉 Ahora hacé la transferencia de ${formatMoney(amount)} al alias: ${getRealAlias(profile?.payment_alias) || "pendiente de confirmar"}`);
+    } catch (e) {
+      setError("Error inesperado. Intentá de nuevo.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (loading) {
