@@ -6,6 +6,7 @@ import {
   getInitials, formatMoney, formatBirthday, daysUntilBirthday,
 } from "../shared";
 import { getRealAlias } from "../utils/paymentAliasHelpers";
+import EmotionalStep from "../components/ui/EmotionalStep";
 
 // Leer montos desde config (localStorage con fallback a defaults)
 const getPresetAmounts = () => {
@@ -49,6 +50,10 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  // Paso activo: 1=monto, 2=datos, 3=mensaje especial, 4=confirmar
+  const [step, setStep] = useState(1);
+  // Datos del paso emocional
+  const [emotional, setEmotional] = useState({ message: "", foto: null, video: null });
 
   // Pre-fill form with logged-in user data when component mounts or session changes
   useEffect(() => {
@@ -123,6 +128,8 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
     setPreSelectedItem(item);
     setForm(p => ({ ...p, amount: item.price?.toString() || "" }));
     setShowContributeForm(true);
+    setStep(1);
+    setEmotional({ message: "", foto: null, video: null });
   };
 
   const handleShare = async () => {
@@ -170,27 +177,29 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
     setError("");
 
     const amount = parseFloat(form.amount);
-    // If logged in and not anonymous, use logged-in user's name; otherwise use form name
     const gifterName = form.anonymous ? null : (currentSession ? (currentProfile?.name || currentSession.user.email) : form.name);
+    // Incluir mensaje emocional si hay (Fase 1: solo texto; foto/video en Fase 2)
+    const finalMessage = emotional.message || form.message || null;
     const { error: err } = await supabase.from("contributions").insert({
       campaign_id: campaign.id,
       gifter_id: currentSession?.user?.id || null,
       gifter_name: gifterName,
       gifter_contact: form.anonymous ? null : (form.contact || null),
       amount: amount,
-      message: form.message || null,
+      message: finalMessage,
       is_anonymous: form.anonymous,
     });
 
     setSubmitting(false);
     if (err) { setError("Error al registrar el regalo. Intentá de nuevo."); return; }
 
-    // Reload contributions
     const { data: contribData } = await supabase.from("contributions").select("*").eq("campaign_id", campaign.id).order("created_at", { ascending: false });
     if (contribData) setContributions(contribData);
 
     setShowContributeForm(false);
     setPreSelectedItem(null);
+    setStep(1);
+    setEmotional({ message: "", foto: null, video: null });
     setForm({ amount: "", name: "", contact: "", message: "", anonymous: false });
     setSuccess(`¡Gracias por tu regalo! 🎉 Ahora hacé la transferencia de ${formatMoney(amount)} al alias: ${getRealAlias(profile?.payment_alias) || "pendiente de confirmar"}`);
   };
@@ -262,6 +271,8 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
           <div style={{ marginTop: 24 }}>
             <Button size="lg" onClick={() => {
               setShowContributeForm(true);
+              setStep(1);
+              setEmotional({ message: "", foto: null, video: null });
               setTimeout(() => document.getElementById("contribute-section")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
             }}>
               🎁 Aportar para el regalo
@@ -440,112 +451,186 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
           </div>
         )}
 
-        {/* ── APORTAR SECTION (INLINE FORM) ── */}
+        {/* ── APORTAR SECTION — 4 pasos ── */}
         {campaign && (
           <div id="contribute-section" style={{ marginBottom: 48 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8, color: COLORS.text }}>Aportar para el regalo</h2>
-            <p style={{ color: COLORS.textLight, marginBottom: 24 }}>Montos sugeridos</p>
+            <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 20, color: COLORS.text }}>Aportar para el regalo</h2>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
-              {presetAmounts.map(amount => (
-                <button
-                  key={amount}
-                  onClick={() => {
-                    setForm(p => ({ ...p, amount: amount.toString() }));
-                    setPreSelectedItem(null);
-                  }}
-                  style={{
-                    padding: "16px 20px",
-                    borderRadius: 12,
-                    border: "none",
-                    background: form.amount === amount.toString() ? COLORS.primary : COLORS.card,
-                    color: form.amount === amount.toString() ? "#fff" : COLORS.text,
-                    fontSize: 16,
-                    fontWeight: 700,
-                    cursor: "pointer",
-                    transition: "all 0.2s",
-                    textAlign: "center",
-                  }}
-                  onMouseEnter={e => {
-                    if (form.amount !== amount.toString()) {
-                      e.currentTarget.style.background = COLORS.border;
-                    }
-                  }}
-                  onMouseLeave={e => {
-                    if (form.amount !== amount.toString()) {
-                      e.currentTarget.style.background = COLORS.card;
-                    }
-                  }}
-                >
-                  REGALAR {formatMoney(amount)}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>O ingresá otro monto</label>
-              <Input
-                type="number"
-                value={form.amount}
-                onChange={v => setForm(p => ({ ...p, amount: v }))}
-                placeholder="Monto en ARS"
-                min="1"
-              />
-            </div>
-
-            {!form.anonymous && !currentSession && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>Tu nombre</label>
-                <Input value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Nombre completo" />
+            <Card style={{ padding: 24 }}>
+              {/* ── Stepper ── */}
+              <div style={{ display: "flex", marginBottom: 24 }}>
+                {[
+                  { n: 1, label: "Monto" },
+                  { n: 2, label: "Datos" },
+                  { n: 3, label: "Mensaje" },
+                  { n: 4, label: "Confirmar" },
+                ].map(({ n, label }, idx, arr) => (
+                  <div key={n} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+                    {/* línea conectora */}
+                    {idx < arr.length - 1 && (
+                      <div style={{
+                        position: "absolute", top: 12, left: "55%", width: "90%", height: 1,
+                        background: n < step ? COLORS.primary : COLORS.border, zIndex: 0,
+                      }} />
+                    )}
+                    <div style={{
+                      width: 24, height: 24, borderRadius: "50%", zIndex: 1,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 11, fontWeight: 700, marginBottom: 4,
+                      background: n < step ? COLORS.primary : n === step ? COLORS.primary : COLORS.border,
+                      color: n <= step ? "#fff" : COLORS.textLight,
+                      boxShadow: n === step ? `0 0 0 4px ${COLORS.primaryLight}40` : "none",
+                    }}>
+                      {n < step ? "✓" : n}
+                    </div>
+                    <div style={{
+                      fontSize: 10, color: n === step ? COLORS.primary : COLORS.textLight,
+                      fontWeight: n === step ? 700 : 400,
+                    }}>{label}</div>
+                  </div>
+                ))}
               </div>
-            )}
 
-            {!form.anonymous && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>
-                  Teléfono o email <span style={{ fontSize: 12, opacity: 0.7 }}>(opcional — para que el festejado pueda confirmar)</span>
-                </label>
-                <Input
-                  value={form.contact}
-                  onChange={v => setForm(p => ({ ...p, contact: v }))}
-                  placeholder="Ej: +5491155556666 o vos@email.com"
-                />
-              </div>
-            )}
-
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 8 }}>Mensaje (opcional)</label>
-              <Textarea value={form.message} onChange={v => setForm(p => ({ ...p, message: v }))} placeholder="Escribile algo lindo..." rows={3} />
-            </div>
-
-            <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 14, marginBottom: 20 }}>
-              <input
-                type="checkbox"
-                checked={form.anonymous}
-                onChange={e => setForm(p => ({ ...p, anonymous: e.target.checked }))}
-                style={{ width: 18, height: 18, cursor: "pointer" }}
-              />
-              <span>Aportar de forma anónima</span>
-            </label>
-
-            {profile?.payment_alias && (
-              <Card style={{ background: "#FEFCE8", border: `1px solid #FDE68A`, padding: 16, marginBottom: 16 }}>
-                <div style={{ fontSize: 14, color: "#92400E" }}>
-                  💳 <strong>Regalá por medio de alias de Mercado Pago:</strong> <span style={{ fontFamily: "monospace", fontWeight: 700 }}>{getRealAlias(profile.payment_alias)}</span>
+              {/* ── PASO 1: Monto ── */}
+              {step === 1 && (
+                <div>
+                  <p style={{ color: COLORS.textLight, marginBottom: 16, fontSize: 14 }}>Montos sugeridos</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
+                    {presetAmounts.map(amount => (
+                      <button
+                        key={amount}
+                        onClick={() => { setForm(p => ({ ...p, amount: amount.toString() })); setPreSelectedItem(null); }}
+                        style={{
+                          padding: "14px 8px", borderRadius: 12,
+                          border: `1px solid ${form.amount === amount.toString() ? COLORS.primary : COLORS.border}`,
+                          background: form.amount === amount.toString() ? COLORS.primary : COLORS.card,
+                          color: form.amount === amount.toString() ? "#fff" : COLORS.text,
+                          fontSize: 15, fontWeight: 700, cursor: "pointer", transition: "all 0.15s",
+                        }}
+                      >
+                        {formatMoney(amount)}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ marginBottom: 20 }}>
+                    <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>O ingresá otro monto</label>
+                    <Input type="number" value={form.amount} onChange={v => setForm(p => ({ ...p, amount: v }))} placeholder="Monto en ARS" min="1" />
+                  </div>
+                  <Alert message={error} type="error" />
+                  <Button size="lg" style={{ width: "100%" }} onClick={() => {
+                    if (!form.amount || parseFloat(form.amount) <= 0) { setError("Ingresá un monto válido"); return; }
+                    setError(""); setStep(2);
+                  }}>
+                    Continuar →
+                  </Button>
                 </div>
-              </Card>
-            )}
+              )}
 
-            <Alert message={error} type="error" />
+              {/* ── PASO 2: Datos personales ── */}
+              {step === 2 && (
+                <div>
+                  {!form.anonymous && !currentSession && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>Tu nombre</label>
+                      <Input value={form.name} onChange={v => setForm(p => ({ ...p, name: v }))} placeholder="Nombre completo" />
+                    </div>
+                  )}
+                  {!form.anonymous && (
+                    <div style={{ marginBottom: 14 }}>
+                      <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>
+                        Teléfono o email <span style={{ fontSize: 11, opacity: 0.7 }}>(opcional)</span>
+                      </label>
+                      <Input value={form.contact} onChange={v => setForm(p => ({ ...p, contact: v }))} placeholder="+5491155556666 o email" />
+                    </div>
+                  )}
+                  <label style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer", fontSize: 14, marginBottom: 20 }}>
+                    <input type="checkbox" checked={form.anonymous} onChange={e => setForm(p => ({ ...p, anonymous: e.target.checked }))} style={{ width: 18, height: 18, cursor: "pointer", accentColor: COLORS.primary }} />
+                    <span>Aportar de forma anónima</span>
+                  </label>
+                  <Alert message={error} type="error" />
+                  <Button size="lg" style={{ width: "100%", marginBottom: 10 }} onClick={() => {
+                    if (!form.anonymous && !currentSession && !form.name.trim()) { setError("Ingresá tu nombre o marcá la opción anónimo"); return; }
+                    setError(""); setStep(3);
+                  }}>
+                    Continuar →
+                  </Button>
+                  <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => {
+                    setError(""); setStep(3);
+                  }}>
+                    Omitir datos
+                  </Button>
+                </div>
+              )}
 
-            <Button
-              size="lg"
-              onClick={submitContribution}
-              disabled={submitting || !form.amount || (!form.name && !form.anonymous && !currentSession)}
-              style={{ width: "100%" }}
-            >
-              {submitting ? "Procesando..." : "Confirmar regalo 🎁"}
-            </Button>
+              {/* ── PASO 3: Mensaje emocional ── */}
+              {step === 3 && (
+                <div>
+                  <EmotionalStep
+                    value={emotional}
+                    onChange={setEmotional}
+                    birthdayDate={profile?.birthday || campaign?.birthday_date || null}
+                  />
+                  <div style={{ marginTop: 16 }}>
+                    <Button size="lg" style={{ width: "100%", marginBottom: 10 }} onClick={() => { setError(""); setStep(4); }}>
+                      Continuar →
+                    </Button>
+                    <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => { setError(""); setStep(4); }}>
+                      Omitir este paso
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── PASO 4: Confirmar ── */}
+              {step === 4 && (
+                <div>
+                  {/* Resumen */}
+                  <div style={{ background: COLORS.bg, borderRadius: 12, padding: 16, marginBottom: 16 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${COLORS.border}`, fontSize: 14 }}>
+                      <span style={{ color: COLORS.textLight }}>Monto</span>
+                      <span style={{ fontWeight: 700 }}>{formatMoney(parseFloat(form.amount))}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", borderBottom: `1px solid ${COLORS.border}`, fontSize: 14 }}>
+                      <span style={{ color: COLORS.textLight }}>De parte de</span>
+                      <span>{form.anonymous ? "Anónimo 💝" : (form.name || (currentProfile?.name || ""))}</span>
+                    </div>
+                    {(emotional.message || emotional.foto || emotional.video) && (
+                      <div style={{ display: "flex", justifyContent: "space-between", padding: "6px 0", fontSize: 14 }}>
+                        <span style={{ color: COLORS.textLight }}>Mensaje especial</span>
+                        <span style={{ color: COLORS.primary, fontWeight: 600 }}>
+                          {[emotional.message && "Texto", emotional.foto && "Foto", emotional.video && "Video"].filter(Boolean).join(" + ")} 🎁
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {profile?.payment_alias && (
+                    <Card style={{ background: "#FEFCE8", border: `1px solid #FDE68A`, padding: 16, marginBottom: 16 }}>
+                      <div style={{ fontSize: 14, color: "#92400E" }}>
+                        💳 <strong>Transferí al alias de Mercado Pago:</strong>
+                        <span style={{ display: "block", fontFamily: "monospace", fontWeight: 700, fontSize: 16, marginTop: 4 }}>
+                          {getRealAlias(profile.payment_alias)}
+                        </span>
+                      </div>
+                    </Card>
+                  )}
+
+                  <Alert message={error} type="error" />
+
+                  <Button
+                    size="lg"
+                    onClick={submitContribution}
+                    disabled={submitting}
+                    style={{ width: "100%", marginBottom: 10 }}
+                  >
+                    {submitting ? "Procesando..." : "Confirmar regalo 🎉"}
+                  </Button>
+                  <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => setStep(3)}>
+                    ← Volver
+                  </Button>
+                </div>
+              )}
+            </Card>
           </div>
         )}
 
