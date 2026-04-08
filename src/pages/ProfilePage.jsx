@@ -547,7 +547,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                   <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 12, padding: 14, marginTop: 16 }}>
                     {[
                       ["Monto bruto", formatMoney(parseFloat(form.amount)), "#111827"],
-                      ["Comisión plataforma (5%)", "−" + formatMoney(Math.round(parseFloat(form.amount) * 0.05)), "#6B7280"],
+                      ["Comisión plataforma (10%)", "−" + formatMoney(Math.round(parseFloat(form.amount) * 0.10)), "#6B7280"],
                     ].map(([label, val, color]) => (
                       <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
                         <span style={{ color: "#6B7280" }}>{label}</span>
@@ -556,7 +556,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                     ))}
                     <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: "1px solid #DDD6FE", paddingTop: 6 }}>
                       <span style={{ fontWeight: 600 }}>Recibe el cumpleañero</span>
-                      <span style={{ fontWeight: 700, color: "#16a34a" }}>{formatMoney(Math.round(parseFloat(form.amount) * 0.95))}</span>
+                      <span style={{ fontWeight: 700, color: "#16a34a" }}>{formatMoney(Math.round(parseFloat(form.amount) * 0.90))}</span>
                     </div>
                   </div>
 

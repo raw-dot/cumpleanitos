@@ -11,6 +11,29 @@ export default async function handler(req, res) {
   const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const MP_ACCESS_TOKEN_TEST = process.env.MP_ACCESS_TOKEN_TEST;
+  const MP_WEBHOOK_SECRET    = process.env.MP_WEBHOOK_SECRET;
+
+  // Validar firma HMAC de MP si está configurada
+  if (MP_WEBHOOK_SECRET) {
+    const xSignature = req.headers['x-signature'] || '';
+    const xRequestId = req.headers['x-request-id'] || '';
+    const dataId     = req.query?.['data.id'] || req.body?.data?.id || '';
+    const manifest   = `id:${dataId};request-id:${xRequestId};ts:${xSignature.split(';').find(p => p.startsWith('ts='))?.split('=')[1] || ''};`;
+    try {
+      const crypto  = await import('crypto');
+      const ts      = xSignature.split(';').find(p => p.startsWith('ts='))?.split('=')[1] || '';
+      const v1      = xSignature.split(';').find(p => p.startsWith('v1='))?.split('=')[1] || '';
+      const hmac    = crypto.default.createHmac('sha256', MP_WEBHOOK_SECRET);
+      hmac.update(`id:${dataId};request-id:${xRequestId};ts:${ts};`);
+      const computed = hmac.digest('hex');
+      if (v1 && computed !== v1) {
+        console.warn('Webhook firma inválida — ignorado');
+        return res.status(200).json({ received: true, ignored: 'invalid_signature' });
+      }
+    } catch (e) {
+      console.warn('Error validando firma webhook:', e.message);
+    }
+  }
 
   const payload = req.body;
   const topic   = payload.type || payload.topic || req.query.topic;
