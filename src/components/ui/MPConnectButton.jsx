@@ -130,7 +130,7 @@ export default function MPConnectButton({ userId, connection, loading, onConnect
         {[
           ['Cobrás directamente en tu cuenta', '✓'],
           ['Sin intermediarios manuales', '✓'],
-          [`Comisión de la plataforma: ${import.meta.env.VITE_MP_PLATFORM_FEE_PCT || '5'}%`, 'ℹ️'],
+          [`Comisión de la plataforma: ${import.meta.env.VITE_MP_PLATFORM_FEE_PCT || '10'}%`, 'ℹ️'],
         ].map(([label, icon]) => (
           <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: C.warnText }}>
             <span>{label}</span><span>{icon}</span>
