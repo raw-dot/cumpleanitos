@@ -46,6 +46,35 @@ Ver detalle en versión anterior. Requiere Supabase Edge Function con service_ro
 
 ---
 
+
+## 🔵 Integración Mercado Pago — Estado actual (v0.14)
+
+### ✅ Completado
+- 5 tablas MP creadas en Supabase: mp_connections, mp_orders, mp_transactions, mp_commissions, mp_webhook_logs
+- API routes: mp-oauth-callback, mp-create-preference, mp-webhook, mp-admin-connect
+- Frontend: MPConnectButton, MPOAuthCallbackPage, MPPaymentResultPage, useMPConnection hook
+- Rutas: /oauth/mp/callback, /pago/exito, /pago/pendiente, /pago/error
+- Paso 2 del formulario ProfilePage reemplaza alias manual por botón "Pagar con MP"
+- Webhook configurado en MP (modo prueba y producción)
+- Variables de entorno cargadas en Vercel test y prod
+- Comisión 10% configurada
+
+### 🔴 Pendiente para producción
+1. **OAuth MP no aprobado** — La app "Cumpleanitos Test" no tiene aprobación de MP para OAuth con cuentas reales. Necesita:
+   - Tramitar aprobación de la app en MP developers (proceso manual de MP)
+   - O usar flujo alternativo sin OAuth (insertar token manualmente vía SQL como workaround)
+
+2. **Conectar cuenta real del cumpleañero en prod** — Una vez aprobado OAuth, conectar cuenta de tororaw@gmail.com desde cumpleanitos.com/configuracion
+
+3. **Webhook productivo** — Configurar en MP → Webhooks → Modo productivo → https://cumpleanitos.com/api/mp-webhook
+
+4. **Prueba end-to-end real** — El sandbox de MP es inestable. Probar con pago real mínimo ($100 ARS) en producción una vez que OAuth esté aprobado.
+
+5. **Credenciales productivas MP** — Access Token productivo ya cargado en Vercel prod como MP_ACCESS_TOKEN
+
+
+---
+
 ## 🟢 Baja Prioridad
 
 ### Admin papelera usuarios eliminados
