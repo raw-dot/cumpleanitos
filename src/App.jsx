@@ -529,23 +529,33 @@ export default function App() {
     if (!data) {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData?.user;
-      
+
       if (user) {
-        const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split("@")[0] || "Usuario";
-        const username = 'user_' + user.id.substring(0, 8);
-        
+        const meta = user.user_metadata || {};
+        // Si el registro normal guardó datos en metadata, usarlos en vez de placeholders
+        const isNormalSignup = meta.username && meta.birthday;
+
+        const name = meta.full_name || meta.name || user.email?.split("@")[0] || "Usuario";
+        const username = isNormalSignup ? meta.username : 'user_' + user.id.substring(0, 8);
+        const birthday = isNormalSignup ? meta.birthday : null;
+        const phone = isNormalSignup ? (meta.phone || null) : null;
+        const age = isNormalSignup ? (meta.age || null) : null;
+        const days_to_birthday = isNormalSignup ? (meta.days_to_birthday || null) : null;
+
         const { error: insertError } = await supabase.from("profiles").insert({
           id: user.id,
           username,
           name,
-          birthday: '2000-01-01',
-          role: 'celebrant',
+          birthday,
+          phone,
+          age,
+          days_to_birthday,
+          role: meta.role || 'celebrant',
           email: user.email,
-          email_verified: !!user.email_confirmed_at
+          email_verified: !!user.email_confirmed_at,
         });
-        
+
         if (!insertError) {
-          // Re-fetch el profile recién creado
           const { data: newProfile } = await supabase.from("profiles").select("*").eq("id", userId).single();
           data = newProfile;
         }
@@ -554,12 +564,14 @@ export default function App() {
     
     clearTimeout(profileTimeout);
     if (data) {
-      // Detectar si es usuario nuevo de Google: username auto-generado Y sin birthday/phone
-      const isGoogleUser = data.username && data.username.startsWith("user_");
-      const isIncomplete = !data.birthday || !data.phone;
-      const wasDeleted = data.deleted_at !== null;  // Usuario eliminado que vuelve
+      // Detectar si es usuario nuevo de Google OAuth: provider es google Y perfil incompleto
+      const { data: authData } = await supabase.auth.getUser();
+      const authUser = authData?.user;
+      const isGoogleProvider = authUser?.app_metadata?.provider === 'google';
+      const isIncomplete = !data.birthday || !data.phone || (data.username && data.username.startsWith("user_"));
+      const wasDeleted = data.deleted_at != null;  // Usuario eliminado que vuelve
 
-      if ((isGoogleUser && isIncomplete) || wasDeleted) {
+      if ((isGoogleProvider && isIncomplete) || wasDeleted) {
         // Generar username sugerido desde el email (parte antes del @)
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
