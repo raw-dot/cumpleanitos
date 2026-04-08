@@ -8,7 +8,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { code, userId, userToken } = req.body;
+  const { code, userId, userToken, codeVerifier } = req.body;
 
   if (!code || !userId || !userToken) {
     return res.status(400).json({ error: 'code, userId y userToken son requeridos' });
@@ -41,8 +41,9 @@ export default async function handler(req, res) {
         client_id:     MP_CLIENT_ID,
         client_secret: MP_CLIENT_SECRET,
         code,
-        grant_type:   'authorization_code',
-        redirect_uri: MP_REDIRECT_URI,
+        grant_type:    'authorization_code',
+        redirect_uri:  MP_REDIRECT_URI,
+        ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
       }),
     });
 

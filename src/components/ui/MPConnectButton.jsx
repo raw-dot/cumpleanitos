@@ -29,14 +29,32 @@ export default function MPConnectButton({ userId, connection, loading, onConnect
   const MP_CLIENT_ID = '3154697079981275';
   const REDIRECT_URI = `${window.location.origin}/oauth/mp/callback`;
 
-  function handleConnect() {
+  async function handleConnect() {
     sessionStorage.setItem('mp_oauth_user_id', userId);
+
+    // Generar code_verifier y code_challenge para PKCE
+    const array = new Uint8Array(32);
+    crypto.getRandomValues(array);
+    const codeVerifier = btoa(String.fromCharCode(...array))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    const encoder = new TextEncoder();
+    const data = encoder.encode(codeVerifier);
+    const digest = await crypto.subtle.digest('SHA-256', data);
+    const codeChallenge = btoa(String.fromCharCode(...new Uint8Array(digest)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+
+    sessionStorage.setItem('mp_code_verifier', codeVerifier);
+
     const params = new URLSearchParams({
-      response_type: 'code',
-      client_id:     MP_CLIENT_ID,
-      redirect_uri:  REDIRECT_URI,
-      state:         userId,
+      response_type:         'code',
+      client_id:             MP_CLIENT_ID,
+      redirect_uri:          REDIRECT_URI,
+      state:                 userId,
+      code_challenge:        codeChallenge,
+      code_challenge_method: 'S256',
     });
+
     window.location.href = `https://auth.mercadopago.com.ar/authorization?${params.toString()}`;
   }
 

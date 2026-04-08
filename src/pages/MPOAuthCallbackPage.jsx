@@ -26,10 +26,16 @@ export default function MPOAuthCallbackPage() {
       }
 
       try {
+        sessionStorage.removeItem('mp_code_verifier');
         const res  = await fetch('/api/mp-oauth-callback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code, userId: state || session.user.id, userToken: session.access_token }),
+          body: JSON.stringify({
+            code,
+            userId:       state || session.user.id,
+            userToken:    session.access_token,
+            codeVerifier: sessionStorage.getItem('mp_code_verifier') || null,
+          }),
         });
         const data = await res.json();
 
