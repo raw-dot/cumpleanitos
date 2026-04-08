@@ -55,6 +55,10 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
   const [step, setStep] = useState(1);
   // Datos del paso emocional
   const [emotional, setEmotional] = useState({ message: "", foto: null, video: null });
+  const [mpLoading, setMpLoading] = useState(false);
+
+  // Conexión MP del cumpleañero (para saber si puede recibir pagos)
+  const { connection: sellerMPConnection } = useMPConnection(profile?.id);
 
   // Pre-fill form with logged-in user data when component mounts or session changes
   useEffect(() => {
@@ -530,7 +534,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                 </div>
               )}
 
-              {/* ── PASO 2: Mensaje emocional + alias + confirmar ── */}
+              {/* ── PASO 2: Mensaje emocional + pago MP ── */}
               {step === 2 && (
                 <div>
                   <EmotionalStep
@@ -539,14 +543,28 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                     birthdayDate={profile?.birthday || campaign?.birthday_date || null}
                   />
 
-                  {/* Alias de pago */}
-                  {profile?.payment_alias && (
-                    <Card style={{ background: "#FEFCE8", border: `1px solid #FDE68A`, padding: 14, marginTop: 16, marginBottom: 4 }}>
+                  {/* Resumen de fondos */}
+                  <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 12, padding: 14, marginTop: 16 }}>
+                    {[
+                      ["Monto bruto", formatMoney(parseFloat(form.amount)), "#111827"],
+                      ["Comisión plataforma (5%)", "−" + formatMoney(Math.round(parseFloat(form.amount) * 0.05)), "#6B7280"],
+                    ].map(([label, val, color]) => (
+                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                        <span style={{ color: "#6B7280" }}>{label}</span>
+                        <span style={{ fontWeight: 600, color }}>{val}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: "1px solid #DDD6FE", paddingTop: 6 }}>
+                      <span style={{ fontWeight: 600 }}>Recibe el cumpleañero</span>
+                      <span style={{ fontWeight: 700, color: "#16a34a" }}>{formatMoney(Math.round(parseFloat(form.amount) * 0.95))}</span>
+                    </div>
+                  </div>
+
+                  {/* Sin cuenta MP conectada */}
+                  {sellerMPConnection === false && (
+                    <Card style={{ background: "#FEF9C3", border: "1px solid #FDE68A", padding: 14, marginTop: 12 }}>
                       <div style={{ fontSize: 13, color: "#92400E" }}>
-                        💳 <strong>Transferí {formatMoney(parseFloat(form.amount))} al alias:</strong>
-                        <span style={{ display: "block", fontFamily: "monospace", fontWeight: 700, fontSize: 15, marginTop: 4 }}>
-                          {getRealAlias(profile.payment_alias)}
-                        </span>
+                        ⚠️ El cumpleañero aún no configuró su método de cobro.
                       </div>
                     </Card>
                   )}
@@ -554,13 +572,62 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                   <Alert message={error} type="error" style={{ marginTop: 12 }} />
 
                   <div style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}>
-                    <Button size="lg" onClick={submitContribution} disabled={submitting} style={{ width: "100%" }}>
-                      {submitting ? "Procesando..." : "Confirmar regalo 🎉"}
-                    </Button>
+                    {sellerMPConnection && (
+                      <button
+                        disabled={mpLoading}
+                        onClick={async () => {
+                          setMpLoading(true);
+                          setError("");
+                          try {
+                            const amount    = parseFloat(form.amount);
+                            const payerName = form.anonymous ? "Anónimo" : (form.name || currentProfile?.name || "Invitado");
+                            const res  = await fetch("/api/mp-create-preference", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                campaignId:   campaign.id,
+                                giftItemId:   preSelectedItem?.id || null,
+                                sellerUserId: profile.id,
+                                payerName,
+                                payerUserId:  currentSession?.user?.id || null,
+                                isAnonymous:  form.anonymous,
+                                message:      emotional.message || null,
+                                amount,
+                                userToken:    currentSession?.access_token || null,
+                              }),
+                            });
+                            const data = await res.json();
+                            if (!res.ok || !data.init_point) {
+                              setError(data.error || "Error al iniciar el pago. Intentá de nuevo.");
+                              setMpLoading(false);
+                              return;
+                            }
+                            window.location.href = data.init_point;
+                          } catch {
+                            setError("Error de conexión. Intentá de nuevo.");
+                            setMpLoading(false);
+                          }
+                        }}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                          width: "100%", padding: 15, borderRadius: 12,
+                          background: mpLoading ? "#9CA3AF" : "#009EE3",
+                          color: "#fff", fontSize: 15, fontWeight: 700,
+                          border: "none", cursor: mpLoading ? "not-allowed" : "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <span style={{ width: 24, height: 24, borderRadius: "50%", background: "rgba(255,255,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 11 }}>MP</span>
+                        {mpLoading ? "Preparando pago..." : "Pagar con Mercado Pago"}
+                      </button>
+                    )}
                     <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => setStep(1)}>
                       ← Volver
                     </Button>
                   </div>
+                  <p style={{ fontSize: 11, color: COLORS.textLight, textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
+                    Serás redirigido a Mercado Pago de forma segura
+                  </p>
                 </div>
               )}
             </Card>
