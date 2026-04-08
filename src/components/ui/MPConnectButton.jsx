@@ -26,22 +26,18 @@ const C = {
 export default function MPConnectButton({ userId, connection, loading, onConnected, onDisconnected }) {
   const [disconnecting, setDisconnecting] = useState(false);
 
-  // URL de OAuth de MP (en test mode)
-  const MP_CLIENT_ID   = import.meta.env.VITE_MP_CLIENT_ID;
-  const REDIRECT_URI   = import.meta.env.VITE_MP_REDIRECT_URI || `${window.location.origin}/oauth/mp/callback`;
+  const MP_CLIENT_ID = '3154697079981275';
+  const REDIRECT_URI = `${window.location.origin}/oauth/mp/callback`;
 
   function handleConnect() {
-    // Guardar userId en sessionStorage para recuperarlo en el callback
     sessionStorage.setItem('mp_oauth_user_id', userId);
-
     const params = new URLSearchParams({
       response_type: 'code',
       client_id:     MP_CLIENT_ID,
       redirect_uri:  REDIRECT_URI,
       state:         userId,
     });
-
-    window.location.href = `https://auth.mercadopago.com/authorization?${params.toString()}`;
+    window.location.href = `https://auth.mercadopago.com.ar/authorization?${params.toString()}`;
   }
 
   async function handleDisconnect() {
