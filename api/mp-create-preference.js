@@ -32,6 +32,7 @@ export default async function handler(req, res) {
   const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const APP_BASE_URL  = process.env.MP_REDIRECT_BASE || 'https://test.cumpleanitos.com';
   const FEE_PCT       = parseFloat(process.env.MP_PLATFORM_FEE_PCT || '10');
+  const IS_PROD       = process.env.MP_ENV === 'production';
 
   try {
     // 1. Obtener el access_token de MP del cumpleañero desde server
@@ -190,7 +191,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         mp_preference_id: mpData.id,
-        mp_init_point:    mpData.sandbox_init_point || mpData.init_point,
+        mp_init_point:    process.env.MP_ENV === 'production' ? mpData.init_point : (mpData.sandbox_init_point || mpData.init_point),
         updated_at:       new Date().toISOString(),
       }),
     });
@@ -199,7 +200,7 @@ export default async function handler(req, res) {
       success:            true,
       order_id:           orderId,
       external_reference: externalRef,
-      init_point:         mpData.sandbox_init_point || mpData.init_point,
+      init_point:         process.env.MP_ENV === 'production' ? mpData.init_point : (mpData.sandbox_init_point || mpData.init_point),
       gross_amount:       grossAmount,
       fee_amount:         feeAmount,
       net_amount:         netAmount,

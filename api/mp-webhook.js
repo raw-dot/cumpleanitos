@@ -10,7 +10,7 @@ export default async function handler(req, res) {
 
   const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const MP_ACCESS_TOKEN_TEST = process.env.MP_ACCESS_TOKEN_TEST;
+  const MP_ACCESS_TOKEN_TEST = process.env.MP_ACCESS_TOKEN || process.env.MP_ACCESS_TOKEN_TEST;
   const MP_WEBHOOK_SECRET    = process.env.MP_WEBHOOK_SECRET;
 
   // Validar firma HMAC de MP si está configurada
