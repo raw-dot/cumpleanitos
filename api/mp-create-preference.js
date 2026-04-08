@@ -61,7 +61,7 @@ export default async function handler(req, res) {
     const netAmount        = Math.round((grossAmount - feeAmount) * 100) / 100;
 
     // 3. Generar referencia externa única
-    const externalRef = `CPÑ-${Date.now()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
+    const externalRef = `CPN-${Date.now()}-${Math.random().toString(36).slice(2,7).toUpperCase()}`;
 
     // 4. Obtener info de campaña para el título
     const campRes = await fetch(
