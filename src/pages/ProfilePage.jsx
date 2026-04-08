@@ -7,6 +7,7 @@ import {
 } from "../shared";
 import { getRealAlias } from "../utils/paymentAliasHelpers";
 import EmotionalStep from "../components/ui/EmotionalStep";
+import { useMPConnection } from "../hooks/useMPConnection";
 
 // Leer montos desde config (localStorage con fallback a defaults)
 const getPresetAmounts = () => {

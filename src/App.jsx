@@ -15,6 +15,8 @@ import ManageGiftsPage from "./pages/ManageGiftsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 import ShareProfilePage from "./pages/ShareProfilePage";
 import SettingsPage from "./pages/SettingsPage";
+import MPOAuthCallbackPage from "./pages/MPOAuthCallbackPage";
+import MPPaymentResultPage from "./pages/MPPaymentResultPage";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -348,12 +350,20 @@ const PAGE_ROUTES = {
   'settings': '/configuracion',
   'notif': '/notificaciones',
   'admin': '/admin',
+  'mp-callback': '/oauth/mp/callback',
+  'mp-exito': '/pago/exito',
+  'mp-pendiente': '/pago/pendiente',
+  'mp-error': '/pago/error',
 };
 const ROUTE_PAGES = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([k, v]) => [v, k]));
 
 function getInitialPage() {
   const path = window.location.pathname;
   if (path.startsWith('/u/')) return 'profile';
+  if (path === '/oauth/mp/callback') return 'mp-callback';
+  if (path === '/pago/exito') return 'mp-exito';
+  if (path === '/pago/pendiente') return 'mp-pendiente';
+  if (path === '/pago/error') return 'mp-error';
   return ROUTE_PAGES[path] || 'home';
 }
 
@@ -727,6 +737,12 @@ export default function App() {
         return <ProfilePage username={profileTarget?.username} campaignId={profileTarget?.campaignId} currentSession={session} currentProfile={profile} />;
       case "admin":
         return null; // handled by early return above
+      case "mp-callback":
+        return <MPOAuthCallbackPage />;
+      case "mp-exito":
+      case "mp-pendiente":
+      case "mp-error":
+        return <MPPaymentResultPage />;
       default:
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }

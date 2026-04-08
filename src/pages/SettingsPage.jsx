@@ -1,4 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import MPConnectButton from "../components/ui/MPConnectButton";
+import { useMPConnection } from "../hooks/useMPConnection";
 import { supabase } from "../supabaseClient";
 
 const C = {
@@ -150,6 +152,9 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
   const [bio,      setBio]      = useState(profile?.bio || "");
   const [email,    setEmail]    = useState(profile?.email || session?.user?.email || "");
   const [realAlias, setRealAlias] = useState(getRealAlias(profile?.payment_alias));
+
+  // Hook de conexión MP
+  const { connection: mpConnection, loading: mpLoading, refetch: refetchMP } = useMPConnection(session?.user?.id);
 
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url || "");
   const [coverUrl,  setCoverUrl]  = useState(profile?.cover_url || "");
@@ -426,15 +431,26 @@ export default function SettingsPage({ profile, session, onBack, onProfileUpdate
         </div>
       </div>
 
+      {/* MERCADO PAGO */}
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", padding: "0 16px 8px" }}>Método de cobro</div>
+      <div style={{ margin: "0 12px" }}>
+        <MPConnectButton
+          userId={session?.user?.id}
+          connection={mpConnection}
+          loading={mpLoading}
+          onConnected={refetchMP}
+          onDisconnected={refetchMP}
+        />
+      </div>
+
       {/* DATOS PERSONALES */}
-      <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", padding: "0 16px 8px" }}>Datos personales</div>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "#9CA3AF", textTransform: "uppercase", letterSpacing: "0.5px", padding: "16px 16px 8px" }}>Datos personales</div>
       <div style={{ background: C.white, margin: "0 12px", borderRadius: 14, border: "1px solid " + C.border, padding: 14, display: "flex", flexDirection: "column", gap: 12 }}>
         {[
           { label: "Nombre completo", val: name, set: setName, ph: "Tu nombre" },
           { label: "Usuario", val: username, set: setUsername, ph: "usuario (sin @)" },
           { label: "Email", val: email, set: setEmail, ph: "tu@email.com", type: "email" },
           { label: "Bio", val: bio, set: setBio, ph: "Contá algo de vos..." },
-          { label: "Alias de pago (Mercado Pago)", val: realAlias, set: setRealAlias, ph: "tu.alias" },
         ].map(f => (
           <div key={f.label}>
             <div style={{ fontSize: 11, fontWeight: 700, color: C.muted, marginBottom: 5 }}>{f.label}</div>
