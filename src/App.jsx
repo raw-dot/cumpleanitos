@@ -602,7 +602,7 @@ export default function App() {
     const timeout = setTimeout(() => setHasCampaign(prev => prev === null ? false : prev), 5000);
     try {
       const [campRes, friendsRes, giftedRes] = await Promise.all([
-        supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId).eq("status", "active").limit(1).single(),
+        supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId).eq("status", "active").limit(1).maybeSingle(),
         supabase.from("friends").select("id", { count: "exact", head: true }).eq("user_id", userId),
         // Aportes que el usuario HIZO como regalador
         supabase.from("contributions").select("amount").eq("gifter_id", userId),
