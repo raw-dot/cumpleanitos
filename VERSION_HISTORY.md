@@ -96,6 +96,7 @@
 ---
 
 **Última actualización:** 03 April 2026, 15:07 UTC
+| **0.15.0** | 09-Apr-2026 | 3df020a | Home logueado con sidebar izq, main 2 col, paneles derechos acoplables | Nuevo LoggedHomePage.jsx: sidebar izquierda con nav items, main con CTA banner + filtros + grid de cumpleaños agrupados por día + grupos, 3 paneles derechos colapsables (Alertas, Sugeridos, Actividad). Responsive mobile/desktop. App.jsx: case "home" muestra LoggedHomePage si hay sesión. | ✅ OK | "RESPETEMOS LA ESTRUCTURA QUE YA TIENE CUMPLEANITOS EN DESKTOP EN TEST, ME GUSTAN LAS DOS COLUMNAS NUEVAS A LA DERECHA, QUE SE PUEDAN ACOPLAR" |
 | **0.14** | 08-Apr-2026 | 5db8648 | Integración Mercado Pago | OAuth cumpleañero, Checkout Pro marketplace, webhooks, 5 tablas MP nuevas, MPConnectButton en Settings, rutas /pago y /oauth/mp/callback | ✅ OK | "vamos a realizar la integracion con mercado pago" |
 | **0.14.3** | 08-abr-2026 | 5518ea3 | Fix freeze "Cargando tu regalo" | `.single()` → `.maybeSingle()` en `loadStats` — nivelado con prod v1.0.2 | ✅ OK | "se cuelga y no deja cargar regalo" |
 | **0.14.2** | 08-abr-2026 | - | Fix paso 3 fantasma en registro | Race condition en `loadProfile`: el fallback de creación de profile usaba placeholders (`user_XXXX`, `birthday=null`) en vez de datos reales del `user_metadata`. Detección `isGoogleUser` ahora usa `app_metadata.provider` en vez del username. | ✅ OK | "el registro en dos pasos agrega un 3er paso que vuelve a pedir datos" |
