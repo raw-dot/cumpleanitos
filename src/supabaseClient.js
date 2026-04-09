@@ -5,14 +5,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
-    autoRefreshToken: true,      // refresca el token antes de que expire
-    persistSession: true,        // guarda la sesión en localStorage
-    detectSessionInUrl: true,    // detecta tokens en la URL (OAuth)
-    storageKey: 'cumpleanitos-auth', // clave única para evitar conflictos
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true,
+    storageKey: 'cumpleanitos-auth',
+    lock: async (name, acquireTimeout, fn) => {
+      return fn()
+    },
   },
   global: {
     headers: {
-      'x-app-version': '0.12',
+      'x-app-version': '0.14',
     },
   },
 })
