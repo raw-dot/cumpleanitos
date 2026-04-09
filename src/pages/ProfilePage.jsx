@@ -105,11 +105,11 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
         const { data: p } = await supabase.from("profiles").select("*").eq("username", username).single();
         prof = p;
         if (p) {
-          const { data: c } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).single();
+          const { data: c } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle();
           if (c) {
             camp = c;
           } else {
-            const { data: cAny } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).order("created_at", { ascending: false }).limit(1).single();
+            const { data: cAny } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
             camp = cAny;
           }
         }
