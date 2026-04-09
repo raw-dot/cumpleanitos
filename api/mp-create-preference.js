@@ -197,13 +197,14 @@ export default async function handler(req, res) {
     });
 
     return res.status(200).json({
-      success:            true,
-      order_id:           orderId,
-      external_reference: externalRef,
-      init_point:         process.env.MP_ENV === 'production' ? mpData.init_point : (mpData.sandbox_init_point || mpData.init_point),
-      gross_amount:       grossAmount,
-      fee_amount:         feeAmount,
-      net_amount:         netAmount,
+      success:              true,
+      order_id:             orderId,
+      external_reference:   externalRef,
+      init_point:           process.env.MP_ENV === 'production' ? mpData.init_point : (mpData.sandbox_init_point || mpData.init_point),
+      mobile_checkout_url:  mpData.mobile_checkout_url || null,
+      gross_amount:         grossAmount,
+      fee_amount:           feeAmount,
+      net_amount:           netAmount,
     });
 
   } catch (err) {

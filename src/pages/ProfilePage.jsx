@@ -602,7 +602,9 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                               setMpLoading(false);
                               return;
                             }
-                            window.location.href = data.init_point;
+                            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                            const destination = (isMobile && data.mobile_checkout_url) ? data.mobile_checkout_url : data.init_point;
+                            window.location.href = destination;
                           } catch {
                             setError("Error de conexión. Intentá de nuevo.");
                             setMpLoading(false);
