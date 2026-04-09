@@ -9,6 +9,7 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import ExplorePage from "./pages/ExplorePage";
 import ProfilePage from "./pages/ProfilePage";
 import HomePage from "./pages/HomePage";
+import LoggedHomePage from "./pages/LoggedHomePage";
 import WishListPage from "./pages/WishListPage";
 import GiftsGivenPage from "./pages/GiftsGivenPage";
 import ManageGiftsPage from "./pages/ManageGiftsPage";
@@ -712,7 +713,7 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case "home":
-        if (session && hasCampaign === false) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
+        if (session) return <LoggedHomePage profile={profile} navigate={navigate} />;
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
       case "notif": return <NotificationsPage session={session} />;
