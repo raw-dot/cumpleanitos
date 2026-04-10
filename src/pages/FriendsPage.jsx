@@ -156,8 +156,8 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
   // Pantalla de éxito: "preguntar al cumpleañero"
   if (saved) {
     return (
-      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300 }}>
-        <div style={{ background: "#fff", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 480, paddingBottom: "env(safe-area-inset-bottom, 24px)" }} onClick={e => e.stopPropagation()}>
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 16 }}>
+        <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 440 }} onClick={e => e.stopPropagation()}>
           <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "12px auto 0" }} />
           <div style={{ padding: "24px 24px 32px", textAlign: "center" }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>🎂</div>
@@ -204,11 +204,11 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
 
   return (
     <div
-      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300 }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: "16px" }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div
-        style={{ background: "#fff", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 480, maxHeight: "92vh", overflowY: "auto", paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
+        style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 440, maxHeight: "90vh", overflowY: "auto" }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "12px auto 0" }} />
