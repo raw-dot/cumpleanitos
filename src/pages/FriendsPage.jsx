@@ -104,28 +104,13 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
   const [month, setMonth] = useState("");
   const [age, setAge] = useState("");
   const [saving, setSaving] = useState(false);
+  const [asking, setAsking] = useState(false);
   const [error, setError] = useState(null);
+  const [saved, setSaved] = useState(null); // { id, name } después de guardar sin edad
 
   const thisYear = new Date().getFullYear();
-
-  // Año de nacimiento = año actual - edad que cumple este año
   const birthdayYear = age ? thisYear - parseInt(age) : null;
-
-  const handle = async () => {
-    if (!name.trim()) return setError("El nombre es obligatorio");
-    if (!day || !month) return setError("Agregá el día y mes de cumpleaños");
-    if (age && (parseInt(age) < 1 || parseInt(age) > 120)) return setError("La edad no parece válida");
-    setSaving(true); setError(null);
-    const { error: e } = await supabase.from("friends").insert({
-      name: name.trim(),
-      birthday_day: parseInt(day),
-      birthday_month: parseInt(month),
-      birthday_year: birthdayYear,
-    });
-    setSaving(false);
-    if (e) return setError(e.message);
-    onSave();
-  };
+  const canSave = name.trim() && day && month;
 
   const inp = {
     width: "100%", padding: "12px 14px", border: "1.5px solid #E5E7EB",
@@ -133,31 +118,101 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
     fontWeight: 600, outline: "none", color: "#1F2937", background: "#fff",
     boxSizing: "border-box",
   };
-
   const sel = { ...inp, appearance: "none", WebkitAppearance: "none" };
+
+  // Guardar el amigo (con o sin año)
+  const saveFriend = async (withAgeRequest = false) => {
+    if (!canSave) return setError("Completá nombre, día y mes");
+    if (age && (parseInt(age) < 1 || parseInt(age) > 120)) return setError("La edad no parece válida");
+    setSaving(true); setError(null);
+    const { data, error: e } = await supabase.from("friends").insert({
+      name: name.trim(),
+      birthday_day: parseInt(day),
+      birthday_month: parseInt(month),
+      birthday_year: birthdayYear,
+      age_requested_at: withAgeRequest ? new Date().toISOString() : null,
+    }).select().single();
+    setSaving(false);
+    if (e) return setError(e.message);
+    if (withAgeRequest) {
+      setSaved(data);  // mostramos pantalla de "preguntar"
+    } else {
+      onSave();
+    }
+  };
+
+  // Armar mensaje y abrir WhatsApp
+  const openWhatsApp = () => {
+    const appUrl = `https://test.cumpleanitos.com/amigos/completar/${saved.id}`;
+    const msg = encodeURIComponent(
+      `¡Hola ${saved.name}! 🎂\n` +
+      `Te agregué en Cumpleañitos para no olvidar tu cumpleaños, ` +
+      `pero no sé en qué año naciste.\n` +
+      `¿Me ayudás completando este dato? → ${appUrl}`
+    );
+    window.open(`https://wa.me/?text=${msg}`, "_blank");
+  };
+
+  // Pantalla de éxito: "preguntar al cumpleañero"
+  if (saved) {
+    return (
+      <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300 }}>
+        <div style={{ background: "#fff", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 480, paddingBottom: "env(safe-area-inset-bottom, 24px)" }} onClick={e => e.stopPropagation()}>
+          <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "12px auto 0" }} />
+          <div style={{ padding: "24px 24px 32px", textAlign: "center" }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>🎂</div>
+            <div style={{ fontSize: 18, fontWeight: 900, color: "#1F2937", marginBottom: 6 }}>
+              ¡{saved.name} fue agregado/a!
+            </div>
+            <div style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6, marginBottom: 24 }}>
+              Le vamos a preguntar en qué año nació para poder mostrarle cuántos años cumple.
+            </div>
+
+            {/* WhatsApp */}
+            <button
+              onClick={openWhatsApp}
+              style={{
+                width: "100%", padding: "14px 16px", marginBottom: 10,
+                background: "#25D366", border: "none", borderRadius: 14,
+                fontFamily: "inherit", fontSize: 15, fontWeight: 800, color: "#fff",
+                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+              }}
+            >
+              <span style={{ fontSize: 20 }}>💬</span>
+              Preguntarle por WhatsApp
+            </button>
+
+            {/* Notificación interna (solo si está registrado) */}
+            <div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 20 }}>
+              Si {saved.name} usa Cumpleañitos, también le llegará una notificación en la app.
+            </div>
+
+            <button
+              onClick={onSave}
+              style={{
+                width: "100%", padding: 14,
+                background: "#F3F4F6", border: "none", borderRadius: 14,
+                fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#6B7280",
+                cursor: "pointer",
+              }}
+            >Listo, ya está</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
-      style={{
-        position: "fixed", inset: 0, background: "rgba(0,0,0,.55)",
-        display: "flex", alignItems: "flex-end", justifyContent: "center",
-        zIndex: 300,
-      }}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "flex-end", justifyContent: "center", zIndex: 300 }}
       onClick={e => e.target === e.currentTarget && onClose()}
     >
       <div
-        style={{
-          background: "#fff", borderRadius: "24px 24px 0 0",
-          width: "100%", maxWidth: 480,
-          maxHeight: "92vh", overflowY: "auto",
-          paddingBottom: "env(safe-area-inset-bottom, 16px)",
-        }}
+        style={{ background: "#fff", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 480, maxHeight: "92vh", overflowY: "auto", paddingBottom: "env(safe-area-inset-bottom, 16px)" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* handle */}
         <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "12px auto 0" }} />
 
-        {/* header */}
         <div style={{ textAlign: "center", padding: "20px 20px 0" }}>
           <div style={{ fontSize: 32, marginBottom: 6 }}>🎂</div>
           <div style={{ fontSize: 18, fontWeight: 900, color: "#1F2937" }}>
@@ -178,43 +233,29 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
           {/* NOMBRE */}
           <div style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 7 }}>Nombre</div>
-            <input
-              style={inp}
-              placeholder="Ej: Sofía García"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              autoFocus
-            />
+            <input style={inp} placeholder="Ej: Sofía García" value={name} onChange={e => setName(e.target.value)} autoFocus />
           </div>
 
           {/* DÍA Y MES */}
           <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 7 }}>
-              ¿Cuándo cumple?
-            </div>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 7 }}>¿Cuándo cumple?</div>
             <div style={{ display: "flex", gap: 10 }}>
-              {/* DÍA */}
-              <div style={{ flex: 1, position: "relative" }}>
+              <div style={{ flex: 1 }}>
                 <select style={{ ...sel, width: "100%" }} value={day} onChange={e => setDay(e.target.value)}>
                   <option value="">Día</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
-              {/* MES */}
-              <div style={{ flex: 2, position: "relative" }}>
+              <div style={{ flex: 2 }}>
                 <select style={{ ...sel, width: "100%" }} value={month} onChange={e => setMonth(e.target.value)}>
                   <option value="">Mes</option>
-                  {MONTH_NAMES.map((m, i) => (
-                    <option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
-                  ))}
+                  {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>)}
                 </select>
               </div>
             </div>
           </div>
 
-          {/* CUÁNTOS AÑOS CUMPLE — el juego */}
+          {/* EDAD — el juego */}
           <div style={{ marginBottom: 24 }}>
             <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 4 }}>
               ¿Cuántos años cumple este año?
@@ -222,33 +263,13 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
             <div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 10 }}>
               Si no lo sabés exacto, no importa — poné tu mejor estimación 🙈
             </div>
-
-            {/* INPUT GRANDE */}
-            <div style={{ position: "relative" }}>
-              <input
-                type="number"
-                min="1" max="120"
-                placeholder="—"
-                value={age}
-                onChange={e => setAge(e.target.value)}
-                style={{
-                  ...inp,
-                  fontSize: 48, fontWeight: 900, textAlign: "center",
-                  padding: "16px 14px", color: V,
-                  borderColor: age ? V : "#E5E7EB",
-                  borderWidth: 2,
-                  borderRadius: 16,
-                }}
-              />
-            </div>
-
-            {/* Año calculado */}
+            <input
+              type="number" min="1" max="120" placeholder="—"
+              value={age} onChange={e => setAge(e.target.value)}
+              style={{ ...inp, fontSize: 48, fontWeight: 900, textAlign: "center", padding: "16px 14px", color: V, borderColor: age ? V : "#E5E7EB", borderWidth: 2, borderRadius: 16 }}
+            />
             {age && birthdayYear && (
-              <div style={{
-                marginTop: 10, padding: "10px 14px",
-                background: VL, borderRadius: 12,
-                display: "flex", alignItems: "center", gap: 8,
-              }}>
+              <div style={{ marginTop: 10, padding: "10px 14px", background: VL, borderRadius: 12, display: "flex", alignItems: "center", gap: 8 }}>
                 <span style={{ fontSize: 16 }}>📅</span>
                 <span style={{ fontSize: 13, fontWeight: 700, color: VD }}>
                   Año de nacimiento estimado: <strong>{birthdayYear}</strong>
@@ -258,28 +279,43 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
             )}
           </div>
 
-          {/* BOTÓN */}
+          {/* BOTÓN PRINCIPAL */}
           <button
-            onClick={handle}
-            disabled={saving || !name.trim() || !day || !month}
+            onClick={() => saveFriend(false)}
+            disabled={saving || asking || !canSave}
             style={{
-              width: "100%", padding: 16,
-              background: (saving || !name.trim() || !day || !month)
-                ? "#E5E7EB"
-                : `linear-gradient(135deg, ${V}, ${VD})`,
-              color: (saving || !name.trim() || !day || !month) ? "#9CA3AF" : "#fff",
-              border: "none", borderRadius: 14,
-              fontFamily: "inherit", fontSize: 16, fontWeight: 800,
-              cursor: (saving || !name.trim() || !day || !month) ? "not-allowed" : "pointer",
-              boxShadow: (saving || !name.trim() || !day || !month) ? "none" : `0 4px 14px rgba(124,58,237,.3)`,
+              width: "100%", padding: 16, marginBottom: 10,
+              background: (!canSave || saving) ? "#E5E7EB" : `linear-gradient(135deg, ${V}, ${VD})`,
+              color: (!canSave || saving) ? "#9CA3AF" : "#fff",
+              border: "none", borderRadius: 14, fontFamily: "inherit",
+              fontSize: 16, fontWeight: 800,
+              cursor: (!canSave || saving) ? "not-allowed" : "pointer",
+              boxShadow: (!canSave || saving) ? "none" : `0 4px 14px rgba(124,58,237,.3)`,
             }}
           >
             {saving ? "Guardando…" : initialGameMode ? "¡Agregar! 🎂" : "Guardar amigo"}
           </button>
 
-          {/* Omitir edad */}
-          {!age && (
-            <div style={{ textAlign: "center", marginTop: 12, fontSize: 12, color: "#9CA3AF" }}>
+          {/* BOTÓN PREGUNTAR — solo si no puso edad */}
+          {!age && canSave && (
+            <button
+              onClick={() => saveFriend(true)}
+              disabled={saving || asking}
+              style={{
+                width: "100%", padding: 14,
+                background: "#F3F4F6", border: "none", borderRadius: 14,
+                fontFamily: "inherit", fontSize: 14, fontWeight: 700,
+                color: "#4B5563", cursor: "pointer",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>💬</span>
+              No sé — preguntarle al cumpleañero
+            </button>
+          )}
+
+          {!age && !canSave && (
+            <div style={{ textAlign: "center", marginTop: 10, fontSize: 12, color: "#9CA3AF" }}>
               Podés dejarlo en blanco si no tenés idea
             </div>
           )}

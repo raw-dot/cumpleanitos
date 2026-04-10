@@ -127,6 +127,27 @@ export default function NotificationsPage({ session }) {
         }
       }
 
+      // 5. Alguien te pidió que completes tu año de nacimiento
+      const { data: ageRequests } = await supabase
+        .from("friends")
+        .select("id, name, age_requested_at, profiles!friends_user_id_fkey(username, full_name)")
+        .eq("friend_user_id", userId)
+        .not("age_requested_at", "is", null)
+        .is("birthday_year", null)
+        .order("age_requested_at", { ascending: false })
+        .limit(5);
+
+      (ageRequests || []).forEach(f => {
+        const asker = f.profiles?.full_name || f.profiles?.username || "Tu amigo";
+        items.push({
+          id: `age-request-${f.id}`,
+          dot: "#F59E0B", bg: "#FFFBEB",
+          text: `${asker} no sabe en qué año naciste 🎂 ¿Completás tu año de nacimiento?`,
+          time: f.age_requested_at, read: false,
+          action: { label: "Completar", url: `/amigos/completar/${f.id}` },
+        });
+      });
+
       // Ordenar por fecha
       items.sort((a, b) => new Date(b.time) - new Date(a.time));
       setNotifs(items);
@@ -185,6 +206,11 @@ export default function NotificationsPage({ session }) {
               <div style={{ flex: 1 }}>
                 <p style={{ fontSize: 13, color: COLORS.text, lineHeight: 1.4, margin: "0 0 3px", fontWeight: n.read ? 400 : 600 }}>{n.text}</p>
                 <p style={{ fontSize: 11, color: COLORS.textLight, margin: 0 }}>{timeAgo(n.time)}</p>
+                {n.action && (
+                  <a href={n.action.url} style={{ display: "inline-block", marginTop: 8, padding: "6px 14px", background: "#F59E0B", color: "#fff", borderRadius: 8, fontSize: 12, fontWeight: 800, textDecoration: "none" }}>
+                    {n.action.label} →
+                  </a>
+                )}
               </div>
             </div>
           ))}
