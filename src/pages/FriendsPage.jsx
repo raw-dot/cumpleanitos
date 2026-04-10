@@ -102,19 +102,25 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
   const [name, setName] = useState("");
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
-  const [year, setYear] = useState("");
+  const [age, setAge] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
+  const thisYear = new Date().getFullYear();
+
+  // Año de nacimiento = año actual - edad que cumple este año
+  const birthdayYear = age ? thisYear - parseInt(age) : null;
+
   const handle = async () => {
     if (!name.trim()) return setError("El nombre es obligatorio");
-    if (!day || !month) return setError("La fecha de cumpleaños es obligatoria");
+    if (!day || !month) return setError("Agregá el día y mes de cumpleaños");
+    if (age && (parseInt(age) < 1 || parseInt(age) > 120)) return setError("La edad no parece válida");
     setSaving(true); setError(null);
     const { error: e } = await supabase.from("friends").insert({
       name: name.trim(),
       birthday_day: parseInt(day),
       birthday_month: parseInt(month),
-      birthday_year: year ? parseInt(year) : null,
+      birthday_year: birthdayYear,
     });
     setSaving(false);
     if (e) return setError(e.message);
@@ -124,77 +130,159 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
   const inp = {
     width: "100%", padding: "12px 14px", border: "1.5px solid #E5E7EB",
     borderRadius: 12, fontSize: 15, fontFamily: "inherit",
-    fontWeight: 600, outline: "none", color: "#1F2937",
-    background: "#fff",
+    fontWeight: 600, outline: "none", color: "#1F2937", background: "#fff",
+    boxSizing: "border-box",
   };
 
-  return (
-    <div style={{
-      position: "fixed", inset: 0, background: "rgba(0,0,0,.5)",
-      display: "flex", alignItems: "flex-end", justifyContent: "center",
-      zIndex: 200,
-    }} onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{
-        background: "#fff", borderRadius: "24px 24px 0 0",
-        padding: "8px 0 0", width: "100%", maxWidth: 480,
-        maxHeight: "90vh", overflowY: "auto",
-      }}>
-        <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "8px auto 16px" }} />
-        <div style={{ padding: "0 20px 32px" }}>
-          <div style={{ textAlign: "center", marginBottom: 24 }}>
-            <div style={{ fontSize: 36, marginBottom: 8 }}>🧑</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: "#1F2937" }}>
-              {initialGameMode ? "¡Empecemos! ¿Quién es tu amigo/a?" : "Agregar amigo"}
-            </div>
-            <div style={{ fontSize: 13, color: "#6B7280", marginTop: 4 }}>
-              Nombre y fecha de cumpleaños
-            </div>
-          </div>
+  const sel = { ...inp, appearance: "none", WebkitAppearance: "none" };
 
+  return (
+    <div
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,.55)",
+        display: "flex", alignItems: "flex-end", justifyContent: "center",
+        zIndex: 300,
+      }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div
+        style={{
+          background: "#fff", borderRadius: "24px 24px 0 0",
+          width: "100%", maxWidth: 480,
+          maxHeight: "92vh", overflowY: "auto",
+          paddingBottom: "env(safe-area-inset-bottom, 16px)",
+        }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* handle */}
+        <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "12px auto 0" }} />
+
+        {/* header */}
+        <div style={{ textAlign: "center", padding: "20px 20px 0" }}>
+          <div style={{ fontSize: 32, marginBottom: 6 }}>🎂</div>
+          <div style={{ fontSize: 18, fontWeight: 900, color: "#1F2937" }}>
+            {initialGameMode ? "¿Quién es tu amigo/a?" : "Agregar amigo"}
+          </div>
+          <div style={{ fontSize: 13, color: "#6B7280", marginTop: 3 }}>
+            {initialGameMode ? "¡Empezá cargando el primero!" : "Nombre y cuándo cumple"}
+          </div>
+        </div>
+
+        <div style={{ padding: "20px 20px 28px" }}>
           {error && (
             <div style={{ background: "#FEE2E2", color: "#B91C1C", borderRadius: 10, padding: "10px 14px", fontSize: 13, marginBottom: 14 }}>
               {error}
             </div>
           )}
 
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 6 }}>Nombre</div>
-            <input style={inp} placeholder="Sofía García" value={name} onChange={e => setName(e.target.value)} autoFocus />
+          {/* NOMBRE */}
+          <div style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 7 }}>Nombre</div>
+            <input
+              style={inp}
+              placeholder="Ej: Sofía García"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              autoFocus
+            />
           </div>
 
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 6 }}>Fecha de cumpleaños</div>
-            <div style={{ display: "flex", gap: 8 }}>
-              <select style={{ ...inp, flex: 1 }} value={day} onChange={e => setDay(e.target.value)}>
-                <option value="">Día</option>
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-              <select style={{ ...inp, flex: 2 }} value={month} onChange={e => setMonth(e.target.value)}>
-                <option value="">Mes</option>
-                {MONTH_NAMES.map((m, i) => (
-                  <option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
-                ))}
-              </select>
-              <input style={{ ...inp, flex: 1 }} type="number" placeholder="Año" value={year} onChange={e => setYear(e.target.value)} min="1920" max="2020" />
+          {/* DÍA Y MES */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 7 }}>
+              ¿Cuándo cumple?
             </div>
-            <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>El año es opcional</div>
+            <div style={{ display: "flex", gap: 10 }}>
+              {/* DÍA */}
+              <div style={{ flex: 1, position: "relative" }}>
+                <select style={{ ...sel, width: "100%" }} value={day} onChange={e => setDay(e.target.value)}>
+                  <option value="">Día</option>
+                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+              {/* MES */}
+              <div style={{ flex: 2, position: "relative" }}>
+                <select style={{ ...sel, width: "100%" }} value={month} onChange={e => setMonth(e.target.value)}>
+                  <option value="">Mes</option>
+                  {MONTH_NAMES.map((m, i) => (
+                    <option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
           </div>
 
+          {/* CUÁNTOS AÑOS CUMPLE — el juego */}
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: .8, color: "#4B5563", marginBottom: 4 }}>
+              ¿Cuántos años cumple este año?
+            </div>
+            <div style={{ fontSize: 12, color: "#9CA3AF", marginBottom: 10 }}>
+              Si no lo sabés exacto, no importa — poné tu mejor estimación 🙈
+            </div>
+
+            {/* INPUT GRANDE */}
+            <div style={{ position: "relative" }}>
+              <input
+                type="number"
+                min="1" max="120"
+                placeholder="—"
+                value={age}
+                onChange={e => setAge(e.target.value)}
+                style={{
+                  ...inp,
+                  fontSize: 48, fontWeight: 900, textAlign: "center",
+                  padding: "16px 14px", color: V,
+                  borderColor: age ? V : "#E5E7EB",
+                  borderWidth: 2,
+                  borderRadius: 16,
+                }}
+              />
+            </div>
+
+            {/* Año calculado */}
+            {age && birthdayYear && (
+              <div style={{
+                marginTop: 10, padding: "10px 14px",
+                background: VL, borderRadius: 12,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <span style={{ fontSize: 16 }}>📅</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: VD }}>
+                  Año de nacimiento estimado: <strong>{birthdayYear}</strong>
+                </span>
+                <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>El cumpleañero lo valida</span>
+              </div>
+            )}
+          </div>
+
+          {/* BOTÓN */}
           <button
             onClick={handle}
-            disabled={saving}
+            disabled={saving || !name.trim() || !day || !month}
             style={{
-              width: "100%", padding: 15,
-              background: saving ? "#C4B5FD" : `linear-gradient(135deg, ${V}, ${VD})`,
-              color: "#fff", border: "none", borderRadius: 14,
-              fontFamily: "inherit", fontSize: 15, fontWeight: 800, cursor: saving ? "not-allowed" : "pointer",
-              boxShadow: saving ? "none" : `0 4px 14px rgba(124,58,237,.3)`,
+              width: "100%", padding: 16,
+              background: (saving || !name.trim() || !day || !month)
+                ? "#E5E7EB"
+                : `linear-gradient(135deg, ${V}, ${VD})`,
+              color: (saving || !name.trim() || !day || !month) ? "#9CA3AF" : "#fff",
+              border: "none", borderRadius: 14,
+              fontFamily: "inherit", fontSize: 16, fontWeight: 800,
+              cursor: (saving || !name.trim() || !day || !month) ? "not-allowed" : "pointer",
+              boxShadow: (saving || !name.trim() || !day || !month) ? "none" : `0 4px 14px rgba(124,58,237,.3)`,
             }}
           >
-            {saving ? "Guardando…" : initialGameMode ? "¡Agregar! →" : "Guardar amigo"}
+            {saving ? "Guardando…" : initialGameMode ? "¡Agregar! 🎂" : "Guardar amigo"}
           </button>
+
+          {/* Omitir edad */}
+          {!age && (
+            <div style={{ textAlign: "center", marginTop: 12, fontSize: 12, color: "#9CA3AF" }}>
+              Podés dejarlo en blanco si no tenés idea
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -351,7 +439,8 @@ export default function FriendsPage({ navigate, profile }) {
     setLoading(false);
     if (!error) {
       setFriends(data || []);
-      // Mostrar onboarding si no tiene amigos y no lo vio antes
+      // Onboarding solo si no tiene amigos Y nunca lo vio antes
+      // IMPORTANTE: nunca abrir el modal automáticamente
       if ((data || []).length === 0 && !localStorage.getItem("friends_onboarding_done")) {
         setShowOnboarding(true);
       }
@@ -361,6 +450,7 @@ export default function FriendsPage({ navigate, profile }) {
   const handleStartGame = () => {
     setShowOnboarding(false);
     setGameMode(true);
+    // Solo abrir modal al tocar el botón explícitamente
     setShowAddModal(true);
   };
 
@@ -426,7 +516,7 @@ export default function FriendsPage({ navigate, profile }) {
             Agregá a tus amigos con su fecha de cumpleaños y organizá los mejores regalos.
           </div>
           <button
-            onClick={() => { setShowOnboarding(true); }}
+            onClick={() => setShowOnboarding(true)}
             style={{
               padding: "14px 28px",
               background: `linear-gradient(135deg, ${V}, ${VD})`,
