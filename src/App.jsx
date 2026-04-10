@@ -18,6 +18,9 @@ import ShareProfilePage from "./pages/ShareProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import MPOAuthCallbackPage from "./pages/MPOAuthCallbackPage";
 import MPPaymentResultPage from "./pages/MPPaymentResultPage";
+import FriendsPage from "./pages/FriendsPage";
+import BirthdayEventPage from "./pages/BirthdayEventPage";
+import BirthdayEventDetailPage from "./pages/BirthdayEventDetailPage";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -304,8 +307,8 @@ function BottomNav({ page, navigate, profile, onViewLanding }) {
   const role = profile?.role;
   const items = [
     { icon: "🏠", label: "Inicio", key: "home", action: () => navigate("home") },
-    { icon: "🔍", label: "Explorar", key: "explore", action: () => navigate("explore") },
-    { icon: "🎂", label: "Mi regalo", key: "miregalo", action: () => onViewLanding() },
+    { icon: "🎂", label: "Amigos", key: "friends", action: () => navigate("friends") },
+    { icon: "🎁", label: "Mi regalo", key: "miregalo", action: () => onViewLanding() },
     { icon: "🔔", label: "Notif.", key: "notif", action: () => navigate("notif") },
     { icon: "👤", label: "Perfil", key: "perfil", action: () => navigate("perfil") },
   ];
@@ -355,6 +358,9 @@ const PAGE_ROUTES = {
   'mp-exito': '/pago/exito',
   'mp-pendiente': '/pago/pendiente',
   'mp-error': '/pago/error',
+  'friends': '/amigos',
+  'birthday-event-create': '/amigos/nuevo-evento',
+  'birthday-event-detail': '/amigos/evento',
 };
 const ROUTE_PAGES = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([k, v]) => [v, k]));
 
@@ -371,6 +377,7 @@ function getInitialPage() {
 // ─── MAIN APP ────────────────────────────────────────────────────────────────
 export default function App() {
   const [page, setPage] = useState(getInitialPage);
+  const [pageParams, setPageParams] = useState({});
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -654,12 +661,17 @@ export default function App() {
   };
 
   // navigate() centralizado: actualiza page state + URL juntos
-  const navigate = (p, username) => {
-    if (p === 'profile' && username) {
-      setProfileTarget({ username });
+  const navigate = (p, usernameOrParams) => {
+    if (p === 'profile' && typeof usernameOrParams === 'string') {
+      setProfileTarget({ username: usernameOrParams });
       setPage('profile');
-      window.history.pushState({}, '', '/u/' + username);
+      window.history.pushState({}, '', '/u/' + usernameOrParams);
     } else {
+      if (usernameOrParams && typeof usernameOrParams === 'object') {
+        setPageParams(usernameOrParams);
+      } else {
+        setPageParams({});
+      }
       const url = PAGE_ROUTES[p] || '/';
       window.history.pushState({}, '', url);
       setPage(p);
@@ -756,6 +768,15 @@ export default function App() {
       case "mp-pendiente":
       case "mp-error":
         return <MPPaymentResultPage />;
+      case "friends":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
+        return <FriendsPage navigate={navigate} profile={profile} />;
+      case "birthday-event-create":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
+        return <BirthdayEventPage navigate={navigate} profile={profile} params={pageParams} />;
+      case "birthday-event-detail":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
+        return <BirthdayEventDetailPage navigate={navigate} profile={profile} params={pageParams} />;
       default:
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }
