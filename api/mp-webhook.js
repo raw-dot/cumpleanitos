@@ -66,11 +66,11 @@ export default async function handler(req, res) {
     console.error('Error logging webhook:', e);
   }
 
-  // Responder 200 a MP inmediatamente (evita retries por timeout)
-  res.status(200).json({ received: true });
+  // Procesar primero, responder después (Vercel corta ejecución post-response)
+  await processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST });
 
-  // Procesar de forma asíncrona
-  processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST });
+  // Responder 200 a MP al final
+  res.status(200).json({ received: true });
 }
 
 async function processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST }) {
@@ -192,20 +192,48 @@ async function handlePaymentEvent(mpPaymentId, webhookLogId, payload, SUPABASE_U
     }),
   });
 
-  // Si hay contribution_id, actualizarla
-  if (order.contribution_id) {
-    await fetch(`${SUPABASE_URL}/rest/v1/contributions?id=eq.${order.contribution_id}`, {
-      method: 'PATCH',
-      headers: {
-        apikey:          SERVICE_KEY,
-        Authorization:   `Bearer ${SERVICE_KEY}`,
-        'Content-Type':  'application/json',
-      },
-      body: JSON.stringify({
-        mp_order_id: order.id,
-        updated_at:  new Date().toISOString(),
-      }),
-    });
+  // Si el pago fue aprobado → crear contribution (nunca antes) y linkearla al order
+  if (mpStatus === 'approved') {
+    // Idempotencia: solo crear si el order todavía no tiene contribution_id
+    if (!order.contribution_id) {
+      const newContribRes = await fetch(`${SUPABASE_URL}/rest/v1/contributions`, {
+        method: 'POST',
+        headers: {
+          apikey:          SERVICE_KEY,
+          Authorization:   `Bearer ${SERVICE_KEY}`,
+          'Content-Type':  'application/json',
+          Prefer:          'return=representation',
+        },
+        body: JSON.stringify({
+          campaign_id:    order.campaign_id,
+          gifter_id:      order.payer_user_id || null,
+          gifter_name:    order.is_anonymous ? 'Anónimo' : order.payer_name,
+          amount:         order.gross_amount,
+          message:        order.message || null,
+          is_anonymous:   order.is_anonymous || false,
+          anonymous:      order.is_anonymous || false,
+          payment_method: 'mercadopago',
+          mp_order_id:    order.id,
+        }),
+      });
+      const newContribData = await newContribRes.json();
+      const newContributionId = newContribData?.[0]?.id || null;
+
+      if (newContributionId) {
+        await fetch(`${SUPABASE_URL}/rest/v1/mp_orders?id=eq.${order.id}`, {
+          method: 'PATCH',
+          headers: {
+            apikey:          SERVICE_KEY,
+            Authorization:   `Bearer ${SERVICE_KEY}`,
+            'Content-Type':  'application/json',
+          },
+          body: JSON.stringify({
+            contribution_id: newContributionId,
+            updated_at:      new Date().toISOString(),
+          }),
+        });
+      }
+    }
   }
 
   // Si el pago fue aprobado → registrar comisión

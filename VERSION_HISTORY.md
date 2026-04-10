@@ -105,3 +105,4 @@
 | **0.10.11** | 02-abr | d044384 | Test OAuth minimalista | Página diagnóstico test-oauth.html | 📄 Debug | Diagnóstico OAuth |
 | **0.11** | 02-abr | 97290b3 | OAuth Google OK | Reset Google Console + Supabase + disable triggers + app crea profiles | ✅ **FUNCIONA** | "ahora si parece que funciono!" - OAuth 100% operativo |
 | **0.11.1** | 03-apr | cdd25ac | Fix alias JSON + nombre navbar | getRealAlias() en ProfilePage/MyProfilePage + nombre usuario desktop navbar | ✅ OK | "ahora quiero arreglar este bug de frontend que aparece en el alias" + "me gustaria que al lado de la foto de usuario, en la version desktop diga el nombre del usuario" |
+| **0.14.3** | 10-abr-2026 | — | fix: contributions solo cuando pago aprobado | Mismo fix que PROD v1.1.0: eliminado INSERT prematuro en mp-create-preference.js. Webhook crea contribution solo en approved con idempotencia. | ✅ OK | "arreglemos este bug super importante en produccion" |

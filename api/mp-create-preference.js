@@ -77,30 +77,9 @@ export default async function handler(req, res) {
     const campData = await campRes.json();
     const campTitle = campData?.[0]?.title || `Cumpleaños de ${campData?.[0]?.birthday_person_name || '...'}`;
 
-    // 5. Crear contribución base en estado 'pending' para tener el contribution_id
-    const contribRes = await fetch(`${SUPABASE_URL}/rest/v1/contributions`, {
-      method: 'POST',
-      headers: {
-        apikey:          SERVICE_KEY,
-        Authorization:   `Bearer ${SERVICE_KEY}`,
-        'Content-Type':  'application/json',
-        Prefer:          'return=representation',
-      },
-      body: JSON.stringify({
-        campaign_id:    campaignId,
-        gifter_id:      payerUserId || null,
-        gifter_name:    isAnonymous ? 'Anónimo' : payerName,
-        amount:         grossAmount,
-        message:        message || null,
-        is_anonymous:   isAnonymous || false,
-        anonymous:      isAnonymous || false,
-        payment_method: 'mercadopago',
-      }),
-    });
-    const contribData = await contribRes.json();
-    const contributionId = contribData?.[0]?.id || null;
+    // 5. (contribution se crea SOLO cuando MP confirme el pago via webhook — no antes)
 
-    // 6. Guardar mp_order con estado pending
+    // 6. Guardar mp_order con estado pending (sin contribution_id todavía)
     const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/mp_orders`, {
       method: 'POST',
       headers: {
@@ -112,7 +91,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         campaign_id:         campaignId,
         gift_item_id:        giftItemId || null,
-        contribution_id:     contributionId,
+        contribution_id:     null,
         seller_user_id:      sellerUserId,
         payer_name:          payerName,
         payer_user_id:       payerUserId || null,
@@ -159,9 +138,8 @@ export default async function handler(req, res) {
       auto_return: 'approved',
       statement_descriptor: 'CUMPLEANITOS',
       metadata: {
-        order_id:       orderId,
-        campaign_id:    campaignId,
-        contribution_id: contributionId,
+        order_id:    orderId,
+        campaign_id: campaignId,
       },
     };
 
@@ -197,14 +175,13 @@ export default async function handler(req, res) {
     });
 
     return res.status(200).json({
-      success:              true,
-      order_id:             orderId,
-      external_reference:   externalRef,
-      init_point:           process.env.MP_ENV === 'production' ? mpData.init_point : (mpData.sandbox_init_point || mpData.init_point),
-      mobile_checkout_url:  mpData.mobile_checkout_url || null,
-      gross_amount:         grossAmount,
-      fee_amount:           feeAmount,
-      net_amount:           netAmount,
+      success:            true,
+      order_id:           orderId,
+      external_reference: externalRef,
+      init_point:         process.env.MP_ENV === 'production' ? mpData.init_point : (mpData.sandbox_init_point || mpData.init_point),
+      gross_amount:       grossAmount,
+      fee_amount:         feeAmount,
+      net_amount:         netAmount,
     });
 
   } catch (err) {
