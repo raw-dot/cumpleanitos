@@ -237,11 +237,11 @@ function LeftSidebar({ navigate, page }) {
       alignSelf: "flex-start",
     }}>
       {items.map(item => {
-        const active = item.key === "home";
+        const active = page ? item.key === page : item.key === "home";
         return (
           <div
             key={item.key}
-            onClick={() => item.key === "notif" ? navigate("notif") : null}
+            onClick={() => navigate(item.key)}
             style={{
               display: "flex", alignItems: "center", gap: 10,
               padding: "9px 10px", borderRadius: 10,
@@ -287,7 +287,7 @@ function LeftSidebar({ navigate, page }) {
 }
 
 // ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function LoggedHomePage({ profile, navigate }) {
+export default function LoggedHomePage({ profile, navigate, page }) {
   const isMobile = useIsMobile();
   const [filter, setFilter] = useState("todos");
 
@@ -338,7 +338,7 @@ export default function LoggedHomePage({ profile, navigate }) {
               }}>{p}</span>
             ))}
           </div>
-          <button style={{
+          <button onClick={() => navigate("friends")} style={{
             background: "#fff", color: COLORS.primary,
             border: "none", borderRadius: 10, padding: "9px 16px",
             fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%",
@@ -479,7 +479,7 @@ export default function LoggedHomePage({ profile, navigate }) {
       <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
 
         {/* ── COLUMNA IZQUIERDA ── */}
-        <LeftSidebar navigate={navigate} />
+        <LeftSidebar navigate={navigate} page={page} />
 
         {/* ── MAIN ── */}
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -516,7 +516,7 @@ export default function LoggedHomePage({ profile, navigate }) {
               fontSize: 13, fontWeight: 700, border: "none",
               borderRadius: 10, padding: "10px 18px",
               cursor: "pointer", whiteSpace: "nowrap",
-            }}>+ Agregar / Invitar amigos</button>
+            }} onClick={() => navigate("friends")}>+ Agregar / Invitar amigos</button>
           </div>
 
           {/* Sección próximos cumpleaños */}

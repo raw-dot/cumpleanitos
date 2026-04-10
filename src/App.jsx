@@ -725,7 +725,7 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case "home":
-        if (session) return <LoggedHomePage profile={profile} navigate={navigate} />;
+        if (session) return <LoggedHomePage profile={profile} navigate={navigate} page={page} />;
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
       case "notif": return <NotificationsPage session={session} />;
