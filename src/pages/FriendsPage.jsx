@@ -245,18 +245,42 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
               Cuando cumple?{" "}
               <span style={{ fontWeight: 400, textTransform: "none", color: "#9CA3AF" }}>(opcional)</span>
             </div>
-            <div style={{ display: "flex", gap: 10 }}>
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
               <div style={{ flex: 1 }}>
-                <select style={{ ...sel, width: "100%", borderColor: day ? V : "#E5E7EB" }} value={day} onChange={e => setDay(e.target.value)}>
-                  <option value="">Dia</option>
-                  {Array.from({ length: 31 }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
-                </select>
+                <input
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="14"
+                  maxLength={2}
+                  value={day}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,"").slice(0,2);
+                    const n = parseInt(v);
+                    if (!v || (n >= 1 && n <= 31)) setDay(v);
+                  }}
+                  style={{ ...inp, width: "100%", textAlign: "center", fontSize: 22, fontWeight: 800, borderColor: day ? V : "#E5E7EB", padding: "13px 8px" }}
+                />
+                <div style={{ fontSize: 10, color: "#9CA3AF", textAlign: "center", marginTop: 4 }}>dia</div>
               </div>
               <div style={{ flex: 2 }}>
-                <select style={{ ...sel, width: "100%", borderColor: month ? V : "#E5E7EB" }} value={month} onChange={e => setMonth(e.target.value)}>
-                  <option value="">Mes</option>
-                  {MONTH_NAMES.map((m, i) => <option key={i} value={i + 1}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>)}
-                </select>
+                <input
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  placeholder="04"
+                  maxLength={2}
+                  value={month}
+                  onChange={e => {
+                    const v = e.target.value.replace(/\D/g,"").slice(0,2);
+                    const n = parseInt(v);
+                    if (!v || (n >= 1 && n <= 12)) setMonth(v);
+                  }}
+                  style={{ ...inp, width: "100%", textAlign: "center", fontSize: 22, fontWeight: 800, borderColor: month ? V : "#E5E7EB", padding: "13px 8px" }}
+                />
+                <div style={{ fontSize: 12, textAlign: "center", marginTop: 4, fontWeight: month ? 700 : 400, color: (month && parseInt(month) >= 1 && parseInt(month) <= 12) ? V : "#9CA3AF" }}>
+                  {(month && parseInt(month) >= 1 && parseInt(month) <= 12)
+                    ? MONTH_NAMES[parseInt(month) - 1].charAt(0).toUpperCase() + MONTH_NAMES[parseInt(month) - 1].slice(1)
+                    : "mes"}
+                </div>
               </div>
             </div>
           </div>
