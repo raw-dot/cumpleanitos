@@ -21,6 +21,7 @@ import MPPaymentResultPage from "./pages/MPPaymentResultPage";
 import FriendsPage from "./pages/FriendsPage";
 import BirthdayEventPage from "./pages/BirthdayEventPage";
 import BirthdayEventDetailPage from "./pages/BirthdayEventDetailPage";
+import InvitePage from "./pages/InvitePage";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -361,12 +362,14 @@ const PAGE_ROUTES = {
   'friends': '/amigos',
   'birthday-event-create': '/amigos/nuevo-evento',
   'birthday-event-detail': '/amigos/evento',
+  'invite': '/invitar',
 };
 const ROUTE_PAGES = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([k, v]) => [v, k]));
 
 function getInitialPage() {
   const path = window.location.pathname;
   if (path.startsWith('/u/')) return 'profile';
+  if (path.startsWith('/invitar/')) return 'invite';
   if (path === '/oauth/mp/callback') return 'mp-callback';
   if (path === '/pago/exito') return 'mp-exito';
   if (path === '/pago/pendiente') return 'mp-pendiente';
@@ -378,6 +381,7 @@ function getInitialPage() {
 export default function App() {
   const [page, setPage] = useState(getInitialPage);
   const [pageParams, setPageParams] = useState({});
+  const [inviteTarget, setInviteTarget] = useState(null);
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -777,6 +781,10 @@ export default function App() {
       case "birthday-event-detail":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
         return <BirthdayEventDetailPage navigate={navigate} profile={profile} params={pageParams} />;
+      case "invite": {
+        const inviteUsername = window.location.pathname.replace('/invitar/', '').replace('/', '');
+        return <InvitePage username={inviteUsername} />;
+      }
       default:
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }

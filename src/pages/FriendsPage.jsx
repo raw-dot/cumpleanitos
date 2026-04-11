@@ -68,6 +68,101 @@ function Modal({ onBgClick, children }) {
   );
 }
 
+
+// ── INVITE MODAL ──────────────────────────────────────────────────────────────
+function InviteModal({ onClose, profile }) {
+  const [copied, setCopied] = useState(false);
+  const inviteUrl = profile?.username
+    ? `https://test.cumpleanitos.com/invitar/${profile.username}`
+    : "https://test.cumpleanitos.com";
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(inviteUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  const shareWhatsApp = () => {
+    const text = encodeURIComponent(
+      "Hola! Te invito a agregar tu cumpleanios en mi agenda de Cumpleanitos. " +
+      "Solo entra al link y carga tu fecha, tarda menos de 1 minuto! " +
+      inviteUrl
+    );
+    window.open("https://wa.me/?text=" + text, "_blank");
+  };
+
+  const shareNative = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: "Agregate a mi agenda de cumpleanios",
+        text: "Carga tu fecha de cumpleanios en mi agenda de Cumpleanitos!",
+        url: inviteUrl,
+      });
+    } else {
+      copyLink();
+    }
+  };
+
+  return (
+    <div
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 300, padding: 16 }}
+      onClick={e => e.target === e.currentTarget && onClose()}
+    >
+      <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 440 }} onClick={e => e.stopPropagation()}>
+        <div style={{ width: 36, height: 4, background: "#E5E7EB", borderRadius: 2, margin: "12px auto 0" }} />
+
+        <div style={{ padding: "20px 24px 32px", textAlign: "center" }}>
+          {/* Hero */}
+          <div style={{ fontSize: 48, marginBottom: 10 }}>🎂</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "#1F2937", marginBottom: 8 }}>
+            Invitar amigos a tu agenda
+          </div>
+          <div style={{ fontSize: 14, color: "#6B7280", lineHeight: 1.6, marginBottom: 24 }}>
+            Compartí este link. Tus amigos entran, cargan su fecha de cumpleanios y aparecen automaticamente en tu agenda.
+          </div>
+
+          {/* Link preview */}
+          <div style={{ background: VL, borderRadius: 14, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10, marginBottom: 20, textAlign: "left" }}>
+            <span style={{ fontSize: 20 }}>🔗</span>
+            <div style={{ flex: 1, overflow: "hidden" }}>
+              <div style={{ fontSize: 11, color: V, fontWeight: 700, textTransform: "uppercase", letterSpacing: .5, marginBottom: 2 }}>Tu link personal</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: VD, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inviteUrl}</div>
+            </div>
+            <button
+              onClick={copyLink}
+              style={{ background: copied ? G : V, color: "#fff", border: "none", borderRadius: 10, padding: "6px 12px", fontSize: 12, fontWeight: 800, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              {copied ? "Copiado! ✓" : "Copiar"}
+            </button>
+          </div>
+
+          {/* Botones de compartir */}
+          <button
+            onClick={shareWhatsApp}
+            style={{ width: "100%", padding: "15px 16px", marginBottom: 10, background: "#25D366", border: "none", borderRadius: 16, fontFamily: "inherit", fontSize: 16, fontWeight: 800, color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+          >
+            <span style={{ fontSize: 22 }}>💬</span>
+            Compartir por WhatsApp
+          </button>
+
+          <button
+            onClick={shareNative}
+            style={{ width: "100%", padding: "14px 16px", marginBottom: 10, background: "#F3F4F6", border: "none", borderRadius: 16, fontFamily: "inherit", fontSize: 15, fontWeight: 700, color: "#4B5563", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", gap: 10 }}
+          >
+            <span style={{ fontSize: 20 }}>📤</span>
+            Otras apps (Instagram, Mail...)
+          </button>
+
+          <button onClick={onClose} style={{ width: "100%", padding: 12, background: "none", border: "none", fontFamily: "inherit", fontSize: 14, color: "#9CA3AF", cursor: "pointer" }}>
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── ADD FRIEND MODAL ──────────────────────────────────────────────────────────
 function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
   const [step, setStep]         = useState("method"); // method|contact|manual|sent
@@ -519,6 +614,7 @@ export default function FriendsPage({ navigate, profile }) {
   const [loading, setLoading]           = useState(true);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showInviteModal, setShowInviteModal] = useState(false);
 
   useEffect(() => { loadFriends(); }, []);
 
@@ -551,8 +647,8 @@ export default function FriendsPage({ navigate, profile }) {
   if (showOnboarding) {
     return (
       <>
-        <OnboardingGame friendsCount={friends.length} onStart={() => setShowAddModal(true)} />
-        {showAddModal && <AddFriendModal onClose={() => setShowAddModal(false)} onSave={handleSaved} initialGameMode />}
+        <OnboardingGame friendsCount={friends.length} onStart={() => setShowInviteModal(true)} />
+        {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} profile={profile} />}
       </>
     );
   }
@@ -568,7 +664,7 @@ export default function FriendsPage({ navigate, profile }) {
             </p>
           </div>
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={() => setShowInviteModal(true)}
             style={{ width: 46, height: 46, borderRadius: "50%", background: `linear-gradient(135deg, ${V}, ${VD})`, border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: "#fff", boxShadow: "0 4px 12px rgba(124,58,237,.35)", fontFamily: "inherit" }}
           >+</button>
         </div>
@@ -581,8 +677,8 @@ export default function FriendsPage({ navigate, profile }) {
           <div style={{ fontSize: 64, marginBottom: 16 }}>📱</div>
           <div style={{ fontSize: 18, fontWeight: 800, color: "#1F2937", marginBottom: 8 }}>Todavia no tenes amigos cargados</div>
           <div style={{ fontSize: 14, color: "#6B7280", marginBottom: 28, lineHeight: 1.6 }}>Importa tus contactos de WhatsApp y armá tu agenda de cumpleaños.</div>
-          <button onClick={() => setShowOnboarding(true)} style={{ padding: "14px 28px", background: `linear-gradient(135deg, ${V}, ${VD})`, color: "#fff", border: "none", borderRadius: 14, fontFamily: "inherit", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(124,58,237,.3)" }}>
-            🎂 Empezar el juego!
+          <button onClick={() => setShowInviteModal(true)} style={{ padding: "14px 28px", background: `linear-gradient(135deg, ${V}, ${VD})`, color: "#fff", border: "none", borderRadius: 14, fontFamily: "inherit", fontSize: 15, fontWeight: 800, cursor: "pointer", boxShadow: "0 4px 14px rgba(124,58,237,.3)" }}>
+            📤 Invitar amigos!
           </button>
         </div>
       ) : (
@@ -636,18 +732,18 @@ export default function FriendsPage({ navigate, profile }) {
               );
             })}
 
-            <div onClick={() => setShowAddModal(true)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", cursor: "pointer", marginTop: 4 }}>
-              <div style={{ width: 46, height: 46, borderRadius: "50%", background: VL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: V }}>＋</div>
+            <div onClick={() => setShowInviteModal(true)} style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 0", cursor: "pointer", marginTop: 4 }}>
+              <div style={{ width: 46, height: 46, borderRadius: "50%", background: VL, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, color: V }}>📤</div>
               <div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: V }}>Agregar amigo</div>
-                <div style={{ fontSize: 12, color: "#9CA3AF" }}>Importar de WhatsApp o cargar manualmente</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: V }}>Invitar amigos</div>
+                <div style={{ fontSize: 12, color: "#9CA3AF" }}>Compartí tu link — ellos cargan su propio cumple</div>
               </div>
             </div>
           </div>
         </>
       )}
 
-      {showAddModal && <AddFriendModal onClose={() => setShowAddModal(false)} onSave={handleSaved} />}
+      {showInviteModal && <InviteModal onClose={() => setShowInviteModal(false)} profile={profile} />}
     </div>
   );
 }
