@@ -167,16 +167,16 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
             onClick={supportsContacts ? pickContact : () => setStep("manual")}
             style={{
               width: "100%", padding: "15px 16px", marginBottom: 10,
-              background: "#25D366", border: "none", borderRadius: 16,
-              fontFamily: "inherit", fontSize: 16, fontWeight: 800, color: "#fff",
+              background: supportsContacts ? "#25D366" : "#E8F5E9", border: supportsContacts ? "none" : "2px solid #25D366", borderRadius: 16,
+              fontFamily: "inherit", fontSize: 16, fontWeight: 800, color: supportsContacts ? "#fff" : "#1B5E20",
               cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left",
             }}
           >
             <span style={{ fontSize: 24, flexShrink: 0 }}>📲</span>
             <div>
-              <div>Importar de mis contactos</div>
+              <div>{supportsContacts ? "Elegir de mis contactos" : "Cargar con numero de WhatsApp"}</div>
               <div style={{ fontSize: 12, fontWeight: 600, opacity: .85 }}>
-                {supportsContacts ? "Abre tu agenda directamente" : "Vas a ingresar el numero a mano"}
+                {supportsContacts ? "Abre tu agenda del telefono" : "Ingresa nombre y numero manualmente"}
               </div>
             </div>
           </button>
@@ -263,24 +263,16 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
                 <div style={{ fontSize: 10, color: "#9CA3AF", textAlign: "center", marginTop: 4 }}>dia</div>
               </div>
               <div style={{ flex: 2 }}>
-                <input
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  placeholder="04"
-                  maxLength={2}
+                <select
                   value={month}
-                  onChange={e => {
-                    const v = e.target.value.replace(/\D/g,"").slice(0,2);
-                    const n = parseInt(v);
-                    if (!v || (n >= 1 && n <= 12)) setMonth(v);
-                  }}
-                  style={{ ...inp, width: "100%", textAlign: "center", fontSize: 22, fontWeight: 800, borderColor: month ? V : "#E5E7EB", padding: "13px 8px" }}
-                />
-                <div style={{ fontSize: 12, textAlign: "center", marginTop: 4, fontWeight: month ? 700 : 400, color: (month && parseInt(month) >= 1 && parseInt(month) <= 12) ? V : "#9CA3AF" }}>
-                  {(month && parseInt(month) >= 1 && parseInt(month) <= 12)
-                    ? MONTH_NAMES[parseInt(month) - 1].charAt(0).toUpperCase() + MONTH_NAMES[parseInt(month) - 1].slice(1)
-                    : "mes"}
-                </div>
+                  onChange={e => setMonth(e.target.value)}
+                  style={{ ...inp, width: "100%", textAlign: "center", fontSize: 16, fontWeight: 800, borderColor: month ? V : "#E5E7EB", padding: "14px 10px", color: month ? V : "#9CA3AF", appearance: "none", WebkitAppearance: "none" }}
+                >
+                  <option value="">Mes</option>
+                  {MONTH_NAMES.map((m, i) => (
+                    <option key={i} value={String(i + 1).padStart(2,"0")}>{m.charAt(0).toUpperCase() + m.slice(1)}</option>
+                  ))}
+                </select>
               </div>
             </div>
           </div>
