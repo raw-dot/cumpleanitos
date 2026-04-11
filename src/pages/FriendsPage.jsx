@@ -162,49 +162,41 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
           <div style={{ fontSize: 20, fontWeight: 900, color: "#1F2937", marginBottom: 6 }}>
             {initialGameMode ? "Agregá tu primer amigo" : "Agregar amigo"}
           </div>
-          <div style={{ fontSize: 14, color: "#6B7280", marginBottom: 28, lineHeight: 1.6 }}>
-            Importalo de tus contactos y le mandamos un WhatsApp para confirmar su cumple.
+          <div style={{ fontSize: 14, color: "#6B7280", marginBottom: 24, lineHeight: 1.6 }}>
+            Cargá el nombre y número de WhatsApp. Después le mandamos un mensaje para que confirme su cumple.
           </div>
-
-          <button
-            onClick={pickContact}
-            style={{
-              width: "100%", padding: "15px 16px", marginBottom: 10,
-              background: "#25D366", border: "none", borderRadius: 16,
-              fontFamily: "inherit", fontSize: 16, fontWeight: 800, color: "#fff",
-              cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left",
-            }}
-          >
-            <span style={{ fontSize: 24, flexShrink: 0 }}>📲</span>
-            <div>
-              <div>Seleccionar de mis contactos</div>
-              <div style={{ fontSize: 12, fontWeight: 600, opacity: .85 }}>
-                {supportsContacts ? "Abre tu agenda — toma nombre y numero" : "Solo disponible en Chrome Android por ahora"}
-              </div>
-            </div>
-          </button>
-
-          {!supportsContacts && (
-            <div style={{ background: "#FEF3C7", borderRadius: 12, padding: "10px 14px", marginBottom: 10, fontSize: 12, color: "#92400E", lineHeight: 1.5 }}>
-              Tu browser no soporta acceso a contactos. Podes cargar el numero manualmente abajo.
-            </div>
-          )}
 
           <button
             onClick={() => setStep("manual")}
             style={{
-              width: "100%", padding: "14px 16px",
-              background: "#F3F4F6", border: "none", borderRadius: 16,
-              fontFamily: "inherit", fontSize: 15, fontWeight: 700, color: "#4B5563",
+              width: "100%", padding: "16px", marginBottom: 10,
+              background: `linear-gradient(135deg, ${V}, ${VD})`, border: "none", borderRadius: 16,
+              fontFamily: "inherit", fontSize: 16, fontWeight: 800, color: "#fff",
               cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left",
+              boxShadow: "0 4px 14px rgba(124,58,237,.3)",
             }}
           >
-            <span style={{ fontSize: 22, flexShrink: 0 }}>✏️</span>
+            <span style={{ fontSize: 24, flexShrink: 0 }}>🎂</span>
             <div>
-              <div>Cargar manualmente</div>
-              <div style={{ fontSize: 12, opacity: .7 }}>Nombre, fecha y numero</div>
+              <div>Cargar amigo</div>
+              <div style={{ fontSize: 12, fontWeight: 600, opacity: .85 }}>Nombre, fecha y número de WhatsApp</div>
             </div>
           </button>
+
+          {supportsContacts && (
+            <button
+              onClick={pickContact}
+              style={{
+                width: "100%", padding: "14px 16px",
+                background: "#F3F4F6", border: "none", borderRadius: 16,
+                fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#4B5563",
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 14, textAlign: "left",
+              }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0 }}>📒</span>
+              <div>Importar de mis contactos</div>
+            </button>
+          )}
         </div>
       </Modal>
     );
@@ -269,7 +261,7 @@ function AddFriendModal({ onClose, onSave, initialGameMode = false }) {
                   }}
                   style={{ ...inp, width: "100%", textAlign: "center", fontSize: 26, fontWeight: 900, borderColor: day ? V : "#E5E7EB", padding: "14px 8px", color: day ? "#1F2937" : "#9CA3AF" }}
                 />
-                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 5 }}>dia</div>
+                <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 5 }}>Día</div>
               </div>
               <div style={{ flex: 2, textAlign: "center" }}>
                 <input
