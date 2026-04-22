@@ -19,6 +19,7 @@ import MPOAuthCallbackPage from "./pages/MPOAuthCallbackPage";
 import MPPaymentResultPage from "./pages/MPPaymentResultPage";
 import OrganizeBirthdayPage from "./pages/OrganizeBirthdayPage";
 import InviteLandingPage from "./pages/InviteLandingPage";
+import AppLayout from "./pages/NewUI/AppLayout";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -795,6 +796,8 @@ export default function App() {
         const inviteToken = window.location.pathname.replace('/invite/', '');
         return <InviteLandingPage token={inviteToken} />;
       }
+      case "new-ui":
+        return <AppLayout />;
       default:
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }
