@@ -7,6 +7,19 @@ import { COLORS } from '../../utils/constants';
 export default function AppLayout() {
   const [activeTab, setActiveTab] = useState('inicio');
 
+  // Interceptar cambios de tab para usar window.history
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    window.history.pushState({ page: 'new-ui', tab }, '', `/new-ui?tab=${tab}`);
+  };
+
+  // Cargar tab desde URL si existe
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get('tab') || 'inicio';
+    setActiveTab(tab);
+  }, []);
+
   return (
     <div style={{
       display: 'flex',
@@ -14,6 +27,7 @@ export default function AppLayout() {
       height: '100vh',
       background: COLORS.bg,
       overflow: 'hidden',
+      position: 'relative',
     }}>
       {/* TopBar */}
       <TopBar />
@@ -25,14 +39,14 @@ export default function AppLayout() {
         paddingBottom: 80,
       }}>
         {activeTab === 'inicio' && <InicioPage />}
-        {activeTab === 'amigos' && <div style={{ padding: '20px' }}>Amigos (próximamente)</div>}
-        {activeTab === 'micumple' && <div style={{ padding: '20px' }}>Mi cumple (próximamente)</div>}
-        {activeTab === 'calendario' && <div style={{ padding: '20px' }}>Calendario (próximamente)</div>}
-        {activeTab === 'organizador' && <div style={{ padding: '20px' }}>Organizador (próximamente)</div>}
+        {activeTab === 'amigos' && <div style={{ padding: '20px', fontSize: 18, color: COLORS.ink }}>📋 Amigos (próximamente)</div>}
+        {activeTab === 'micumple' && <div style={{ padding: '20px', fontSize: 18, color: COLORS.ink }}>🎂 Mi cumple (próximamente)</div>}
+        {activeTab === 'calendario' && <div style={{ padding: '20px', fontSize: 18, color: COLORS.ink }}>📅 Calendario (próximamente)</div>}
+        {activeTab === 'organizador' && <div style={{ padding: '20px', fontSize: 18, color: COLORS.ink }}>🎁 Organizador (próximamente)</div>}
       </div>
 
       {/* BottomNav */}
-      <BottomNav active={activeTab} onChange={setActiveTab} />
+      <BottomNav active={activeTab} onChange={handleTabChange} />
     </div>
   );
 }
