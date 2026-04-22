@@ -16,8 +16,11 @@ export default async function handler(req, res) {
     payerUserId,
     isAnonymous,
     message,
+    fotoUrl,
+    videoUrl,
     amount,
-    userToken, // token del regalador (para verificar autenticidad si está logueado)
+    isMobile,
+    userToken,
   } = req.body;
 
   if (!campaignId || !sellerUserId || !payerName || !amount) {
@@ -31,10 +34,33 @@ export default async function handler(req, res) {
   const SUPABASE_URL  = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SERVICE_KEY   = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const APP_BASE_URL  = process.env.MP_REDIRECT_BASE || 'https://test.cumpleanitos.com';
-  const FEE_PCT       = parseFloat(process.env.MP_PLATFORM_FEE_PCT || '10');
+  const DEFAULT_FEE_PCT = parseFloat(process.env.MP_PLATFORM_FEE_PCT || '10');
   const IS_PROD       = process.env.MP_ENV === 'production';
 
   try {
+    // 0. Obtener configuración de comisión de la campaña
+    const campCommissionRes = await fetch(
+      `${SUPABASE_URL}/rest/v1/gift_campaigns?id=eq.${campaignId}&select=commission_enabled,commission_percentage`,
+      {
+        headers: {
+          apikey:        SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+        },
+      }
+    );
+    const campCommissionData = await campCommissionRes.json();
+    const campCommission = campCommissionData?.[0] || {};
+    
+    // Determinar FEE_PCT: si commission_enabled === false → 0%, sino usar commission_percentage de la campaña o default
+    let FEE_PCT;
+    if (campCommission.commission_enabled === false) {
+      FEE_PCT = 0;
+      console.log(`[MP Preference] Comisión DESACTIVADA para campaign ${campaignId}`);
+    } else {
+      FEE_PCT = Number(campCommission.commission_percentage) || DEFAULT_FEE_PCT;
+      console.log(`[MP Preference] Comisión ${FEE_PCT}% para campaign ${campaignId}`);
+    }
+
     // 1. Obtener el access_token de MP del cumpleañero desde server
     const connRes = await fetch(
       `${SUPABASE_URL}/rest/v1/mp_connections?user_id=eq.${sellerUserId}&status=eq.active&select=access_token`,
@@ -79,7 +105,16 @@ export default async function handler(req, res) {
 
     // 5. (contribution se crea SOLO cuando MP confirme el pago via webhook — no antes)
 
-    // 6. Guardar mp_order con estado pending (sin contribution_id todavía)
+    // 5b. Limpiar órdenes pending anteriores del mismo pagador+campaña (abandonadas)
+    //     Solo borramos las que tienen más de 30 minutos y status pending sin contribution
+    const thirtyMinAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    await fetch(
+      `${SUPABASE_URL}/rest/v1/mp_orders?campaign_id=eq.${campaignId}&status=eq.pending&contribution_id=is.null&created_at=lt.${thirtyMinAgo}`,
+      {
+        method: 'DELETE',
+        headers: { apikey: SERVICE_KEY, Authorization: `Bearer ${SERVICE_KEY}` },
+      }
+    );
     const orderRes = await fetch(`${SUPABASE_URL}/rest/v1/mp_orders`, {
       method: 'POST',
       headers: {
@@ -97,6 +132,8 @@ export default async function handler(req, res) {
         payer_user_id:       payerUserId || null,
         is_anonymous:        isAnonymous || false,
         message:             message || null,
+        foto_url:            fotoUrl || null,
+        video_url:           videoUrl || null,
         gross_amount:        grossAmount,
         platform_fee_pct:    FEE_PCT,
         platform_fee_amount: feeAmount,
@@ -120,6 +157,7 @@ export default async function handler(req, res) {
           id:          campaignId,
           title:       campTitle,
           description: `Aporte de ${payerName} - Cumpleañitos`,
+          category_id: 'services',
           quantity:    1,
           unit_price:  grossAmount,
           currency_id: 'ARS',
@@ -136,6 +174,7 @@ export default async function handler(req, res) {
         failure: `${APP_BASE_URL}/pago/error?ref=${externalRef}`,
       },
       auto_return: 'approved',
+      notification_url: `${APP_BASE_URL}/api/mp-webhook`,
       statement_descriptor: 'CUMPLEANITOS',
       metadata: {
         order_id:    orderId,

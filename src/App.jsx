@@ -9,7 +9,6 @@ import ManagerDashboard from "./pages/ManagerDashboard";
 import ExplorePage from "./pages/ExplorePage";
 import ProfilePage from "./pages/ProfilePage";
 import HomePage from "./pages/HomePage";
-import LoggedHomePage from "./pages/LoggedHomePage";
 import WishListPage from "./pages/WishListPage";
 import GiftsGivenPage from "./pages/GiftsGivenPage";
 import ManageGiftsPage from "./pages/ManageGiftsPage";
@@ -18,6 +17,8 @@ import ShareProfilePage from "./pages/ShareProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import MPOAuthCallbackPage from "./pages/MPOAuthCallbackPage";
 import MPPaymentResultPage from "./pages/MPPaymentResultPage";
+import OrganizeBirthdayPage from "./pages/OrganizeBirthdayPage";
+import InviteLandingPage from "./pages/InviteLandingPage";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.innerWidth < 768);
@@ -304,8 +305,8 @@ function BottomNav({ page, navigate, profile, onViewLanding }) {
   const role = profile?.role;
   const items = [
     { icon: "🏠", label: "Inicio", key: "home", action: () => navigate("home") },
-    { icon: "🔍", label: "Explorar", key: "explore", action: () => navigate("explore") },
-    { icon: "🎂", label: "Mi regalo", key: "miregalo", action: () => onViewLanding() },
+    { icon: "🎂", label: "Amigos", key: "organize", action: () => navigate("organize") },
+    { icon: "🎁", label: "Mi regalo", key: "miregalo", action: () => onViewLanding() },
     { icon: "🔔", label: "Notif.", key: "notif", action: () => navigate("notif") },
     { icon: "👤", label: "Perfil", key: "perfil", action: () => navigate("perfil") },
   ];
@@ -355,12 +356,14 @@ const PAGE_ROUTES = {
   'mp-exito': '/pago/exito',
   'mp-pendiente': '/pago/pendiente',
   'mp-error': '/pago/error',
+  'organize': '/organizar',
 };
 const ROUTE_PAGES = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([k, v]) => [v, k]));
 
 function getInitialPage() {
   const path = window.location.pathname;
   if (path.startsWith('/u/')) return 'profile';
+  if (path.startsWith('/invite/')) return 'invite';
   if (path === '/oauth/mp/callback') return 'mp-callback';
   if (path === '/pago/exito') return 'mp-exito';
   if (path === '/pago/pendiente') return 'mp-pendiente';
@@ -380,6 +383,7 @@ export default function App() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingUser, setOnboardingUser] = useState(null);
   const [onboardingUsername, setOnboardingUsername] = useState("");
+  const [onboardingPreregister, setOnboardingPreregister] = useState(null);
   const loginNavigatedRef = useRef(false);
   const hasCampaignTimeoutRef = useRef(null);
   const isMobile = useIsMobile();
@@ -393,36 +397,30 @@ export default function App() {
       if (username) { setProfileTarget({ username }); setPage("profile"); window.history.replaceState({}, "", "/u/" + username); }
     } else if (u) { setProfileTarget({ username: u }); setPage("profile"); }
     else if (c) { setProfileTarget({ campaignId: c }); setPage("profile"); }
+    // Para otras rutas: getInitialPage() ya seteó page correctamente en useState
   }, []);
 
   useEffect(() => {
     let initialDone = false;
 
-    // Timeout global de seguridad: si todo falla, desbloquear la app en 8s
+    // Timeout global de seguridad: si todo falla, desbloquear la app en 5s
     const globalTimeout = setTimeout(() => {
       setLoading(false);
       setHasCampaign(prev => prev === null ? false : prev);
-    }, 8000);
+    }, 5000);
     
     // LISTENER: detectar cuando app vuelve del background
-    const handleVisibilityChange = async () => {
+    // IMPORTANTE: NO llamar getSession() ni refreshSession() aquí —
+    // eso dispara onAuthStateChange(SIGNED_IN) que causa el freeze.
+    // Supabase con autoRefreshToken:true maneja el refresh solo.
+    const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        // App vuelve a foreground → desbloquear si estaba colgada
+        // Solo desbloquear si quedó colgado — no tocar la sesión
         setLoading(false);
         setHasCampaign(prev => prev === null ? false : prev);
-        // Refrescar el token proactivamente para evitar queries fallidas
-        try {
-          const { data: { session: currentSession } } = await supabase.auth.getSession();
-          if (currentSession) {
-            // Verificar si el token expira en menos de 5 minutos
-            const expiresAt = currentSession.expires_at;
-            const nowSec = Math.floor(Date.now() / 1000);
-            if (expiresAt && (expiresAt - nowSec) < 300) {
-              await supabase.auth.refreshSession();
-            }
-          }
-        } catch(e) {
-          // silencioso — no bloquear la UI por esto
+        if (hasCampaignTimeoutRef.current) {
+          clearTimeout(hasCampaignTimeoutRef.current);
+          hasCampaignTimeoutRef.current = null;
         }
       }
     };
@@ -438,7 +436,7 @@ export default function App() {
         if (hasCampaignTimeoutRef.current) clearTimeout(hasCampaignTimeoutRef.current);
         hasCampaignTimeoutRef.current = setTimeout(() => {
           setHasCampaign(prev => prev === null ? false : prev);
-        }, 4000);
+        }, 3000);
         await loadProfile(s.user.id);
         // Respetar la ruta actual si el usuario llegó a una ruta interna específica
         const currentPath = window.location.pathname;
@@ -462,17 +460,11 @@ export default function App() {
       // Ignorar eventos que llegan mientras getSession ya corre
       if (!initialDone && (event === "INITIAL_SESSION" || event === "SIGNED_IN")) return;
 
-      if (event === "SIGNED_IN" && !loginNavigatedRef.current) {
-        loginNavigatedRef.current = true;
+      if (event === "SIGNED_IN") {
+        // SIGNED_IN se dispara por login real, refresh de token, y vuelta de background.
+        // Solo actuar si NO hay sesión previa (post-logout genuino).
+        // Si ya había sesión, ignorar — evita el freeze al volver de otra app.
         setSession(s);
-        setHasCampaign(null);
-        if (hasCampaignTimeoutRef.current) clearTimeout(hasCampaignTimeoutRef.current);
-        hasCampaignTimeoutRef.current = setTimeout(() => {
-          setHasCampaign(prev => prev === null ? false : prev);
-        }, 4000);
-        await loadProfile(s.user.id);
-        // En SIGNED_IN real (vino de login), siempre ir a perfil
-        navigate("perfil");
 
       } else if (event === "TOKEN_REFRESHED" && s) {
         // Token refrescado: actualizar session sin re-cargar perfil ni mostrar spinner
@@ -503,6 +495,14 @@ export default function App() {
     };
   }, []);
 
+  // GUARDIÁN: si loading termina y hasCampaign sigue null, resolverlo a false
+  // Esto evita el freeze infinito en cualquier código path
+  useEffect(() => {
+    if (!loading && hasCampaign === null) {
+      setHasCampaign(false);
+    }
+  }, [loading, hasCampaign]);
+
   const loadProfile = async (userId) => {
     const profileTimeout = setTimeout(() => {
       // Si loadProfile tarda más de 6s, desbloquear la app igual
@@ -516,7 +516,7 @@ export default function App() {
     const maxAttempts = 3;
     
     while (attempts < maxAttempts && !data) {
-      const result = await supabase.from("profiles").select("*").eq("id", userId).single();
+      const result = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
       data = result.data;
       
       if (!data && attempts < maxAttempts - 1) {
@@ -557,7 +557,7 @@ export default function App() {
         });
 
         if (!insertError) {
-          const { data: newProfile } = await supabase.from("profiles").select("*").eq("id", userId).single();
+          const { data: newProfile } = await supabase.from("profiles").select("*").eq("id", userId).maybeSingle();
           data = newProfile;
         }
       }
@@ -573,7 +573,6 @@ export default function App() {
       const wasDeleted = data.deleted_at != null;  // Usuario eliminado que vuelve
 
       if ((isGoogleProvider && isIncomplete) || wasDeleted) {
-        // Generar username sugerido desde el email (parte antes del @)
         const { data: authData } = await supabase.auth.getUser();
         const user = authData?.user;
         const email = user?.email || "";
@@ -585,9 +584,23 @@ export default function App() {
           .replace(/_+/g, "_")
           .replace(/^_|_$/g, "")
           .slice(0, 20);
-        setProfile(data); // setear perfil igual para que la app no quede colgada
+
+        // ── P1 FIX: leer datos del preregistro desde localStorage ──
+        let preregisterData = null;
+        const savedFriendId = localStorage.getItem("pending_friend_id");
+        if (savedFriendId) {
+          const { data: frData } = await supabase
+            .from("friend_preregisters")
+            .select("name, birthday_day, birthday_month, estimated_next_age")
+            .eq("id", savedFriendId)
+            .maybeSingle();
+          preregisterData = frData;
+        }
+
+        setProfile(data);
         setOnboardingUser(user);
         setOnboardingUsername(suggestedUsername);
+        setOnboardingPreregister(preregisterData); // datos para pre-llenar
         setShowOnboarding(true);
         await loadStats(userId);
         return data;
@@ -600,21 +613,33 @@ export default function App() {
   };
 
   const loadStats = async (userId) => {
-    const timeout = setTimeout(() => setHasCampaign(prev => prev === null ? false : prev), 5000);
+    const timeout = setTimeout(() => setHasCampaign(prev => prev === null ? false : prev), 3000);
     try {
-      const [campRes, friendsRes, giftedRes] = await Promise.all([
-        supabase.from("gift_campaigns").select("id").eq("birthday_person_id", userId).eq("status", "active").limit(1).maybeSingle(),
-        supabase.from("friends").select("id", { count: "exact", head: true }).eq("user_id", userId),
-        // Aportes que el usuario HIZO como regalador
-        supabase.from("contributions").select("amount").eq("gifter_id", userId),
-      ]);
-      const friendCount = friendsRes.count || 0;
-      const gifted = giftedRes.data || [];
-      const giftsGiven = gifted.length;
-      const totalGifted = gifted.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+      // 1. Campaña: crítico — se resuelve primero y por separado
+      const campRes = await supabase
+        .from("gift_campaigns").select("id")
+        .eq("birthday_person_id", userId).eq("status", "active")
+        .limit(1).maybeSingle();
+
       const hasCamp = !!campRes.data?.id;
       if (hasCampaignTimeoutRef.current) { clearTimeout(hasCampaignTimeoutRef.current); hasCampaignTimeoutRef.current = null; }
       setHasCampaign(hasCamp);
+      clearTimeout(timeout);
+
+      // 2. Stats secundarias — friends con timeout propio (tabla puede no existir en PROD)
+      const friendsPromise = Promise.race([
+        supabase.from("friends").select("id", { count: "exact", head: true }).eq("user_id", userId),
+        new Promise(resolve => setTimeout(() => resolve({ count: 0, data: null, error: "timeout" }), 2000))
+      ]);
+      const [friendsRes, giftedRes] = await Promise.allSettled([
+        friendsPromise,
+        supabase.from("contributions").select("amount").eq("gifter_id", userId),
+      ]);
+      const friendCount = friendsRes.status === "fulfilled" ? (friendsRes.value?.count || 0) : 0;
+      const gifted = giftedRes.status === "fulfilled" ? (giftedRes.value?.data || []) : [];
+      const giftsGiven = gifted.length;
+      const totalGifted = gifted.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+
       if (hasCamp) {
         const contribRes = await supabase.from("contributions").select("amount, gifter_name").eq("campaign_id", campRes.data.id);
         const contribs = contribRes.data || [];
@@ -623,7 +648,6 @@ export default function App() {
       } else {
         setStats({ raised: 0, gifters: 0, friends: friendCount, giftsGiven, totalGifted });
       }
-      clearTimeout(timeout);
       return hasCamp;
     } catch(e) {
       clearTimeout(timeout);
@@ -635,6 +659,10 @@ export default function App() {
 
   const handleAuth = async (user) => {
     setHasCampaign(null);
+    if (hasCampaignTimeoutRef.current) clearTimeout(hasCampaignTimeoutRef.current);
+    hasCampaignTimeoutRef.current = setTimeout(() => {
+      setHasCampaign(prev => prev === null ? false : prev);
+    }, 3000);
     await loadProfile(user.id);
     navigate("perfil");
   };
@@ -708,12 +736,14 @@ export default function App() {
     );
   }
 
-  const noNavPages = ["perfil","wishlist","gifts-given","manage-gifts","settings-mobile","share","notif"];
+  const noNavPages = ["perfil","wishlist","gifts-given","manage-gifts","settings-mobile","share","notif","mp-callback","organize","invite"];
 
   const renderPage = () => {
     switch (page) {
       case "home":
-        if (session) return <LoggedHomePage profile={profile} navigate={navigate} />;
+        if (session && (hasCampaign === null || !profile)) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
+        if (session && hasCampaign === false) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
+        if (session && hasCampaign) return <ProfileScreen profile={profile} navigate={navigate} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />;
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
       case "explore": return <ExplorePage onViewProfile={viewProfile} />;
       case "notif": return <NotificationsPage session={session} />;
@@ -725,24 +755,26 @@ export default function App() {
         return <SettingsPage profile={profile} session={session} onBack={() => navigate("perfil")} onProfileUpdated={handleProfileUpdated} />;
       case "perfil":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
-        if (hasCampaign === null) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
+        if (hasCampaign === null || !profile) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
         if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
         return <ProfileScreen profile={profile} navigate={navigate} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />;
       case "login":
       case "register":
         if (session) {
-          if (hasCampaign === null) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
+          if (hasCampaign === null || !profile) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
           if (!hasCampaign) return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} onCampaignCreated={() => { setHasCampaign(true); loadStats(session.user.id); }} />;
           return <ProfileScreen profile={profile} navigate={navigate} onLogout={handleLogout} stats={stats} onAvatarUpload={handleAvatarUpload} onCoverUpload={handleCoverUpload} onViewLanding={() => profile?.username ? viewProfile(profile.username) : navigate("dashboard")} />;
         }
         return <AuthPage key={page} initialMode={page} onAuth={handleAuth} onNavigate={navigateTo} />;
       case "dashboard":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
+        if (!profile) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
         if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
         if (profile?.role === "manager") return <ManagerDashboard profile={profile} session={session} />;
         return <CelebrantDashboard profile={profile} session={session} defaultTab="campaign" onViewLanding={() => viewProfile(profile?.username)} />;
       case "settings":
         if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
+        if (!profile) return <div style={{ display:"flex", alignItems:"center", justifyContent:"center", minHeight:"60vh", color: COLORS.textLight }}><div style={{ textAlign:"center" }}><div style={{ fontSize:40, marginBottom:12 }}>🎂</div>Cargando...</div></div>;
         if (profile?.role === "gifter") return <ExplorePage onViewProfile={viewProfile} />;
         if (profile?.role === "manager") return <ManagerDashboard profile={profile} session={session} />;
         return <CelebrantDashboard profile={profile} session={session} defaultTab="settings" onViewLanding={() => viewProfile(profile?.username)} />;
@@ -755,7 +787,14 @@ export default function App() {
       case "mp-exito":
       case "mp-pendiente":
       case "mp-error":
-        return <MPPaymentResultPage />;
+        return <MPPaymentResultPage navigate={navigate} />;
+      case "organize":
+        if (!session) return <AuthPage initialMode="login" onAuth={handleAuth} onNavigate={navigateTo} />;
+        return <OrganizeBirthdayPage session={session} profile={profile} navigate={navigate} />;
+      case "invite": {
+        const inviteToken = window.location.pathname.replace('/invite/', '');
+        return <InviteLandingPage token={inviteToken} />;
+      }
       default:
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }
@@ -770,9 +809,12 @@ export default function App() {
         <CompleteProfilePage
           user={onboardingUser}
           suggestedUsername={onboardingUsername}
+          preregisterData={onboardingPreregister}
           onComplete={async (updatedProfile) => {
             setShowOnboarding(false);
             setProfile(updatedProfile);
+            localStorage.removeItem("pending_friend_id");
+            localStorage.removeItem("pending_invite_token");
             await loadStats(onboardingUser.id);
             setPage("perfil");
           }}

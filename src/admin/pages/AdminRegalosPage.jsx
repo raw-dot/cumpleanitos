@@ -13,8 +13,8 @@ const C = {
 };
 
 const fmtARS  = (n) => n != null ? `$${Math.round(n).toLocaleString("es-AR")}` : "$0";
-const fmtDate = (s) => s ? new Date(s).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
-const fmtTime = (s) => s ? new Date(s).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" }) : "";
+const fmtDate = (s) => s ? new Date(s).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Argentina/Buenos_Aires" }) : "—";
+const fmtTime = (s) => s ? new Date(s).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" }) : "";
 
 const TABS = [
   { id: "items",   label: "Regalos (wishlist)" },
@@ -118,12 +118,14 @@ function ContribDrawer({ contrib, onClose }) {
                 <div style={{ fontSize: 13, color: C.text, lineHeight: 1.5, fontStyle: "italic", marginBottom: (contrib.emotional_foto_url || contrib.emotional_video_url) ? 10 : 0 }}>"{contrib.message}"</div>
               )}
               {contrib.emotional_foto_url && (
-                <img
-                  src={contrib.emotional_foto_url}
-                  alt="foto adjunta"
-                  style={{ width: "100%", borderRadius: 8, objectFit: "cover", maxHeight: 180, display: "block", marginBottom: contrib.emotional_video_url ? 8 : 0 }}
-                  onError={e => { e.target.style.display = "none"; }}
-                />
+                <div style={{ borderRadius: 12, overflow: "hidden", marginBottom: contrib.emotional_video_url ? 8 : 0, cursor: "zoom-in", width: "100%" }} onClick={() => window.__fotoModal && window.__fotoModal(contrib.emotional_foto_url)}>
+                  <img
+                    src={contrib.emotional_foto_url}
+                    alt="foto adjunta"
+                    style={{ width: "100%", height: "auto", maxHeight: 480, objectFit: "cover", display: "block" }}
+                    onError={e => { e.target.parentElement.style.display = "none"; }}
+                  />
+                </div>
               )}
               {contrib.emotional_video_url && (
                 <video
@@ -457,7 +459,7 @@ function TablaContribs({ contribs, loading, onSelect }) {
                           <img
                             src={c.emotional_foto_url}
                             alt="foto"
-                            style={{ width: 36, height: 36, borderRadius: 6, objectFit: "cover", border: `0.5px solid ${C.border}`, flexShrink: 0 }}
+                            style={{ width: 36, height: 36, borderRadius: 8, objectFit: "cover", border: `0.5px solid ${C.border}`, flexShrink: 0 }}
                             onError={e => { e.target.style.display = "none"; }}
                           />
                         )}
@@ -539,6 +541,28 @@ function PagBtn({ children, onClick, disabled, active }) {
 }
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
+// ── Modal foto ───────────────────────────────────────────────────────────────
+function FotoModal({ url, onClose }) {
+  if (!url) return null;
+  return (
+    <div
+      onClick={onClose}
+      style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, cursor: "zoom-out" }}
+    >
+      <img
+        src={url}
+        alt="foto"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: "100%", maxHeight: "90vh", borderRadius: 12, objectFit: "contain", cursor: "default" }}
+      />
+      <button
+        onClick={onClose}
+        style={{ position: "absolute", top: 16, right: 20, background: "none", border: "none", color: "#fff", fontSize: 32, cursor: "pointer", lineHeight: 1 }}
+      >×</button>
+    </div>
+  );
+}
+
 export default function AdminRegalosPage({ initialFilter } = {}) {
   const { items, contribs, loading, load } = useRegalos();
   const [activeTab,      setActiveTab]      = useState(initialFilter === "items" ? "items" : "contribs");
@@ -549,11 +573,14 @@ export default function AdminRegalosPage({ initialFilter } = {}) {
   }, [initialFilter]);
   const [selectedItem,   setSelectedItem]   = useState(null);
   const [selectedContrib,setSelectedContrib]= useState(null);
+  const [fotoModalUrl,   setFotoModalUrl]   = useState(null);
+  window.__fotoModal = setFotoModalUrl;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14, fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       {selectedItem   && <ItemDrawer   item={selectedItem}     onClose={() => setSelectedItem(null)}    />}
       {selectedContrib && <ContribDrawer contrib={selectedContrib} onClose={() => setSelectedContrib(null)} />}
+      <FotoModal url={fotoModalUrl} onClose={() => setFotoModalUrl(null)} />
 
       {/* ── TABS ── */}
       <div style={{ display: "flex", alignItems: "center", gap: 0, background: C.surface, border: `0.5px solid ${C.border}`, borderRadius: 10, padding: 4, alignSelf: "flex-start" }}>

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabaseClient";
 import { COLORS, Button, Input, Alert } from "../shared";
 
-export default function CompleteProfilePage({ user, suggestedUsername, onComplete }) {
+export default function CompleteProfilePage({ user, suggestedUsername, preregisterData, onComplete }) {
   const [username, setUsername] = useState(suggestedUsername || "");
   const [birthday, setBirthday] = useState("");
   const [phone, setPhone] = useState("");
@@ -13,6 +13,21 @@ export default function CompleteProfilePage({ user, suggestedUsername, onComplet
   // Extract name and email from Google user
   const name = user?.user_metadata?.full_name || user?.user_metadata?.name || "Usuario";
   const email = user?.email || "";
+
+  // ── P1 FIX: Pre-llenar birthday desde preregisterData ──
+  useEffect(() => {
+    if (preregisterData && !birthday) {
+      const day = preregisterData.birthday_day;
+      const month = preregisterData.birthday_month;
+      const age = preregisterData.estimated_next_age;
+      if (day && month && age) {
+        const year = new Date().getFullYear() - age;
+        const mm = String(month).padStart(2, "0");
+        const dd = String(day).padStart(2, "0");
+        setBirthday(`${year}-${mm}-${dd}`);
+      }
+    }
+  }, [preregisterData]);
 
   // Auto-suggest username from email when component mounts
   useEffect(() => {
@@ -36,7 +51,7 @@ export default function CompleteProfilePage({ user, suggestedUsername, onComplet
       return;
     }
     const timer = setTimeout(async () => {
-      const { data } = await supabase.from("profiles").select("username").eq("username", username).single();
+      const { data } = await supabase.from("profiles").select("username").eq("username", username).maybeSingle();
       setUsernameAvailable(!data);
     }, 500);
     return () => clearTimeout(timer);
@@ -111,7 +126,7 @@ export default function CompleteProfilePage({ user, suggestedUsername, onComplet
       .from("profiles")
       .select("*")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     setLoading(false);
     if (onComplete && updatedProfile) {

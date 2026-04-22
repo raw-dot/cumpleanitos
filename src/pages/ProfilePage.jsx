@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import {
   COLORS, Button, Card, Avatar, Badge, Input, Textarea, Alert,
@@ -28,7 +28,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
 
   // Sincronizar montos desde Supabase al montar (para que funcione en todos los navegadores)
   useEffect(() => {
-    supabase.from('app_config').select('value').eq('key', 'platform').single()
+    supabase.from('app_config').select('value').eq('key', 'platform').maybeSingle()
       .then(({ data }) => {
         if (data?.value?.gift_amounts?.length >= 2) {
           setPresetAmounts(data.value.gift_amounts);
@@ -56,6 +56,9 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
   // Datos del paso emocional
   const [emotional, setEmotional] = useState({ message: "", foto: null, video: null });
   const [mpLoading, setMpLoading] = useState(false);
+  const [mpWaiting, setMpWaiting] = useState(false); // overlay desktop
+  const [paymentResult, setPaymentResult] = useState(null); // comprobante inline
+  const pollRef = useRef(null);
 
   // Conexión MP del cumpleañero (para saber si puede recibir pagos)
   const { connection: sellerMPConnection } = useMPConnection(profile?.id);
@@ -95,14 +98,14 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
       let prof = null;
 
       if (campaignId) {
-        const { data } = await supabase.from("gift_campaigns").select("*").eq("id", campaignId).single();
+        const { data } = await supabase.from("gift_campaigns").select("*").eq("id", campaignId).maybeSingle();
         camp = data;
         if (camp?.birthday_person_id) {
-          const { data: p } = await supabase.from("profiles").select("*").eq("id", camp.birthday_person_id).single();
+          const { data: p } = await supabase.from("profiles").select("*").eq("id", camp.birthday_person_id).maybeSingle();
           prof = p;
         }
       } else if (username) {
-        const { data: p } = await supabase.from("profiles").select("*").eq("username", username).single();
+        const { data: p } = await supabase.from("profiles").select("*").eq("username", username).maybeSingle();
         prof = p;
         if (p) {
           const { data: c } = await supabase.from("gift_campaigns").select("*").eq("birthday_person_id", p.id).eq("status", "active").order("created_at", { ascending: false }).limit(1).maybeSingle();
@@ -242,6 +245,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
   const isSoon = typeof days === "number" && days <= 7;
 
   return (
+    <>
     <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", background: COLORS.bg, minHeight: "100vh" }}>
       {/* ── SUCCESS ALERT ── */}
       {success && (
@@ -511,7 +515,7 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                   </div>
                   <div style={{ marginBottom: 16 }}>
                     <label style={{ fontSize: 13, color: COLORS.textLight, display: "block", marginBottom: 6 }}>O ingresá otro monto</label>
-                    <Input type="number" value={form.amount} onChange={v => setForm(p => ({ ...p, amount: v }))} placeholder="Monto en ARS" min="1" />
+                    <Input type="number" inputMode="numeric" pattern="[0-9]*" value={form.amount} onChange={v => setForm(p => ({ ...p, amount: v }))} placeholder="Monto en ARS" min="1" onFocusCapture={e => setTimeout(() => e.target.scrollIntoView({ behavior: "smooth", block: "center" }), 300)} />
                   </div>
                   {/* Nombre solo si NO está logueado */}
                   {!currentSession && (
@@ -544,21 +548,32 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                   />
 
                   {/* Resumen de fondos */}
-                  <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 12, padding: 14, marginTop: 16 }}>
-                    {[
-                      ["Monto bruto", formatMoney(parseFloat(form.amount)), "#111827"],
-                      ["Comisión plataforma (10%)", "−" + formatMoney(Math.round(parseFloat(form.amount) * 0.10)), "#6B7280"],
-                    ].map(([label, val, color]) => (
-                      <div key={label} style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
-                        <span style={{ color: "#6B7280" }}>{label}</span>
-                        <span style={{ fontWeight: 600, color }}>{val}</span>
+                  {(() => {
+                    const commissionEnabled = campaign?.commission_enabled !== false;
+                    const commissionPct = commissionEnabled ? (Number(campaign?.commission_percentage) || 10) : 0;
+                    const amount = parseFloat(form.amount) || 0;
+                    const commissionAmount = Math.round(amount * (commissionPct / 100));
+                    const receivesAmount = amount - commissionAmount;
+                    
+                    return (
+                      <div style={{ background: "#F5F3FF", border: "1px solid #DDD6FE", borderRadius: 12, padding: 14, marginTop: 16 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                          <span style={{ color: "#6B7280" }}>Monto bruto</span>
+                          <span style={{ fontWeight: 600, color: "#111827" }}>{formatMoney(amount)}</span>
+                        </div>
+                        {commissionEnabled && commissionPct > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, marginBottom: 6 }}>
+                            <span style={{ color: "#6B7280" }}>{`Comisión plataforma (${commissionPct}%)`}</span>
+                            <span style={{ fontWeight: 600, color: "#6B7280" }}>{"−" + formatMoney(commissionAmount)}</span>
+                          </div>
+                        )}
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: "1px solid #DDD6FE", paddingTop: 6 }}>
+                          <span style={{ fontWeight: 600 }}>Recibe el cumpleañero</span>
+                          <span style={{ fontWeight: 700, color: "#16a34a" }}>{formatMoney(receivesAmount)}</span>
+                        </div>
                       </div>
-                    ))}
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, borderTop: "1px solid #DDD6FE", paddingTop: 6 }}>
-                      <span style={{ fontWeight: 600 }}>Recibe el cumpleañero</span>
-                      <span style={{ fontWeight: 700, color: "#16a34a" }}>{formatMoney(Math.round(parseFloat(form.amount) * 0.90))}</span>
-                    </div>
-                  </div>
+                    );
+                  })()}
 
                   {/* Sin cuenta MP conectada */}
                   {sellerMPConnection === false && (
@@ -585,15 +600,18 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
-                                campaignId:   campaign.id,
-                                giftItemId:   preSelectedItem?.id || null,
-                                sellerUserId: profile.id,
+                                campaignId:       campaign.id,
+                                giftItemId:       preSelectedItem?.id || null,
+                                sellerUserId:     profile.id,
                                 payerName,
-                                payerUserId:  currentSession?.user?.id || null,
-                                isAnonymous:  form.anonymous,
-                                message:      emotional.message || null,
+                                payerUserId:      currentSession?.user?.id || null,
+                                isAnonymous:      form.anonymous,
+                                message:          emotional.message || null,
+                                fotoUrl:          emotional.foto?.storageUrl  || null,
+                                videoUrl:         emotional.video?.storageUrl || null,
                                 amount,
-                                userToken:    currentSession?.access_token || null,
+                                isMobile:         /iPhone|iPad|iPod|Android/i.test(navigator.userAgent),
+                                userToken:        currentSession?.access_token || null,
                               }),
                             });
                             const data = await res.json();
@@ -602,9 +620,23 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                               setMpLoading(false);
                               return;
                             }
+
+                            // ── Apertura de MP ──────────────────────────────
                             const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-                            const destination = (isMobile && data.mobile_checkout_url) ? data.mobile_checkout_url : data.init_point;
-                            window.location.href = destination;
+                            const externalRef = data.external_reference;
+
+                            if (isMobile) {
+                              setMpLoading(false);
+                              window.location.href = data.init_point;
+                              return;
+                            }
+
+                            // Redirect directo (mobile y desktop)
+                            // El pop-up bloqueaba la UX y quedaba pequeño en desktop
+                            // Cuando MP complete el pago, redirige a /pago/exito
+                            // donde se llama a mp-confirm-payment y se graba todo
+                            window.location.href = data.init_point;
+                            return;
                           } catch {
                             setError("Error de conexión. Intentá de nuevo.");
                             setMpLoading(false);
@@ -623,6 +655,48 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                         {mpLoading ? "Preparando pago..." : "Pagar con Mercado Pago"}
                       </button>
                     )}
+
+                    {/* ── NUEVO: Boton de Transferencia (Cualquier banco) ── */}
+                    {true && (
+                      <button
+                        disabled={mpLoading}
+                        onClick={() => {
+                          try {
+                            const commissionEnabled = campaign?.commission_enabled !== false;
+                            const commissionPct = commissionEnabled ? (Number(campaign?.commission_percentage) || 10) : 0;
+                            const amount = parseFloat(form.amount) || 0;
+                            const totalToPay = Math.round(amount + (amount * (commissionPct / 100)));
+                            
+                            // URL de transferencia de MP con alias/CVU/CBU
+                            const alias = profile?.payment_alias || "";
+                            const transferUrl = `https://www.mercadopago.com.ar/money-out/transfer/calculator?amount=${totalToPay}&receiver_info=${encodeURIComponent(alias)}`;
+                            
+                            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                            if (isMobile) {
+                              window.location.href = transferUrl;
+                            } else {
+                              window.open(transferUrl, "_blank");
+                            }
+                          } catch (err) {
+                            setError("Error al abrir transferencia. Intentá de nuevo.");
+                            console.error("Error en transferencia:", err);
+                          }
+                        }}
+                        style={{
+                          display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                          width: "100%", padding: 15, borderRadius: 12,
+                          background: "#fff",
+                          color: "#111827", fontSize: 15, fontWeight: 700,
+                          border: "2px solid #D1D5DB",
+                          cursor: mpLoading ? "not-allowed" : "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        <span style={{ fontSize: 18 }}>💸</span>
+                        Pagar con Transferencia Bancaria
+                      </button>
+                    )}
+
                     <Button variant="ghost" style={{ width: "100%", color: COLORS.textLight, fontSize: 14 }} onClick={() => setStep(1)}>
                       ← Volver
                     </Button>
@@ -630,6 +704,11 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                   <p style={{ fontSize: 11, color: COLORS.textLight, textAlign: "center", marginTop: 8, lineHeight: 1.5 }}>
                     Serás redirigido a Mercado Pago de forma segura
                   </p>
+                  {profile?.payment_alias && (
+                    <p style={{ fontSize: 10, color: "#6B7280", textAlign: "center", marginTop: 4, lineHeight: 1.4 }}>
+                      Pago instantáneo, abre directamente Mercado Pago
+                    </p>
+                  )}
                 </div>
               )}
             </Card>
@@ -648,6 +727,11 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
                     <div style={{ fontWeight: 600, fontSize: 14, color: COLORS.text }}>
                       {c.is_anonymous ? "Alguien especial 💝" : (c.gifter_name || "Anónimo")}
                     </div>
+                    {c.created_at && (
+                      <div style={{ fontSize: 11, color: COLORS.textLight, marginTop: 2 }}>
+                        {new Date(c.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })} · {new Date(c.created_at).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })}
+                      </div>
+                    )}
                     {c.message && (
                       <div style={{ fontSize: 13, color: COLORS.textLight, marginTop: 4, fontStyle: "italic" }}>"{c.message}"</div>
                     )}
@@ -660,5 +744,71 @@ export default function ProfilePage({ username, campaignId, currentSession, curr
         )}
       </div>
     </div>
+
+    {/* ── WAITING OVERLAY desktop ── */}
+    {mpWaiting && (
+      <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(0,0,0,0.6)", display:"flex", alignItems:"center", justifyContent:"center", padding:16 }}>
+        <div style={{ background:"#fff", borderRadius:20, padding:"40px 28px", maxWidth:400, width:"100%", textAlign:"center", boxShadow:"0 24px 64px rgba(0,0,0,0.25)" }}>
+          <div style={{ width:64, height:64, borderRadius:"50%", background:"#009EE3", display:"flex", alignItems:"center", justifyContent:"center", margin:"0 auto 20px", fontSize:28 }}>💳</div>
+          <h3 style={{ fontSize:19, fontWeight:800, color:"#111827", margin:"0 0 10px" }}>Completá el pago en la ventana de Mercado Pago</h3>
+          <p style={{ fontSize:13, color:"#6B7280", lineHeight:1.65, margin:"0 0 24px" }}>Terminá de pagar allá y esta pantalla se actualizará automáticamente.</p>
+          <div style={{ display:"flex", alignItems:"center", justifyContent:"center", gap:10, background:"#EFF9FF", borderRadius:12, padding:"12px 20px", marginBottom:24 }}>
+            <div style={{ width:10, height:10, borderRadius:"50%", background:"#009EE3", animation:"mpPulse 1.4s ease-in-out infinite" }} />
+            <span style={{ fontSize:13, color:"#009EE3", fontWeight:700 }}>Esperando confirmación de pago...</span>
+          </div>
+          <style>{"@keyframes mpPulse{0%,100%{box-shadow:0 0 0 0 rgba(0,158,227,0.5)}50%{box-shadow:0 0 0 8px rgba(0,158,227,0)}}"}</style>
+          <button onClick={() => { if(pollRef.current){clearInterval(pollRef.current);pollRef.current=null;} setMpWaiting(false); }}
+            style={{ background:"none", border:"1px solid #E5E7EB", borderRadius:10, padding:"10px 24px", color:"#9CA3AF", fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* ── COMPROBANTE inline después de pago aprobado (desktop) ── */}
+    {paymentResult && (
+      <div style={{ position:"fixed", inset:0, zIndex:1000, background:"rgba(249,250,251,0.97)", display:"flex", alignItems:"center", justifyContent:"center", padding:16, overflowY:"auto" }}>
+        <div style={{ background:"#fff", borderRadius:20, padding:"32px 24px", maxWidth:440, width:"100%", border:"1px solid #E5E7EB", boxShadow:"0 8px 32px rgba(0,0,0,0.1)", textAlign:"center", margin:"auto" }}>
+          <div style={{ fontSize:56, marginBottom:12 }}>🎉</div>
+          <h2 style={{ fontSize:22, fontWeight:800, color:"#16a34a", margin:"0 0 8px" }}>¡Aporte registrado!</h2>
+          <p style={{ fontSize:14, color:"#6B7280", lineHeight:1.6, marginBottom:24 }}>Tu aporte fue procesado. El cumpleañero lo verá reflejado en breve.</p>
+          <div style={{ background:"#f0fdf4", border:"1px solid #86efac", borderRadius:12, overflow:"hidden", marginBottom:24, textAlign:"left" }}>
+            <div style={{ background:"rgba(0,0,0,0.04)", padding:"8px 14px", fontSize:11, fontWeight:700, color:"#6B7280", textTransform:"uppercase", letterSpacing:"0.06em" }}>Resumen del aporte</div>
+            <div style={{ padding:"12px 14px" }}>
+              {[
+                ["Para",           paymentResult.order?.gift_campaigns?.birthday_person_name],
+                ["Monto aportado", paymentResult.order?.gross_amount ? "$"+Number(paymentResult.order.gross_amount).toLocaleString("es-AR") : null],
+                ["Tu nombre",      paymentResult.order?.is_anonymous ? "Anónimo 💝" : paymentResult.order?.payer_name],
+                ["Referencia",     paymentResult.externalRef],
+              ].filter(([,v])=>v).map(([label,value])=>(
+                <div key={label} style={{ display:"flex", justifyContent:"space-between", padding:"7px 0", borderBottom:"0.5px solid #86efac", fontSize:13 }}>
+                  <span style={{ color:"#6B7280" }}>{label}</span>
+                  <span style={{ fontWeight:600, color:"#111827", fontSize:label==="Referencia"?10:13 }}>{value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+            <button onClick={async () => {
+              setPaymentResult(null);
+              const bpId = paymentResult.order?.gift_campaigns?.birthday_person_id;
+              if (bpId) {
+                const { data } = await supabase.from("profiles").select("username").eq("id", bpId).maybeSingle();
+                if (data?.username) { window.history.pushState({}, "", "/u/"+data.username); window.dispatchEvent(new PopStateEvent("popstate")); return; }
+              }
+              setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior:"smooth" }), 100);
+            }} style={{ width:"100%", padding:14, borderRadius:12, background:COLORS.primary, color:"#fff", border:"none", fontSize:15, fontWeight:700, cursor:"pointer", fontFamily:"inherit" }}>
+              Ver el regalo de {paymentResult.order?.gift_campaigns?.birthday_person_name || "cumpleañero"} 🎂
+            </button>
+            <button onClick={() => { setPaymentResult(null); setTimeout(()=>{ window.history.pushState({},""," /explorar"); window.dispatchEvent(new PopStateEvent("popstate")); },50); }}
+              style={{ width:"100%", padding:12, borderRadius:12, background:"transparent", border:"1px solid #E5E7EB", color:"#6B7280", fontSize:14, cursor:"pointer", fontFamily:"inherit" }}>
+              Explorar otros regalos
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    </>
   );
 }

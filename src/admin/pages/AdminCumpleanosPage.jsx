@@ -59,7 +59,7 @@ function useCumpleanos() {
       await ensureAdminSession();
     const [r1, r2, r3, r4] = await Promise.all([
       supabase.from("gift_campaigns").select("*").order("created_at", { ascending: false }),
-      supabase.from("contributions").select("amount, campaign_id, anonymous"),
+      supabase.from("contributions").select("amount, campaign_id, anonymous, is_anonymous, gifter_name, created_at"),
       supabase.from("gift_items").select("id, campaign_id"),
       supabase.from("profiles").select("id, username, name, email"),
     ]);
@@ -84,7 +84,7 @@ function useCumpleanos() {
     (profiles || []).forEach(p => { profMap[p.id] = p; });
 
     const enriched = (camps || []).map(c => {
-      const cs   = contribMap[c.campaign_id] || contribMap[c.id] || [];
+      const cs   = (contribMap[c.campaign_id] || contribMap[c.id] || []).sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
       const its  = itemMap[c.campaign_id]    || itemMap[c.id]    || [];
       const prof = profMap[c.birthday_person_id] || {};
       const raised = cs.reduce((s, x) => s + (x.amount || 0), 0);
@@ -193,7 +193,7 @@ function DetailDrawer({ camp, onClose, onToggleStatus }) {
             <InfoRow label="Título"           value={camp.title || "—"} />
             <InfoRow label="Fecha cumpleaños" value={fmtDate(camp.birthday_date)} />
             <InfoRow label="Creado"           value={fmtDate(camp.created_at)} />
-            <InfoRow label="% anónimos"       value={camp.contribCount > 0 ? `${Math.round((camp.contribs.filter(c=>c.anonymous).length / camp.contribCount) * 100)}%` : "—"} />
+            <InfoRow label="% anónimos"       value={camp.contribCount > 0 ? `${Math.round((camp.contribs.filter(c=>c.anonymous||c.is_anonymous).length / camp.contribCount) * 100)}%` : "—"} />
           </div>
 
           {/* Últimos aportes */}
@@ -203,8 +203,8 @@ function DetailDrawer({ camp, onClose, onToggleStatus }) {
               <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
                 {camp.contribs.slice(0, 6).map((c, i) => (
                   <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: i < Math.min(camp.contribs.length, 6) - 1 ? `0.5px solid ${C.border}` : "none" }}>
-                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: c.anonymous ? C.textMuted : C.primary, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 12, color: C.textLight }}>{c.anonymous ? "Anónimo" : (c.gifter_name || "—")}</span>
+                    <div style={{ width: 6, height: 6, borderRadius: "50%", background: (c.anonymous||c.is_anonymous) ? C.textMuted : C.primary, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 12, color: C.textLight }}>{(c.anonymous||c.is_anonymous) ? "Anónimo" : (c.gifter_name || "—")}</span>
                     <span style={{ fontSize: 12, fontWeight: 600, color: C.text }}>{fmtARS(c.amount)}</span>
                   </div>
                 ))}

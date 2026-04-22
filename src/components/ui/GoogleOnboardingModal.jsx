@@ -45,7 +45,7 @@ export default function GoogleOnboardingModal({ user, initialUsername, onComplet
       .select("username")
       .eq("username", username.trim())
       .neq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (existing) { setError("Ese nombre de usuario ya está en uso"); setLoading(false); return; }
 

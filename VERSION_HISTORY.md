@@ -1,108 +1,220 @@
-# 📊 Historial de Versiones - Cumpleanitos.com
+# 📦 Control de Versiones — cumpleanitos.com (Producción)
 
-## Formato de Versiones
-- **MAJOR.MINOR.PATCH** (ej: 1.2.3)
-- **MAJOR**: Cambios que rompen compatibilidad o features grandes
-- **MINOR**: Nuevas features sin romper compatibilidad
-- **PATCH**: Fixes y mejoras menores
+> **Repo:** `raw-dot/cumpleanitos-prod` → `cumpleanitos.com`
+> **Repo de test:** `raw-dot/cumpleanitos-test` → `test.cumpleanitos.com`
+> **Flujo:** desarrollar y validar en test → aprobar → copiar a prod y registrar acá
 
 ---
 
-## 🗓️ Marzo - Abril 2026
+## Convenciones
 
-| Versión | Fecha | Commit | Pedido Usuario | Descripción Técnica | Estado | Observaciones |
-|---------|-------|--------|----------------|---------------------|--------|---------------|
-| **0.13.4** | 07-abr | - | Setup completo ambientes test y prod | (1) Supabase `bbhmbnhbzhbyktztdrhu` → renombrado a test, apunta a `test.cumpleanitos.com`. (2) Supabase `ibnqenpxtcblhwwnwlho` → proyecto prod nuevo con schema completo migrado (profiles, gift_campaigns, gift_items, contributions, app_config, RLS, triggers, storage bucket). (3) Vercel `cumpleanitos-test` → env vars Supabase test, dominio `test.cumpleanitos.com`. (4) Vercel `cumpleanitos-prod` → env vars Supabase prod, dominios `cumpleanitos.com` + `www.cumpleanitos.com`. (5) DNS Hostinger actualizados: A record `216.198.79.1`, CNAME www `f49ddd51eb54cc81.vercel-dns-017.com`. (6) Usuario admin `tororaw` creado en Supabase prod con `is_admin = true`. | ✅ OK | "antes de arrancar con la integracion con mercado pago necesito que hagamos todo lo que esta funcional en cumpleanitos.com se replique en test.cumpleanitos.com" |
-| **0.13.3** | 07-abr | - | Router completo: todas las pantallas tienen URL propia | Mapa `PAGE_ROUTES` con 14 rutas. Función `navigate(page, username)` centralizada que actualiza state + URL juntos. 21+ puntos de navegación migrados de `setPage()` a `navigate()`: Navbar, ProfileScreen, BottomNav, BottomNav, handleAuth, handleLogout, handleRoleSwitch, onboarding, AdminShell. Ahora `/perfil`, `/explorar`, `/configuracion`, `/deseos`, `/regalos`, `/gestionar`, `/compartir`, `/notificaciones`, `/dashboard`, `/admin` preservan estado al hacer refresh. | ✅ OK | "si hago refresh en cualquier lado me lleva a esta landing...que se pueda hacer para que quede donde estoy parado" |
-| **0.13.2** | 07-abr | - | Router por URL real: refresh preserva pantalla + URLs directas /u/:username | (1) `getInitialPage()` lee `window.location.pathname` al inicializar para determinar la pantalla correcta. (2) `useEffect` de URL params soporta `/u/:username` como pathname además de `?u=`. (3) `viewProfile()` hace `pushState` a `/u/:username`. (4) `navigateTo()` usa `pushState` (antes `replaceState`) para habilitar botón back. (5) `handleLogout` limpia URL a `/`. (6) `copyProfileLink` genera `/u/username` en lugar de `?u=username`. | ✅ OK | "cuando haga refresh de la web, se quede en la misma pantalla...si tengo urls especificas como la url con el usuario de cumpleanos, vaya directamente al regalo" |
-| **0.13.1** | 07-abr | - | Preparación ambiente test: env vars Supabase | supabaseClient.js: reemplazadas URLs hardcodeadas por `import.meta.env.VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY`. Agregados `.env.example` (template documentado) y `.env*` al `.gitignore`. Las credenciales se configuran por entorno en Vercel — mismo código sirve para prod y test. | ✅ OK | "que el ambiente actual lo convirtamos en test...el nuevo proyecto pelado y vacio va a ser el productivo" |
-| **0.13** | 07-abr | f6e9433 | Stats regalos dados + GiftsGivenPage con datos reales | (1) loadStats agrega query de contributions por gifter_id para calcular giftsGiven y totalGifted. (2) ProfileScreen muestra Regalé en lugar de Regalos (aportes hechos por el usuario). (3) GiftsGivenPage reescrita con datos reales de Supabase: trae contribuciones del usuario logueado, campañas asociadas, progreso de recaudación. Muestra activos e historial con monto, mensaje y barra de progreso. | ✅ OK | "regalando como toro raw pero no se incrementan regalos y dinero aportado" |
-| **0.12.9** | 07-abr | 7dd8b07 | Moderación reescrita completa | Reescritura total de AdminModeracionPage: (1) Tab Mensajes muestra TODOS los aportes ordenados del más nuevo al más viejo. (2) 6 tarjetas filtrables clicables: Aportes totales / Con imagen / Con video / Con mensaje / Posible revisión / Sin issues. Clic activa filtro, doble clic desactiva. (3) Fallback automático si columnas emotional_foto_url/video_url no existen en DB. (4) Tabs Perfiles/Campañas/Regalos con tarjetas filtrables propias. (5) Foto/video inline en cards de mensajes. | ✅ OK | "tarjetas filtrables, todos los aportes, foto/video en moderacion" |
-| **0.12.8** | 07-abr | edee02d | Moderación freeze + foto/video + cámara + tabla regalos | (1) Moderación: Promise.race con timeout 10s — never freezes. Query incluye emotional_foto_url/video_url. MensajeCard muestra foto+video inline con badge. Sección Con foto/video separada con contador. (2) Cámara: errores específicos por tipo (NotReadableError=otra app usando cam, NotAllowedError=permisos). (3) Regalos: columna Media con miniatura de foto y ícono de video en tabla aportes. | ✅ OK | "moderacion cuelga, camara error, regalos sin columna media" |
-| **0.12.7** | 07-abr | fcdac98 | Fix cámara notebook + moderación + regalos + usermodal | (1) Cámara: video siempre montado en DOM — error se muestra como overlay encima del elemento video, no desmontándolo. Fallback a video:true si facingMode falla. (2) Moderación: query con r1.data || [] seguro, no crashea si Supabase devuelve error. (3) Regalos drawer: muestra emotional_foto_url y emotional_video_url. (4) UserModal dashboard: busca campaña activa del usuario y muestra imagen + meta + fecha. | ✅ OK | "se cuelga todo, camara no funciona, moderacion vacia, foto en regalos" |
-| **0.12.6** | 07-abr | 1dab077 | Flujo regalo simplificado + fixes múltiples | (1) facingMode:ideal en getUserMedia — cámara de notebook funciona con cámara frontal. (2) Formulario regalo: 4 pasos → 2 pasos. Paso 1: monto + nombre (solo si no logueado) + anónimo. Paso 2: mensaje/foto/video + alias + confirmar. Teléfono eliminado. Paso 4 eliminado. (3) Moderación: query sin columnas inexistentes, filtra correctamente. (4) AdminCumpleanosPage: manejo de error en queries, no más freeze. | ✅ OK | "camara notebook no funciona, 2 pasos, sin telefono, moderacion, freeze" |
-| **0.12.5** | 07-abr | f5fdd75 | Fix bucket Storage para fotos/videos emocionales | Cambiado bucket de emotional-media (no existía) a cumple-images/emotional/ (ya existe y funciona con policies correctas). Mismo patrón que avatars y covers. Las fotos/videos adjuntos en regalos ahora se suben correctamente y la URL pública persiste en la DB para moderación. | ✅ OK | "revisa como hiciste para crear la que hiciste para que si funcione" |
-| **0.12.4** | 07-abr | 4ac6e85 | Cámara desktop con getUserMedia | Tab Sacar foto: en desktop usa navigator.mediaDevices.getUserMedia() con video live en <video> y botón Capturar foto que extrae el frame via canvas → File. En mobile sigue usando input capture=environment (más confiable en Safari iOS). Muestra error con botón Reintentar si no hay permisos. | ✅ OK | "en desktop deberia acceder a la camara de la maquina y que funcione" |
-| **0.13** | 07-abr | df984bc | Vercel Analytics | Instalado @vercel/analytics/react e integrado en main.jsx para trackear page views y eventos en producción. | ✅ OK | "Agregar el analytics de vercel en cumpleanitos.com" |
-| **0.12.3** | 07-abr | 1823076 | Fix sacar foto + preview paso 4 + Supabase Storage | (1) Bug raíz "sacar foto": DropZone definido dentro de FotoModal causaba remount en cada render, el inputRef se perdía. Inputs ahora al nivel del modal, siempre montados. (2) Paso 4 muestra preview real de foto/video adjunto. (3) Upload a Supabase Storage bucket emotional-media, storageUrl persistente guardada en contributions. Fallback a previewUrl si el bucket no existe. | ✅ OK | "no anda sacar foto, preview en paso 4, ver en moderacion" |
-| **0.12.2** | 07-abr | 752ae40 | Fix cámara desktop + freeze + moderación media | (1) capture=environment solo en mobile via maxTouchPoints; tab Grabar muestra 📂 en desktop. (2) loadData() envuelto en try/finally, página nunca se cuelga. (3) columnas emotional_foto_url/video_url en contributions; moderación muestra sección Con foto o video con previews inline y botón Borrar media. | ✅ OK | "camara desktop no funciona, se cuelga la pagina, moderar mensajes con contenido visual" |
-| **0.12.1** | 07-abr | b3df342 | Fix upload foto/video + procesando infinito | UploadZone era decorativa sin input real. Reescrito EmotionalStep con input type=file funcional, capture=environment para cámara, lectura de duración real de video, validaciones de tipo/tamaño. submitContribution envuelto en try/finally para que setSubmitting(false) siempre se ejecute. | ✅ OK | "No permite subir fotos y videos, no funciona. Se queda procesando" |
-| **0.12** | 07-abr | 91ae288 | Regalo emocional con foto/video | Formulario de regalo refactorizado en 4 pasos: monto, datos, mensaje especial (EmotionalStep.jsx con modal foto + modal video + trimmer interactivo), confirmar. Responsive mobile/desktop. Texto emocional se guarda en contributions.message. | ✅ OK | "Agregar esta funcionalidad a la parte de regalo" + "Implementemos las dos soluciones, la mobile y la desktop" |
-| **0.1** | 31-mar 22:02 | 172b7b7 | OAuth Google a producción | `redirectTo` cumpleanitos.com | ✅ OK | "siendo que cumpleanitos tiene para poder registrarse, me gustaria hacer andar que se registre con google acount" |
-| **0.2** | 31-mar 22:14 | daf2823 | Username desde Google | `loadProfile()` genera username desde metadata | ✅ OK | Mejora auto-generación username |
-| **0.3** | 31-mar 22:22 | 99ddad2 | Onboarding Google | `GoogleOnboardingModal.jsx` - teléfono/cumple | ✅ OK | Modal post-OAuth completar datos |
-| **0.4** | 31-mar 22:24 | 1935edf | Botón Google en registro | Botón OAuth en `AuthPage.jsx` | ✅ OK | Agregar botón registro Google |
-| **0.5** | 31-mar 22:33 | 54ad46f | Autocomplete ML | API oficial ML + selector fotos | ✅ OK | "Implementar autocomplete productos MercadoLibre" |
-| **0.5.1** | 31-mar 22:38 | 8787cf3 | Fix: app cuelga + CORS | Timeout `loadProfile` + proxy CORS | ✅ OK | "Arreglar app se cuelga + CORS autocomplete" |
-| **0.5.2** | 31-mar 22:41 | 6b0900b | Fix: parseo ML | Microlink extrae título/precio | ✅ OK | "Arreglar parseo metadata productos ML" |
-| **0.5.3** | 31-mar 22:45 | 9fbf18d | Feedback visual URL | Inline + manejo errores | ✅ OK | "Mejor feedback al pegar URL ML" |
-| **0.6** | 31-mar 23:07 | e72c020 | Fix: sesión expirada | Timeouts + `TOKEN_REFRESHED` | ✅ OK | "Arreglar app cuelga cuando expira token" |
-| **0.6.1** | 31-mar 23:10 | cf4b91a | Fix: hasCampaign null | Timeout 4s fallback false | ✅ OK | "hasCampaign no quede en null" |
-| **0.7** | 01-abr | 2da6893 | Email editable | `migration-email-core.sql` | ⚠️ Trigger roto | Ejecutó SQL que ROMPIÓ trigger creación profiles |
-| **0.7.1** | 01-abr | 66d9e96 | Admin email contacto | `AdminPage.jsx` UI | ✅ OK | Ajustes panel admin |
-| **0.7.2** | 01-abr | 61dd5b6 | Debug logs admin | Logs `AdminPage.jsx` | ✅ OK | Debugging admin |
-| **0.7.3** | 01-abr | 3d7d821 | Revert AdminPage | Revert cambios | ✅ OK | Revertir cambios admin |
-| **0.7.4** | 01-abr | ca06836 | Select directo | Query directa vs RPC | ✅ OK | Cambio consultas admin |
-| **0.8** | 01-abr | c1fac9e | FASE 1 admin | Eliminar + acciones lote | ✅ OK | Panel admin completo |
-| **0.8.1** | 01-abr | a2ff6c2 | Fix modal deleteUser | UI fix cerrar modal | ✅ OK | Fix UX eliminación |
-| **0.9** | 01-abr | 84cbebb | Papelera reciclaje | Soft delete 7 días | ✅ **ÚLTIMO OK** | "Soft delete regalos papelera" - FUNCIONABA |
-| **0.10** | 01-abr 22:49 | b9edcea | Registro 2 pasos | Split `AuthPage.jsx` | ❌ **ROMPIÓ OAUTH** | "Necesito arreglemos registro google, lo rompiste" |
-| **0.11** | 01-abr | 4857188 | Eliminar cuenta | Settings eliminar cuenta | ✅ OK | Feature eliminar cuenta |
-| **0.10.1** | 02-abr | 0f4d111 | Fix: CompleteProfilePage | `CompleteProfilePage.jsx` | ❌ No arregló | "arreglemos registro google" - Intento 1 FALLÓ |
-| **0.10.2** | 02-abr | 05dce81 | Versionado SQLs | Carpeta `/migrations` | ✅ OK | "scripts BD versionados en github" |
-| **0.10.3** | 02-abr | 7b086bf | GitHub Action SQLs | `run-migration.yml` | ✅ OK | "VAMOS CON OPCION 2" - Action ejecutar SQLs |
-| **0.10.3.1** | 02-abr | 8f242fe | Fix ES modules | `.mjs` + import | ✅ OK | Fix error GitHub Action |
-| **0.10.4** | 02-abr | f362f1b | Script diagnóstico | `diagnostic-google-oauth.sql` | ✅ OK | SQL diagnóstico OAuth |
-| **0.10.5** | 02-abr | 5b25cff | Fix trigger v1 | Trigger simplificado | ❌ No arregló | "resolvamos login sigue roto" - Intento 2 FALLÓ |
-| **0.10.6** | 02-abr | 3026950 | Fix trigger v2 | Campos obligatorios | ❌ No arregló | "listo ahi se ve resultado" - Intento 3 FALLÓ |
-| **0.10.7** | 02-abr | 6926b9e | Fix trigger v3 | Bypass RLS | ❌ No arregló | "Sigue dando error" - Intento 4 FALLÓ |
-| **0.10.8** | 02-abr | 38c481a | Docs changelogs | Changelogs debugging | 📄 Docs | "volcalo en tabla, versionada" |
-| **0.10.9** | 02-abr | 9b6801d | Fix OAuth con retry logic | Retry 3x500ms en loadProfile espera trigger | ✅ TESTING | "no funciono" - trigger OK, app esperaba antes que profile exista |
-| **0.10.10** | 03-abr | 5981bff | Fix freeze al volver | `setLoading(false)` en `TOKEN_REFRESHED` | ✅ OK | "necesito que resolvamos este bug, cuando uno se cambia de ventana o se queda un rato, despues un rato se cuelga y hay que refrescar la pagina para que funcione" |
+| Campo | Descripción |
+|-------|-------------|
+| **Versión** | `MAJOR.MINOR.PATCH` — MAJOR: cambio estructural grande · MINOR: feature nueva · PATCH: fix o mejora menor |
+| **Fecha** | Fecha de deploy a producción |
+| **Basado en test** | Versión de test desde la que se tomó el código |
+| **Estado** | ✅ Estable · ⚠️ Con observaciones · ❌ Reverted |
 
 ---
 
-## 📈 Resumen por Estado
-
-| Estado | Count | Versiones |
-|--------|-------|-----------|
-| ✅ Funcionando | 22 | 0.1 - 0.9, 0.11, 0.10.2 - 0.10.4 |
-| ❌ Roto / No arregló | 5 | 0.10, 0.10.1, 0.10.5, 0.10.6, 0.10.7 |
-| ⚠️ Trigger roto (pero funcionaba) | 1 | 0.7 |
-| 📄 Documentación | 1 | 0.10.8 |
+## 🚀 Releases
 
 ---
 
-## 🔴 Issues Activos
+### v1.0.5 — Apertura inteligente de Mercado Pago
+**Fecha de deploy:** 11-abr-2026
+**Commit:** 9183d2a
+**Estado:** ✅
 
-### Issue #1: Google OAuth no funciona
-- **Desde:** v0.10 (commit b9edcea, 01-abr 22:49)
-- **Error:** "Database error saving new user"
-- **Causa raíz:** Trigger `sync_email_on_signup()` (v0.7) reemplazó trigger que creaba profiles
-- **Intentos de fix:** v0.10.1, v0.10.5, v0.10.6, v0.10.7 - **todos fallidos**
-- **Estado:** ❌ SIN RESOLVER
-- **Última versión funcional:** v0.9 (commit 84cbebb)
+#### Cambios
+- **[FEATURE]** `ProfilePage.jsx`: reemplazado `window.location.href` por apertura inteligente de MP según dispositivo:
+  - **Mobile:** intenta abrir la app nativa de MP via deep link (`mercadopago://`). Si en 2 segundos no se abre (app no instalada), hace fallback al `init_point` web en la misma pestaña.
+  - **Desktop:** abre MP en un popup centrado (520×700px). Hace polling cada 3s consultando el estado de la orden en Supabase. Cuando el pago se aprueba (o el usuario cierra el popup), redirige a `/pago/exito` o `/pago/pendiente` sin haber salido de cumpleanitos.
 
----
-
-## 📝 Notas
-
-- **Versionado semántico:** Iniciado desde v0.1 (31-marzo-2026)
-- **Sistema de patches:** `.1`, `.2`, etc para iteraciones sobre mismo tema
-- **Commits de fix:** Se numeran consecutivamente (0.10.1, 0.10.2, etc)
-- **Branch:** `main` (producción continua)
-- **Deploy:** Vercel automático en cada push
+#### Observaciones
+- "cuando entre a mercado pago a realizar el pago, salte un modal y no me saque de cumpleanitos. si es mobile que abra la app de mercado pago, y vuelva después a cumpleanitos una vez realizado el pago"
 
 ---
 
-**Última actualización:** 03 April 2026, 15:07 UTC
-| **0.15.0** | 09-Apr-2026 | 3df020a | Home logueado con sidebar izq, main 2 col, paneles derechos acoplables | Nuevo LoggedHomePage.jsx: sidebar izquierda con nav items, main con CTA banner + filtros + grid de cumpleaños agrupados por día + grupos, 3 paneles derechos colapsables (Alertas, Sugeridos, Actividad). Responsive mobile/desktop. App.jsx: case "home" muestra LoggedHomePage si hay sesión. | ✅ OK | "RESPETEMOS LA ESTRUCTURA QUE YA TIENE CUMPLEANITOS EN DESKTOP EN TEST, ME GUSTAN LAS DOS COLUMNAS NUEVAS A LA DERECHA, QUE SE PUEDAN ACOPLAR" |
-| **0.14** | 08-Apr-2026 | 5db8648 | Integración Mercado Pago | OAuth cumpleañero, Checkout Pro marketplace, webhooks, 5 tablas MP nuevas, MPConnectButton en Settings, rutas /pago y /oauth/mp/callback | ✅ OK | "vamos a realizar la integracion con mercado pago" |
-| **0.14.3** | 08-abr-2026 | 5518ea3 | Fix freeze "Cargando tu regalo" | `.single()` → `.maybeSingle()` en `loadStats` — nivelado con prod v1.0.2 | ✅ OK | "se cuelga y no deja cargar regalo" |
-| **0.14.2** | 08-abr-2026 | - | Fix paso 3 fantasma en registro | Race condition en `loadProfile`: el fallback de creación de profile usaba placeholders (`user_XXXX`, `birthday=null`) en vez de datos reales del `user_metadata`. Detección `isGoogleUser` ahora usa `app_metadata.provider` en vez del username. | ✅ OK | "el registro en dos pasos agrega un 3er paso que vuelve a pedir datos" |
-| **0.14.1** | 08-abr-2026 | - | Fix external_reference CPÑ→CPN, MPPaymentResultPage lee params de MP, trigger webhook desde redirect | ✅ OK | "quiero que resolvamos el flujo de redirecciones" |
-| **0.14** | 08-abr-2026 | 697444a | Integración Mercado Pago completa: OAuth, Checkout Pro marketplace, webhooks, 5 tablas MP, MPConnectButton, rutas /pago y /oauth/mp | ✅ OK | "vamos a realizar la integracion con mercado pago" |
-| **0.10.11** | 02-abr | d044384 | Test OAuth minimalista | Página diagnóstico test-oauth.html | 📄 Debug | Diagnóstico OAuth |
-| **0.11** | 02-abr | 97290b3 | OAuth Google OK | Reset Google Console + Supabase + disable triggers + app crea profiles | ✅ **FUNCIONA** | "ahora si parece que funciono!" - OAuth 100% operativo |
-| **0.11.1** | 03-apr | cdd25ac | Fix alias JSON + nombre navbar | getRealAlias() en ProfilePage/MyProfilePage + nombre usuario desktop navbar | ✅ OK | "ahora quiero arreglar este bug de frontend que aparece en el alias" + "me gustaria que al lado de la foto de usuario, en la version desktop diga el nombre del usuario" |
-| **0.14.3** | 10-abr-2026 | — | fix: contributions solo cuando pago aprobado | Mismo fix que PROD v1.1.0: eliminado INSERT prematuro en mp-create-preference.js. Webhook crea contribution solo en approved con idempotencia. | ✅ OK | "arreglemos este bug super importante en produccion" |
+ Fix crítico: notification_url en preferencia MP
+**Fecha de deploy:** 11-abr-2026
+**Commit:** 64073bc
+**Estado:** ✅
+
+#### Cambios
+- **[FIX CRÍTICO]** `api/mp-create-preference.js`: agregado `notification_url: APP_BASE_URL/api/mp-webhook` a la preferencia de Mercado Pago. Sin este campo MP no tenía destino explícito para enviar webhooks — los mandaba de forma no garantizada (o no los mandaba). Era la causa raíz de que el pago de Pochoclo $1.000 (MP ID: 154256128194) nunca llegara a la DB. De ahora en más todos los pagos tienen webhook garantizado.
+
+#### Observaciones
+- "necesito resolver que si hago más pagos, se graben bien, cuando se impacten en mercadopago, recién ahí se graban en la base de cumpleanitos"
+
+---
+
+ Tab Operaciones + fix llamada webhook desde frontend
+**Fecha de deploy:** 11-abr-2026
+**Commit:** 59b384a
+**Estado:** ✅
+
+#### Cambios
+- **[FEATURE]** `AdminFinanzasPage.jsx`: nueva tab "🔍 Operaciones" con dos sub-secciones: Webhook Logs (tabla de `mp_webhook_logs` con estado, payment_id, external_ref, errores) y Transacciones MP (tabla de `mp_transactions` con payment_id real, monto, método, fecha de aprobación). KPIs de webhooks: total recibidos, procesados OK, errores, duplicados.
+- **[FIX CRÍTICO]** `MPPaymentResultPage.jsx`: eliminada llamada a `/api/mp-webhook` desde el frontend. Era la causa de contributions creadas con datos incorrectos (estado basado en redirect de MP, no en confirmación real). La única fuente de verdad es ahora el webhook real de MP.
+- `useFinanzas` hook: agrega fetch de `mp_webhook_logs` y `mp_transactions` (últimos 50 cada uno) en paralelo con las queries existentes.
+
+#### Observaciones
+- "quiero que arreglemos el tema de las transacciones y operaciones realizadas y ver qué pasa en webhook que no se pueden ver las operaciones finalizadas OK"
+- Se detectó pago de $1.000 (MP ID: 154256128194, 11-abr 00:31) sin registro en DB — webhook no llegó para ese pago. Requiere recuperación manual.
+
+---
+
+### v1.0.2 — Fix crítico webhook MP: 502 + idempotencia
+**Fecha de deploy:** 10-abr-2026
+**Commit:** 329c19b
+**Estado:** ✅
+
+#### Cambios
+- **[CRÍTICO]** `api/mp-webhook.js`: `SUPABASE_URL` leía solo `VITE_SUPABASE_URL` que no está disponible en Vercel serverless → todos los webhooks de MP crasheaban con 502, ningún pago era procesado
+- Fix idempotencia: query de deduplicación usaba `processing_status=eq.processed` sobre `mp_transactions` pero esa columna no existe en esa tabla (es de `mp_webhook_logs`). Ahora usa `mp_payment_id` con constraint UNIQUE
+- Rename `MP_ACCESS_TOKEN_TEST` → `MP_ACCESS_TOKEN` en todo el webhook
+
+#### Observaciones
+> "se siguio replicando el bug de contribuciones fantasma, fijate que se graben los regalos cuando se impacte el pago en mercado pago"
+
+#### Limpieza de datos PROD
+- Eliminados 4 registros de prueba de `contributions` + `mp_orders` + `mp_transactions` + `mp_commissions` + `mp_webhook_logs`
+- Recreada manualmente contribution de "Invitado" (00, 09/04) que era pago real
+
+---
+
+### v1.0.1 — Setup completo de producción
+**Fecha de deploy:** 08-abr-2026
+**Basado en test:** v0.14.2
+**Commit:** 12a3d09
+
+#### Cambios
+- Variables de entorno de Vercel actualizadas a Supabase prod (`ibnqenpxtcblhwwnwlho`)
+- Corregidas `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` que apuntaban a test
+- Schema de DB prod completado: tablas `friends`, `mp_connections`, `mp_orders`, `mp_transactions`, `mp_commissions`, `mp_webhook_logs`
+- Columnas `emotional_foto_url`, `emotional_video_url`, `mp_order_id`, `payment_method` agregadas a `contributions`
+- Función `get_all_users_with_email()` creada en DB prod
+- Storage bucket `cumple-images` creado con policies RLS
+- Google OAuth configurado en Supabase prod con Client ID y Secret de prod
+- URL Configuration: Site URL `https://www.cumpleanitos.com`, Redirect URLs `https://cumpleanitos.com/**` y `https://www.cumpleanitos.com/**`
+
+---
+
+### v1.0.0 — Release inicial de producción
+**Fecha de deploy:** 08-abr-2026
+**Basado en test:** v0.14.2
+**Commit:** 8e0a4d4
+
+#### Funcionalidades incluidas
+
+**Autenticación**
+- Registro en 2 pasos con email y contraseña (paso 1: email + pass · paso 2: nombre, usuario, cumpleaños, teléfono)
+- Login con email y contraseña
+- Login y registro con Google OAuth (selector de cuenta nativo)
+- Onboarding post-Google para completar datos faltantes
+- Cierre de sesión y eliminación de cuenta desde Configuración
+
+**Perfiles de usuario**
+- Perfil público en `cumpleanitos.com/@username` y `/u/username`
+- Upload de avatar y portada con ajuste de posición y escala
+- Gradiente de portada por defecto personalizable
+- Edición de datos personales desde Configuración
+- Estadísticas: monto recaudado, regaladores, amigos, regalos dados
+
+**Campaña de cumpleaños**
+- Creación de campaña (título, descripción, monto objetivo, fecha límite)
+- Lista de deseos con autocompletado de MercadoLibre (título, precio e imagen vía Microlink)
+- Compartir perfil / campaña con link directo
+
+**Flujo de regalo**
+- Formulario en 2 pasos: monto + nombre · mensaje emocional + foto/video + alias
+- Aportes anónimos opcionales
+- Foto con cámara (mobile) o upload (desktop)
+- Video adjunto con validación de duración
+
+**MercadoPago**
+- Cumpleañero conecta su cuenta MP desde Configuración (OAuth)
+- Checkout Pro marketplace: el pago va directo al cumpleañero
+- Comisión de plataforma configurable (default 10%)
+- Webhooks para confirmación de pagos
+- Páginas de resultado: éxito / pendiente / error
+
+**Explorar**
+- Listado de campañas públicas activas
+- Vista de perfil público de otros usuarios
+
+**Panel de administración** (requiere `is_admin = true`)
+- Dashboard con métricas generales
+- Gestión de usuarios, campañas, regalos, finanzas
+- Moderación de mensajes y contenido multimedia con filtros
+- Analytics y alertas
+- Configuración global (presets de montos, comisión)
+- Responsive mobile con bottom nav + drawer
+
+**Infraestructura**
+- Vite + React SPA · Supabase Auth + DB + Storage · Deploy en Vercel
+- Rutas con URLs reales: `/perfil`, `/explorar`, `/u/:username`, `/pago/exito`, `/oauth/mp/callback`, etc.
+- API Routes en Vercel: `mp-oauth-callback`, `mp-create-preference`, `mp-webhook`, `mp-admin-connect`, `delete-user`
+- Vercel Analytics integrado
+
+#### Tablas en base de datos
+
+| Tabla | Descripción |
+|-------|-------------|
+| `profiles` | Usuarios de la plataforma |
+| `gift_campaigns` | Campañas de regalo |
+| `gift_items` | Lista de deseos |
+| `contributions` | Aportes de regaladores |
+| `app_config` | Configuración global |
+| `friends` | Relaciones entre usuarios |
+| `mp_connections` | Conexiones OAuth con MercadoPago |
+| `mp_orders` | Órdenes de pago |
+| `mp_transactions` | Transacciones confirmadas por MP |
+| `mp_commissions` | Comisiones de la plataforma |
+| `mp_webhook_logs` | Log de webhooks de MP |
+
+#### Bugs conocidos al release
+- Hard delete de cuenta pendiente (requiere Edge Function con service_role)
+- Columnas `emotional_foto_url` / `emotional_video_url` en `contributions` — resuelto en v1.0.1
+
+---
+
+## 📋 Tabla de cambios
+
+| Versión | Fecha | Basado en test | Commit | Descripción | Estado |
+|---------|-------|---------------|--------|-------------|--------|
+| **1.1.8** | 13-abr-2026 | - | Modal foto en Moderación + bordes redondeados Regalos | Click en foto de Moderación abre FotoModal igual que en Regalos. Miniaturas en tabla Regalos con borderRadius 8. | ✅ Estable | "modal foto moderacion, bordes redondeados regalos" |
+| **1.1.7** | 13-abr-2026 | - | Fecha/hora ART en Quiénes regalaron | Cada card de contribución muestra fecha y hora en timezone America/Argentina/Buenos_Aires debajo del nombre del regalador. | ✅ Estable | "no veo dia y hora del regalo" |
+| **1.1.6** | 13-abr-2026 | - | Admin Regalos: foto vertical completa + modal zoom | Foto en panel detalle: objectFit contain + maxHeight 320 (se ve completa vertical). Click en foto abre FotoModal centrado con fondo negro, cierra clickeando afuera o en X. | ✅ Estable | "foto vertical completa, click abre modal" |
+| **1.1.5** | 13-abr-2026 | - | Fix definitivo centrado resultado pago + botones | Páginas mp-exito/pendiente/error/callback se renderizan FUERA del layout (sin Navbar, main, Footer, BottomNav) — 100vh real sin interferencia. goProfile fallback a /explorar si no hay order. | ✅ Estable | "sigue mal centrado, botones no llevan donde deben" |
+| **1.1.4** | 13-abr-2026 | - | Admin: fechas y horas en timezone Argentina | fmtDate y fmtTime en AdminRegalosPage y AdminModeracionPage usan timeZone America/Argentina/Buenos_Aires — los timestamps de DB (UTC) se muestran correctamente en horario argentino. | ✅ Estable | "ajusta para que se muestre utc-3 en admin" |
+| **1.1.3** | 13-abr-2026 | - | Fix definitivo pantalla resultado pago | (1) Navbar oculta en mp-exito/pendiente/error/callback — pantalla full height sin interferencia. (2) minHeight vuelve a 100vh. (3) Botón "Volver al perfil" → perfil del cumpleañero siempre. (4) Botón renombrado a "Explorar regalos" → /explorar siempre. | ✅ Estable | "centrado mal, botones incorrectos" |
+| **1.1.2** | 13-abr-2026 | - | Fix pantalla resultado pago: centrado, botones y error falso | (1) minHeight calc(100vh - 57px) — card centrado debajo de la Navbar sin overflow. (2) Botón "Volver al perfil" siempre visible, fallback a goHome si no hay order. (3) isError solo se activa si MP manda status negativo explícito — elimina pantalla de error falso por timeout. | ✅ Estable | "pantalla mal centrada, botones incorrectos, error falso tras esperar" |
+| **1.1.1** | 13-abr-2026 | - | Fix teclado numérico + pantalla resultado centrada | (1) Campo "otro monto": inputMode=numeric + scrollIntoView al foco — teclado numérico en mobile y campo visible. (2) MPPaymentResultPage: goHome navega a / si logueado o /explorar si no. (3) Páginas mp-exito/pendiente/error/callback agregadas a noNavPages y excluidas del BottomNav — pantalla centrada sin interferencia de nav. | ✅ Estable | "teclado numerico en monto, resultado centrado, botones correctos" |
+| **1.1.0** | 13-abr-2026 | - | Admin: foto/video en Regalos y Moderación | AdminRegalosPage y AdminModeracionPage sincroni zados desde test: panel detalle muestra emotional_foto_url y emotional_video_url inline. Moderación tab Mensajes filtra por Con imagen / Con video con preview embebido. Requirió ALTER TABLE contributions ADD COLUMN emotional_foto_url TEXT, emotional_video_url TEXT en prod DB. | ✅ Estable | "pasalos a prod, no los veo funcionando" |
+| **1.0.2** | 08-abr-2026 | 4357bd3 | Fix freeze "Cargando tu regalo" | `.single()` → `.maybeSingle()` en `loadStats` — cuando no hay campaña activa `.single()` tiraba error y `Promise.all` dejaba `hasCampaign` en `null` indefinidamente | ✅ Estable |
+| **1.0.9** | 09-abr-2026 | 7e6ee78 | MP OAuth conectado ✅ | Fix redirect_uri mismatch: MP_REDIRECT_URI debe ser https://www.cumpleanitos.com/oauth/mp/callback (con www). El frontend genera URL con www y el backend debe coincidir exactamente. | ✅ Estable |
+| **1.0.9** | 11-abr-2026 | - | Fix race condition sesión en ProfilePage | Reintentar loadData cuando sesión se restaura y profile quedó null — resuelve Perfil no encontrado al volver de pestaña | ✅ Estable |
+| **1.0.8** | 09-abr-2026 | ada32be | Fix MP OAuth state + codeVerifier | state aleatorio (userId:timestamp:random) en lugar de userId fijo. codeVerifier se lee ANTES de eliminarlo del sessionStorage. userId se extrae de la sesión Supabase, no del state. | ✅ Estable |
+| **1.0.9** | 11-abr-2026 | - | Fix race condition sesión en ProfilePage | Reintentar loadData cuando sesión se restaura y profile quedó null — resuelve Perfil no encontrado al volver de pestaña | ✅ Estable |
+| **1.0.8** | 11-abr-2026 | - | Fix freeze al volver de pestaña | Timeout 6s + mountedRef en CelebrantDashboard.loadData — queries Supabase en background no resolvían, setLoading(false) nunca corría | ✅ Estable |
+| **1.0.7** | 09-abr-2026 | 1c9728e | Fix MP_CLIENT_ID hardcodeado | MPConnectButton.jsx usaba client_id hardcodeado '3154697079981275'. Ahora usa import.meta.env.VITE_MP_CLIENT_ID. | ✅ Estable |
+| **1.0.6** | 09-abr-2026 | ded11d6 | Credenciales MP producción | Actualización de MP_CLIENT_ID, MP_CLIENT_SECRET y MP_ACCESS_TOKEN a credenciales de producción real. Agregado MP_REDIRECT_URI en Vercel. URL de redirect OAuth en MP Dashboard actualizada a cumpleanitos.com. Webhook configurado en modo productivo. | ✅ Estable |
+| **1.0.5** | 09-abr-2026 | ded8b97 | Fix freeze Cargando perfil | .single() → .maybeSingle() en app_config de ProfilePage — causa raíz del freeze al cargar perfil público /u/:username | ✅ Estable |
+| **1.0.4** | 09-abr-2026 | 94da727 | Fix app_config platform en prod | INSERT de key 'platform' en app_config prod con gift_amounts, platform_name y config general | ✅ Estable |
+| **1.0.3** | 09-abr-2026 | 6275b6a | Fix lock Supabase auth | Agregado lock: async (name, acquireTimeout, fn) => fn() en supabaseClient.js — resuelve freeze por lock cumpleanitos-auth no liberado al cambiar de pestaña | ✅ Estable |
+| **1.0.2** | 08-abr-2026 | 4357bd3 | Fix freeze Cargando tu regalo | .single() → .maybeSingle() en loadStats de App.jsx — hasCampaign quedaba en null indefinidamente | ✅ Estable |
+| **1.0.1** | 08-abr-2026 | v0.14.2 | 12a3d09 | Setup completo prod: vars Vercel corregidas, schema DB completado, Google OAuth configurado | ✅ Estable |
+| **1.0.0** | 08-abr-2026 | v0.14.2 | 8e0a4d4 | Release inicial — auth, perfiles, campañas, lista de deseos, flujo de regalo, MercadoPago, panel admin | ✅ Estable |
+
+---
+
+## 📝 Pendientes para próximo release
+
+- Hard delete de cuenta (Edge Function con service_role)
+- Validación completa del flujo MP en modo producción
+- Notificaciones en tiempo real
+
+| **1.3.4** | 22-abr-2026 | a9936df | feat: Boton "Pagar con Transferencia" (mpago.la) | Nuevo boton secundario en pantalla de confirmación de pago (ProfilePage.jsx paso 2). Usa link nativo mpago.la/{alias}?amount={totalToPay}. Calcula automáticamente: monto bruto + 10% comisión = total a pagar. Abre directamente app Mercado Pago en mobile, nueva pestaña en desktop. No genera preferencia MP. Requiere profile.payment_alias guardado. Botón outline, fondo blanco, borde gris, 12px de margen arriba. Texto auxiliar: "Pago instantáneo, abre directamente Mercado Pago". | ✅ Implementado |
+| **1.3.3** | 16-abr-2026 | — | fix: P1+P3+P4 integración flujo completo + localStorage token | P1: CompleteProfilePage pre-llena datos del preregistro (nombre, cumpleaños) desde localStorage. P3: handleGoogleSignup guarda pending_friend_id + pending_invite_token en localStorage antes del OAuth redirect. useEffect detecta Google session y vincula preregistro. P4: handleChooseSurprise → setIsSurpriseMode(true) + validate. handleValidate → approve. handleApproveGift usa isSurpriseMode. handleRequestChange → phone_signup. SignupDonePage tiene 2 modos: isSurprise=true (sin regalo), isSurprise=false (con regalo). Aislamiento teléfono: step inicial = "email" con flujo email+Google directo. PhoneSignupFlow ahora muestra email+password+Google en place del teléfono. | ✅ Listo para testing |

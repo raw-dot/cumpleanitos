@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
 
 const COLORS = {
@@ -36,11 +36,28 @@ function ProgressBar({ pct }) {
 export default function GiftsGivenPage({ onBack }) {
   const [contributions, setContributions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadingTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
+  }, []);
 
   useEffect(() => {
-    const fetchGiftsGiven = async () => {
-      setLoading(true);
-      try {
+    fetchGiftsGiven();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && mountedRef.current && loadingTimeoutRef.current) fetchGiftsGiven();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
+  const fetchGiftsGiven = async () => {
+    if (!mountedRef.current) return;
+    setLoading(true);
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    loadingTimeoutRef.current = setTimeout(() => { if (mountedRef.current) setLoading(false); }, 6000);
+    try {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
 
@@ -84,11 +101,10 @@ export default function GiftsGivenPage({ onBack }) {
       } catch (e) {
         console.error("GiftsGiven error:", e);
       } finally {
-        setLoading(false);
+        if (loadingTimeoutRef.current) { clearTimeout(loadingTimeoutRef.current); loadingTimeoutRef.current = null; }
+        if (mountedRef.current) setLoading(false);
       }
-    };
-    fetchGiftsGiven();
-  }, []);
+  };
 
   const totalAportado = contributions.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
   const activas  = contributions.filter(c => c.campaign?.status === "active");

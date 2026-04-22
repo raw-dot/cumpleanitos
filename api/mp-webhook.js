@@ -8,10 +8,20 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const SUPABASE_URL = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
   const SERVICE_KEY  = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const MP_ACCESS_TOKEN_TEST = process.env.MP_ACCESS_TOKEN || process.env.MP_ACCESS_TOKEN_TEST;
+  const MP_ACCESS_TOKEN = process.env.MP_ACCESS_TOKEN || process.env.MP_ACCESS_TOKEN_TEST;
   const MP_WEBHOOK_SECRET    = process.env.MP_WEBHOOK_SECRET;
+
+  // Guard: si faltan vars críticas, loggear y responder 200 (no 502)
+  if (!SUPABASE_URL || !SERVICE_KEY) {
+    console.error('mp-webhook: env vars faltantes', {
+      SUPABASE_URL: !!SUPABASE_URL,
+      SERVICE_KEY: !!SERVICE_KEY,
+      MP_ACCESS_TOKEN: !!MP_ACCESS_TOKEN,
+    });
+    return res.status(200).json({ received: true, warning: 'missing_env_vars' });
+  }
 
   // Validar firma HMAC de MP si está configurada
   if (MP_WEBHOOK_SECRET) {
@@ -40,7 +50,10 @@ export default async function handler(req, res) {
   const action  = payload.action || '';
   const resourceId = payload.data?.id || payload.id || req.query.id;
 
-  // Log inmediato para auditoría
+  // Responder 200 INMEDIATAMENTE — MP requiere respuesta en < 5s
+  res.status(200).json({ received: true });
+
+  // Log para auditoría (corre post-response)
   let webhookLogId = null;
   try {
     const logRes = await fetch(`${SUPABASE_URL}/rest/v1/mp_webhook_logs`, {
@@ -66,14 +79,11 @@ export default async function handler(req, res) {
     console.error('Error logging webhook:', e);
   }
 
-  // Procesar primero, responder después (Vercel corta ejecución post-response)
-  await processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST });
-
-  // Responder 200 a MP al final
-  res.status(200).json({ received: true });
+  // Procesar (ya respondimos 200 arriba)
+  await processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN });
 }
 
-async function processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST }) {
+async function processWebhook({ topic, action, resourceId, payload, webhookLogId, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN }) {
   try {
     // Solo procesar eventos de pagos por ahora
     if (topic !== 'payment' && topic !== 'merchant_order') {
@@ -82,7 +92,7 @@ async function processWebhook({ topic, action, resourceId, payload, webhookLogId
     }
 
     if (topic === 'payment' && resourceId) {
-      await handlePaymentEvent(resourceId, webhookLogId, payload, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST);
+      await handlePaymentEvent(resourceId, webhookLogId, payload, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN);
     }
 
     if (topic === 'merchant_order' && resourceId) {
@@ -96,10 +106,11 @@ async function processWebhook({ topic, action, resourceId, payload, webhookLogId
   }
 }
 
-async function handlePaymentEvent(mpPaymentId, webhookLogId, payload, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN_TEST) {
+async function handlePaymentEvent(mpPaymentId, webhookLogId, payload, SUPABASE_URL, SERVICE_KEY, MP_ACCESS_TOKEN) {
   // IDEMPOTENCIA: verificar si ya procesamos este mp_payment_id
+  // mp_payment_id tiene constraint UNIQUE en mp_transactions → si ya existe, es duplicado
   const existingRes = await fetch(
-    `${SUPABASE_URL}/rest/v1/mp_transactions?mp_payment_id=eq.${mpPaymentId}&processing_status=eq.processed&select=id`,
+    `${SUPABASE_URL}/rest/v1/mp_transactions?mp_payment_id=eq.${mpPaymentId}&select=id`,
     {
       headers: {
         apikey:        SERVICE_KEY,
@@ -107,7 +118,6 @@ async function handlePaymentEvent(mpPaymentId, webhookLogId, payload, SUPABASE_U
       },
     }
   );
-  // Si ya existe transacción procesada, marcar como duplicate y salir
   const existing = await existingRes.json();
   if (existing && existing.length > 0) {
     await updateWebhookLog(webhookLogId, 'duplicate', null, SUPABASE_URL, SERVICE_KEY);
@@ -116,7 +126,7 @@ async function handlePaymentEvent(mpPaymentId, webhookLogId, payload, SUPABASE_U
 
   // Consultar el estado real del pago a la API de MP
   const mpRes = await fetch(`https://api.mercadopago.com/v1/payments/${mpPaymentId}`, {
-    headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN_TEST}` },
+    headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
   });
   const mpPayment = await mpRes.json();
 
@@ -205,15 +215,17 @@ async function handlePaymentEvent(mpPaymentId, webhookLogId, payload, SUPABASE_U
           Prefer:          'return=representation',
         },
         body: JSON.stringify({
-          campaign_id:    order.campaign_id,
-          gifter_id:      order.payer_user_id || null,
-          gifter_name:    order.is_anonymous ? 'Anónimo' : order.payer_name,
-          amount:         order.gross_amount,
-          message:        order.message || null,
-          is_anonymous:   order.is_anonymous || false,
-          anonymous:      order.is_anonymous || false,
-          payment_method: 'mercadopago',
-          mp_order_id:    order.id,
+          campaign_id:          order.campaign_id,
+          gifter_id:            order.payer_user_id || null,
+          gifter_name:          order.is_anonymous ? 'Anónimo' : order.payer_name,
+          amount:               order.gross_amount,
+          message:              order.message || null,
+          emotional_foto_url:   order.foto_url || null,
+          emotional_video_url:  order.video_url || null,
+          is_anonymous:         order.is_anonymous || false,
+          anonymous:            order.is_anonymous || false,
+          payment_method:       'mercadopago',
+          mp_order_id:          order.id,
         }),
       });
       const newContribData = await newContribRes.json();

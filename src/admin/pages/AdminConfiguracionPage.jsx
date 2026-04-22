@@ -42,7 +42,7 @@ function useConfig() {
 
   // Al montar: leer desde Supabase
   useEffect(() => {
-    supabase.from("app_config").select("value").eq("key", "platform").single()
+    supabase.from("app_config").select("value").eq("key", "platform").maybeSingle()
       .then(({ data }) => {
         if (data?.value) {
           const merged = { ...DEFAULT_CONFIG, ...data.value };

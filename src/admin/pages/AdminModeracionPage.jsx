@@ -12,7 +12,7 @@ const C = {
   border:  "#E5E7EB", surface:   "#FFFFFF", bg: "#F3F4F6",
 };
 
-const fmtDate = (s) => s ? new Date(s).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" }) : "—";
+const fmtDate = (s) => s ? new Date(s).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Argentina/Buenos_Aires" }) : "—";
 const flagWords = ["odio","estafa","fraude","spam","http","www.",".com","whatsapp","telegram","puta","mierda","pelotud"];
 const isFlagged = (msg) => msg && flagWords.some(w => msg.toLowerCase().includes(w));
 
@@ -167,7 +167,7 @@ function TabMensajes({ mensajes, onClearMessage, onClearMedia, onDisableUser }) 
                       {hasVid   && <span style={{ fontSize:9, fontWeight:700, background:C.primaryBg, color:C.primary, padding:"2px 6px", borderRadius:4 }}>🎬 VIDEO</span>}
                     </div>
                     {hasMsg && <div style={{ fontSize:13, color:C.text, lineHeight:1.5, background:C.bg, borderRadius:7, padding:"8px 10px", fontStyle:"italic", marginBottom:(hasFoto||hasVid)?8:0 }}>"{c.message}"</div>}
-                    {hasFoto && <img src={c.emotional_foto_url} alt="foto" style={{ maxWidth:"100%", maxHeight:140, borderRadius:8, objectFit:"cover", display:"block", marginBottom:hasVid?6:0 }} onError={e=>{e.target.style.display="none";}} />}
+                    {hasFoto && <img src={c.emotional_foto_url} alt="foto" style={{ maxWidth:"100%", maxHeight:140, borderRadius:8, objectFit:"cover", display:"block", marginBottom:hasVid?6:0, cursor:"zoom-in" }} onError={e=>{e.target.style.display="none";}} onClick={()=>window.__fotoModalMod&&window.__fotoModalMod(c.emotional_foto_url)} />}
                     {hasVid  && <video src={c.emotional_video_url} controls style={{ maxWidth:"100%", maxHeight:140, borderRadius:8, background:"#000", display:"block" }} />}
                     {!hasMsg&&!hasFoto&&!hasVid && <div style={{ fontSize:12, color:C.textMuted, fontStyle:"italic" }}>Sin contenido adicional</div>}
                     <div style={{ display:"flex", gap:12, marginTop:6, flexWrap:"wrap" }}>
@@ -309,14 +309,27 @@ function TabRegalos({ regalos, onClearDesc }) {
 }
 
 // ── MAIN ─────────────────────────────────────────────────────────────────────
+function FotoModal({ url, onClose }) {
+  if (!url) return null;
+  return (
+    <div onClick={onClose} style={{ position:"fixed", inset:0, background:"rgba(0,0,0,0.85)", zIndex:9999, display:"flex", alignItems:"center", justifyContent:"center", padding:16, cursor:"zoom-out" }}>
+      <img src={url} alt="foto" onClick={e=>e.stopPropagation()} style={{ maxWidth:"100%", maxHeight:"90vh", borderRadius:12, objectFit:"contain", cursor:"default" }} />
+      <button onClick={onClose} style={{ position:"absolute", top:16, right:20, background:"none", border:"none", color:"#fff", fontSize:32, cursor:"pointer", lineHeight:1 }}>×</button>
+    </div>
+  );
+}
+
 export default function AdminModeracionPage() {
   const { data, loading, toast, load, clearMessage, clearMedia, disableUser, clearBio, clearCampDesc, clearItemDesc, pauseCampaign } = useModeracion();
   const [activeTab, setActiveTab] = useState("mensajes");
+  const [fotoModal, setFotoModal] = useState(null);
+  window.__fotoModalMod = setFotoModal;
   const mensajes=data?.mensajes||[], perfiles=data?.perfiles||[], campanas=data?.campanas||[], regalos=data?.regalos||[];
   const TABS=[{id:"mensajes",label:"Mensajes",count:mensajes.length},{id:"perfiles",label:"Perfiles",count:perfiles.length},{id:"campanas",label:"Campañas",count:campanas.length},{id:"regalos",label:"Regalos",count:regalos.length}];
   return (
     <div style={{ display:"flex", flexDirection:"column", gap:14, fontFamily:"-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
       <Toast toast={toast} />
+      <FotoModal url={fotoModal} onClose={() => setFotoModal(null)} />
       <div style={{ display:"flex", alignItems:"center", background:C.surface, border:`0.5px solid ${C.border}`, borderRadius:10, padding:4, alignSelf:"flex-start", flexWrap:"wrap", gap:2 }}>
         {TABS.map(tab=>(
           <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{ padding:"7px 16px", borderRadius:7, border:"none", cursor:"pointer", fontSize:13, background:activeTab===tab.id?C.primaryBg:"transparent", color:activeTab===tab.id?C.primary:C.textLight, fontWeight:activeTab===tab.id?600:400, display:"flex", alignItems:"center", gap:6 }}>

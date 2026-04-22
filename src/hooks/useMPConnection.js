@@ -21,7 +21,7 @@ export function useMPConnection(userId) {
       .select('id, mp_email, mp_nickname, status, connected_at')
       .eq('user_id', userId)
       .eq('status', 'active')
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       setConnection(false);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
 
 const COLORS = {
@@ -25,13 +25,27 @@ function dayLabel(dateStr) {
 export default function NotificationsPage({ session }) {
   const [notifs, setNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const loadingTimeoutRef = useRef(null);
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); };
+  }, []);
 
   useEffect(() => {
     if (session?.user?.id) loadNotifications();
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible' && mountedRef.current && loadingTimeoutRef.current) loadNotifications();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [session]);
 
   const loadNotifications = async () => {
+    if (!mountedRef.current) return;
     setLoading(true);
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    loadingTimeoutRef.current = setTimeout(() => { if (mountedRef.current) setLoading(false); }, 6000);
     try {
       const userId = session.user.id;
       const items = [];
@@ -42,7 +56,7 @@ export default function NotificationsPage({ session }) {
         .select("id, title")
         .eq("birthday_person_id", userId)
         .eq("status", "active")
-        .limit(1).single();
+        .limit(1).maybeSingle();
 
       if (myCamp) {
         const { data: contribs } = await supabase
@@ -62,28 +76,13 @@ export default function NotificationsPage({ session }) {
         });
       }
 
-      // 2. Amigos nuevos
-      const { data: newFriends } = await supabase
-        .from("friends")
-        .select("created_at, friend:profiles!friends_friend_id_fkey(name, username)")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(5);
-
-      (newFriends || []).forEach(f => {
-        items.push({
-          id: `friend-${f.created_at}`,
-          dot: "#10B981", bg: "#F0FDF9",
-          text: `@${f.friend?.username || "alguien"} te agregó como amigo 👋`,
-          time: f.created_at, read: false,
-        });
-      });
+      // 2. Amigos nuevos — tabla friends no disponible en esta versión
 
       // 3. Recordatorio cumpleaños
       const { data: prof } = await supabase
         .from("profiles")
         .select("birthday")
-        .eq("id", userId).single();
+        .eq("id", userId).maybeSingle();
 
       if (prof?.birthday) {
         const bday = new Date(prof.birthday);

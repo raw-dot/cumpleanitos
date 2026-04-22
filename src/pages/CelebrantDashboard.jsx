@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "../supabaseClient";
 import {
   COLORS, Button, Card, Avatar, Badge, Input, Textarea, Alert,
@@ -7,6 +7,9 @@ import {
 } from "../shared";
 
 export default function CelebrantDashboard({ profile, session, defaultTab = "campaign", onViewLanding, onCampaignCreated }) {
+  const mountedRef = useRef(true);
+  const loadingTimeoutRef = useRef(null);
+  useEffect(() => { mountedRef.current = true; return () => { mountedRef.current = false; if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current); }; }, []);
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [campaigns, setCampaigns] = useState([]);
   const [campaign, setCampaign] = useState(null);
@@ -42,36 +45,46 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
   const loadData = async (selectId = null) => {
     if (!session?.user?.id) return;
     setLoading(true);
+    // Timeout de seguridad: si las queries no responden en 6s (ej: pestaña en background), desbloquear
+    if (loadingTimeoutRef.current) clearTimeout(loadingTimeoutRef.current);
+    loadingTimeoutRef.current = setTimeout(() => {
+      if (mountedRef.current) setLoading(false);
+    }, 6000);
+    try {
+      const { data: allCamps } = await supabase
+        .from("gift_campaigns")
+        .select("*")
+        .eq("birthday_person_id", session.user.id)
+        .order("created_at", { ascending: false });
 
-    const { data: allCamps } = await supabase
-      .from("gift_campaigns")
-      .select("*")
-      .eq("birthday_person_id", session.user.id)
-      .order("created_at", { ascending: false });
+      const campList = allCamps || [];
+      setCampaigns(campList);
 
-    const campList = allCamps || [];
-    setCampaigns(campList);
+      const camp = selectId ? campList.find(c => c.id === selectId) : campList[0];
 
-    const camp = selectId ? campList.find(c => c.id === selectId) : campList[0];
+      if (camp) {
+        setCampaign(camp);
+        setCampaignForm({
+          title: camp.title,
+          description: camp.description || "",
+          goal_amount: camp.goal_amount || "",
+          image_url: camp.image_url || "",
+          product_link: camp.product_link || ""
+        });
 
-    if (camp) {
-      setCampaign(camp);
-      setCampaignForm({
-        title: camp.title,
-        description: camp.description || "",
-        goal_amount: camp.goal_amount || "",
-        image_url: camp.image_url || "",
-        product_link: camp.product_link || ""
-      });
-
-      const [{ data: itemsData }, { data: contribData }] = await Promise.all([
-        supabase.from("gift_items").select("*").eq("campaign_id", camp.id).order("created_at"),
-        supabase.from("contributions").select("*").eq("campaign_id", camp.id).order("created_at", { ascending: false }),
-      ]);
-      if (itemsData) setItems(itemsData);
-      if (contribData) setContributions(contribData);
+        const [{ data: itemsData }, { data: contribData }] = await Promise.all([
+          supabase.from("gift_items").select("*").eq("campaign_id", camp.id).order("created_at"),
+          supabase.from("contributions").select("*").eq("campaign_id", camp.id).order("created_at", { ascending: false }),
+        ]);
+        if (itemsData) setItems(itemsData);
+        if (contribData) setContributions(contribData);
+      }
+    } catch(e) {
+      console.error("loadData error:", e);
+    } finally {
+      if (loadingTimeoutRef.current) { clearTimeout(loadingTimeoutRef.current); loadingTimeoutRef.current = null; }
+      if (mountedRef.current) setLoading(false);
     }
-    setLoading(false);
   };
 
   const showSuccess = (msg) => { setSuccess(msg); setTimeout(() => setSuccess(""), 3000); };
@@ -133,37 +146,61 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   // ── CREAR CAMPAIGN desde el setup ──
   const createCampaign = async () => {
-    const title = setupForm.title || `Mi Regalo de ${profile?.name}`;
-    const description = setupForm.description || `¡Hola! Soy ${profile?.name}. Estoy juntando para mi cumpleaños. ¡Gracias por entrar! 🎂`;
-    const { data } = await supabase.from("gift_campaigns").insert({
-      title,
-      description,
-      birthday_person_id: session.user.id,
-      created_by: session.user.id,
-      goal_amount: parseFloat(setupForm.goal_amount) || 10000,
-      birthday_date: profile?.birthday,
-      status: "active",
-      birthday_person_name: profile?.name,
-      image_url: setupForm.image_url || null,
-      product_link: setupForm.ml_url || null,
-    }).select().single();
-    if (data) {
-      // Si hay items de galería, insertarlos como gift_items
-      if (setupForm.gallery.length > 0) {
-        await supabase.from("gift_items").insert(
-          setupForm.gallery.slice(0,4).map((img, i) => ({
-            campaign_id: data.id,
-            name: title,
-            image_url: img,
-            item_url: setupForm.ml_url || null,
-            price: parseFloat(setupForm.goal_amount) || null,
-          }))
-        );
+    setLoading(true);
+    setError("");
+    try {
+      const title = setupForm.title || `Mi Regalo de ${profile?.name}`;
+      const description = setupForm.description || `¡Hola! Soy ${profile?.name}. Estoy juntando para mi cumpleaños. ¡Gracias por entrar! 🎂`;
+      const { data, error: insertErr } = await supabase.from("gift_campaigns").insert({
+        title,
+        description,
+        birthday_person_id: session.user.id,
+        created_by: session.user.id,
+        goal_amount: parseFloat(setupForm.goal_amount) || 10000,
+        birthday_date: profile?.birthday,
+        status: "active",
+        birthday_person_name: profile?.name,
+        image_url: setupForm.image_url || null,
+        product_link: setupForm.ml_url || null,
+      }).select().maybeSingle();
+
+      if (insertErr) {
+        // Si ya existe una campaña activa, buscarla y usarla
+        const { data: existing } = await supabase.from("gift_campaigns")
+          .select("*").eq("birthday_person_id", session.user.id)
+          .eq("status", "active").limit(1).maybeSingle();
+        if (existing) {
+          setCampaign(existing);
+          await loadData(existing.id);
+          showSuccess("¡Tu regalo está listo! 🎂");
+          if (onCampaignCreated) onCampaignCreated();
+          return;
+        }
+        setError("Error creando el regalo: " + insertErr.message);
+        return;
       }
-      setCampaign(data);
-      await loadData(data.id);
-      showSuccess("¡Tu regalo está listo! 🎂");
-      if (onCampaignCreated) onCampaignCreated();
+
+      if (data) {
+        if (setupForm.gallery.length > 0) {
+          await supabase.from("gift_items").insert(
+            setupForm.gallery.slice(0,4).map((img) => ({
+              campaign_id: data.id,
+              name: title,
+              image_url: img,
+              item_url: setupForm.ml_url || null,
+              price: parseFloat(setupForm.goal_amount) || null,
+            }))
+          );
+        }
+        setCampaign(data);
+        await loadData(data.id);
+        showSuccess("¡Tu regalo está listo! 🎂");
+        if (onCampaignCreated) onCampaignCreated();
+      }
+    } catch(e) {
+      setError("Error inesperado. Intentá de nuevo.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -225,9 +262,30 @@ export default function CelebrantDashboard({ profile, session, defaultTab = "cam
 
   const saveProfile = async () => {
     setSaving(true);
-    await supabase.from("profiles").update({ bio, payment_alias: paymentAlias }).eq("id", session.user.id);
-    setSaving(false);
-    showSuccess("Perfil actualizado");
+    setError("");
+    try {
+      // Usar endpoint API en lugar de Supabase directo
+      const res = await fetch("/api/update-profile", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: session.user.id,
+          payment_alias: paymentAlias
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Error al guardar");
+      }
+      
+      setSaving(false);
+      showSuccess("Perfil actualizado");
+    } catch (err) {
+      console.error("Error saving profile:", err);
+      setSaving(false);
+      setError("Error al guardar. Intentá de nuevo.");
+    }
   };
 
   const copyLink = () => {

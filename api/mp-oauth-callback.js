@@ -19,16 +19,21 @@ export default async function handler(req, res) {
   const MP_CLIENT_ID     = process.env.MP_CLIENT_ID;
   const MP_CLIENT_SECRET = process.env.MP_CLIENT_SECRET;
   const MP_REDIRECT_URI  = process.env.MP_REDIRECT_URI;
+  console.log('MP_CLIENT_ID usado:', MP_CLIENT_ID);
+  console.log('MP_CLIENT_SECRET usado (primeros 6):', MP_CLIENT_SECRET?.slice(0,6));
+  console.log('MP_REDIRECT_URI usado:', MP_REDIRECT_URI);
 
   // 1. Verificar que el userToken pertenece al userId declarado
   const verifyRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
     headers: {
       Authorization: `Bearer ${userToken}`,
-      apikey: process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      apikey: process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     },
   });
   const userData = await verifyRes.json();
-  if (!verifyRes.ok || userData.id !== userId) {
+  // Usar el userId verificado de Supabase, ignorar el que viene del state
+  const verifiedUserId = userData?.id;
+  if (!verifyRes.ok || !verifiedUserId) {
     return res.status(403).json({ error: 'Token inválido o usuario no coincide' });
   }
 
@@ -74,7 +79,7 @@ export default async function handler(req, res) {
         Prefer:        'resolution=merge-duplicates',
       },
       body: JSON.stringify({
-        user_id:           userId,
+        user_id:           verifiedUserId,
         mp_user_id:        String(mpUser.id || ''),
         mp_email:          mpUser.email || tokenData.user_email || '',
         mp_nickname:       mpUser.nickname || '',

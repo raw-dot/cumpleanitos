@@ -26,7 +26,7 @@ const C = {
 export default function MPConnectButton({ userId, connection, loading, onConnected, onDisconnected }) {
   const [disconnecting, setDisconnecting] = useState(false);
 
-  const MP_CLIENT_ID = '3154697079981275';
+  const MP_CLIENT_ID = import.meta.env.VITE_MP_CLIENT_ID || '3154697079981275';
   const REDIRECT_URI = `${window.location.origin}/oauth/mp/callback`;
 
   async function handleConnect() {
@@ -46,11 +46,14 @@ export default function MPConnectButton({ userId, connection, loading, onConnect
 
     sessionStorage.setItem('mp_code_verifier', codeVerifier);
 
+    const state = `${userId}:${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    sessionStorage.setItem('mp_oauth_state', state);
+
     const params = new URLSearchParams({
       response_type:         'code',
       client_id:             MP_CLIENT_ID,
       redirect_uri:          REDIRECT_URI,
-      state:                 userId,
+      state,
       code_challenge:        codeChallenge,
       code_challenge_method: 'S256',
     });
@@ -99,7 +102,7 @@ export default function MPConnectButton({ userId, connection, loading, onConnect
           <div>
             <div style={{ fontSize: 14, fontWeight: 700, color: C.success }}>Mercado Pago conectado ✓</div>
             <div style={{ fontSize: 12, color: C.textLight }}>
-              {connection.mp_email || connection.mp_nickname || 'Cuenta vinculada'}
+              {connection.mp_nickname || connection.mp_email || 'Cuenta vinculada'}
             </div>
           </div>
         </div>

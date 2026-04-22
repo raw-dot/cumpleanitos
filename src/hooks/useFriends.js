@@ -47,7 +47,7 @@ export function useFriends() {
         .from("profiles")
         .select("id, name, username, birthday")
         .eq("id", friendUserId)
-        .single();
+        .maybeSingle();
 
       if (friendError) throw friendError;
 

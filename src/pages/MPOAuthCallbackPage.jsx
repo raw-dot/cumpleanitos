@@ -26,15 +26,19 @@ export default function MPOAuthCallbackPage() {
       }
 
       try {
+        const codeVerifier = sessionStorage.getItem('mp_code_verifier') || null;
+        const storedState  = sessionStorage.getItem('mp_oauth_state') || null;
+        const userId = storedState ? storedState.split(':')[0] : (state || session.user.id);
         sessionStorage.removeItem('mp_code_verifier');
+        sessionStorage.removeItem('mp_oauth_state');
         const res  = await fetch('/api/mp-oauth-callback', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code,
-            userId:       state || session.user.id,
+            userId,
             userToken:    session.access_token,
-            codeVerifier: sessionStorage.getItem('mp_code_verifier') || null,
+            codeVerifier,
           }),
         });
         const data = await res.json();
