@@ -4,17 +4,23 @@
 
 export const COLORS = {
   primary: "#7C3AED",
-  primaryLight: "#A78BFA",
-  primaryDark: "#5B21B6",
+  primaryLight: "#F3EEFF",
+  primaryDark: "#6D28D9",
   accent: "#F59E0B",
-  accentLight: "#FDE68A",
+  accentLight: "#FEF3C7",
+  ink: "#1a1a2e",
+  inkSoft: "#4B5563",
+  inkMuted: "#9CA3AF",
   bg: "#FAFAFA",
+  borderSoft: "#F3F4F6",
   card: "#FFFFFF",
   text: "#1F2937",
   textLight: "#6B7280",
-  border: "#E5E7EB",
+  border: "#EAEAEA",
+  borderLight: "#E5E7EB",
   success: "#10B981",
   successLight: "#D1FAE5",
+  danger: "#EF4444",
   error: "#EF4444",
 };
 
