@@ -796,8 +796,6 @@ export default function App() {
         const inviteToken = window.location.pathname.replace('/invite/', '');
         return <InviteLandingPage token={inviteToken} />;
       }
-      case "new-ui":
-        return <AppLayout />;
       default:
         return <HomePage onRegister={() => navigate("register")} onExplore={() => navigate("explore")} />;
     }
@@ -829,6 +827,11 @@ export default function App() {
   // Admin ocupa toda la pantalla sin navbar ni footer
   if (page === "admin") {
     return <AdminShell profile={profile} onExit={() => navigate("home")} />;
+  }
+
+  // New UI ocupa toda la pantalla sin navbar ni footer
+  if (page === "new-ui") {
+    return <AppLayout />;
   }
 
   return (
