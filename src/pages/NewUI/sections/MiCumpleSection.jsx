@@ -122,36 +122,36 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
         />
       </div>
 
-      {/* MIS REGALOS (lista de gift_items con progress individual) */}
-      <h2 style={{ fontSize: isMobile ? 16 : 22, fontWeight: 800, color: C.ink, margin: '0 0 16px' }}>
-        Mis regalos
-      </h2>
-      {hasRegalos ? (
+      {/* COMPARTÍ CON TUS GRUPOS */}
+      <div style={{ marginBottom: isMobile ? 24 : 32 }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+          marginBottom: 16,
+        }}>
+          <h2 style={{ fontSize: isMobile ? 16 : 22, fontWeight: 800, color: C.ink, margin: 0 }}>
+            Compartí con tus grupos
+          </h2>
+          <button style={{
+            background: 'none', border: 'none', color: C.primary,
+            fontSize: isMobile ? 12 : 14, fontWeight: 700, cursor: 'pointer',
+          }}>
+            + Nuevo grupo
+          </button>
+        </div>
+
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-          gap: isMobile ? 8 : 14,
-          marginBottom: isMobile ? 24 : 32,
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
+          gap: isMobile ? 10 : 16,
         }}>
-          {items.map(item => (
-            <RegaloCard key={item.id} item={item} contributions={contributions.filter(c => c.gift_item_id === item.id)} isMobile={isMobile} />
-          ))}
+          <GrupoCard icon="❤️" nombre="Familia" isMobile={isMobile} />
+          <GrupoCard icon="💼" nombre="Trabajo" isMobile={isMobile} />
+          <GrupoCard icon="👥" nombre="Amigos" isMobile={isMobile} />
+          <GrupoCard icon="🎓" nombre="Facultad" isMobile={isMobile} />
+          <GrupoCard icon="🤝" nombre="Conocidos" isMobile={isMobile} />
+          <GrupoCard icon="➕" nombre="Nuevo grupo" isAdd={true} isMobile={isMobile} />
         </div>
-      ) : (
-        <div style={{
-          background: 'white', borderRadius: 16, padding: 24, textAlign: 'center',
-          border: `1px dashed ${C.border}`, marginBottom: isMobile ? 24 : 32,
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>🎁</div>
-          <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 12 }}>
-            Aún no tenés regalos cargados
-          </div>
-          <button style={{
-            padding: '10px 20px', borderRadius: 12, border: 'none',
-            background: C.primary, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-          }}>Agregar regalo</button>
-        </div>
-      )}
+      </div>
 
       {/* JUEGOS DE CUMPLEAÑOS - siempre aparece al final */}
       <div style={{
@@ -339,6 +339,51 @@ function RegaloCard({ item, contributions, isMobile }) {
           {Math.round(pct)}% juntado
         </div>
       </div>
+    </div>
+  );
+}
+
+function GrupoCard({ icon, nombre, isAdd, isMobile }) {
+  const bgColor = !isAdd ? 'white' : C.bg;
+  const borderStyle = !isAdd ? `1px solid ${C.border}` : `2px dashed ${C.border}`;
+  
+  return (
+    <div style={{
+      background: bgColor,
+      border: borderStyle,
+      borderRadius: isMobile ? 14 : 16,
+      padding: isMobile ? 12 : 16,
+      textAlign: 'center',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: isMobile ? 100 : 120,
+    }}>
+      <div style={{
+        fontSize: isMobile ? 28 : 32,
+        marginBottom: 8,
+      }}>
+        {icon}
+      </div>
+      <div style={{
+        fontSize: isMobile ? 13 : 14,
+        fontWeight: 700,
+        color: C.ink,
+      }}>
+        {nombre}
+      </div>
+      {!isAdd && (
+        <div style={{
+          fontSize: isMobile ? 10 : 11,
+          color: C.inkMuted,
+          marginTop: 4,
+        }}>
+          Sin contactos
+        </div>
+      )}
     </div>
   );
 }
