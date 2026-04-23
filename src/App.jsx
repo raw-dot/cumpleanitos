@@ -358,6 +358,7 @@ const PAGE_ROUTES = {
   'mp-pendiente': '/pago/pendiente',
   'mp-error': '/pago/error',
   'organize': '/organizar',
+  'new-ui': '/new-ui',
 };
 const ROUTE_PAGES = Object.fromEntries(Object.entries(PAGE_ROUTES).map(([k, v]) => [v, k]));
 
@@ -369,6 +370,10 @@ function getInitialPage() {
   if (path === '/pago/exito') return 'mp-exito';
   if (path === '/pago/pendiente') return 'mp-pendiente';
   if (path === '/pago/error') return 'mp-error';
+  if (path === '/new-ui') return 'new-ui';
+  // En TEST, la raíz va al nuevo UI
+  const isTestEnv = typeof window !== 'undefined' && window.location.hostname.startsWith('test.');
+  if (isTestEnv && path === '/') return 'new-ui';
   return ROUTE_PAGES[path] || 'home';
 }
 
@@ -729,6 +734,11 @@ export default function App() {
     setProfile(prev => ({ ...prev, cover_url: url }));
   };
 
+  // New UI ocupa toda la pantalla sin navbar ni footer (antes del loading para que siempre muestre)
+  if (page === "new-ui") {
+    return <AppLayout />;
+  }
+
   if (loading) {
     return (
       <div style={{ fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", display: "flex", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: COLORS.textLight }}>
@@ -827,11 +837,6 @@ export default function App() {
   // Admin ocupa toda la pantalla sin navbar ni footer
   if (page === "admin") {
     return <AdminShell profile={profile} onExit={() => navigate("home")} />;
-  }
-
-  // New UI ocupa toda la pantalla sin navbar ni footer
-  if (page === "new-ui") {
-    return <AppLayout />;
   }
 
   return (
