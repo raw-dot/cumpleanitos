@@ -140,9 +140,9 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
               }} />
             </div>
 
-            {/* Stats inferior */}
+            {/* Stats inferior + Ver button */}
             <div style={{ 
-              display: 'flex', gap: 16, marginTop: 16,
+              display: 'flex', gap: 16, marginTop: 16, alignItems: 'center',
               paddingTop: 14, borderTop: `1px solid ${C.borderSoft}`,
             }}>
               <div style={{ flex: 1 }}>
@@ -161,6 +161,17 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
                   regalos recibidos
                 </div>
               </div>
+              <button
+                onClick={() => items.length > 0 && handleTabChange('miregalo')}
+                style={{
+                  padding: '8px 12px', borderRadius: 8, border: 'none',
+                  background: C.primary, color: 'white',
+                  fontWeight: 700, fontSize: 12, cursor: items.length > 0 ? 'pointer' : 'not-allowed',
+                  opacity: items.length > 0 ? 1 : 0.5,
+                }}
+              >
+                Ver
+              </button>
             </div>
 
             {/* Botón Ver */}
