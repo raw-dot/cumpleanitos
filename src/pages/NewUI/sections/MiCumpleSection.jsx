@@ -97,7 +97,7 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
             {days !== null ? `día${days !== 1 ? 's' : ''} para tu fiesta` : 'tu fecha de cumpleaños'}
           </div>
           <button 
-            onClick={() => handleTabChange && handleTabChange('compartir')}
+            onClick={() => handleTabChange && (campaign ? handleTabChange('miregalo') : handleTabChange('compartir'))}
             style={{
               marginTop: isMobile ? 16 : 22,
               padding: isMobile ? '10px 16px' : '12px 22px',
@@ -106,7 +106,7 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
               fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: 'pointer',
               position: 'relative', zIndex: 1,
             }}>
-            {campaign ? 'Compartir mi campaña →' : 'Crear campaña →'}
+            {campaign ? 'Ver mi regalo →' : 'Crear regalo →'}
           </button>
         </div>
 
@@ -122,7 +122,7 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
               fontSize: 12, color: C.inkMuted, fontWeight: 700, 
               textTransform: 'uppercase', letterSpacing: 0.6,
             }}>
-              Tu colecta
+              Tu regalo
             </div>
             <div style={{ 
               fontSize: isMobile ? 32 : 40, fontWeight: 800, 

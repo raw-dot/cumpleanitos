@@ -139,7 +139,7 @@ export default function CompartirLinkSection({ profile, session, isMobile, handl
         onNavigate={handleTabChange} 
         isMobile={isMobile} 
       />
-      <h1 style={titleStyle}>Compartí tu link</h1>
+      <h1 style={titleStyle}>Compartí tu regalo</h1>
       <p style={subtitleStyle}>
         Tus amigos van a poder regalarte sin necesidad de registrarse
       </p>

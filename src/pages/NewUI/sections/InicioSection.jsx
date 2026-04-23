@@ -128,13 +128,15 @@ export default function InicioSection({ profile, isMobile, session, handleTabCha
           Solo mi cumple si no hay amigos próximos */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : (hasUpcomingFriend ? '1.4fr 1fr' : '1fr'),
+        gridTemplateColumns: isMobile ? '1fr' : (hasUpcomingFriend ? '1.4fr 1fr' : '1fr 1fr'),
         gap: isMobile ? 0 : 20,
         marginBottom: isMobile ? 20 : 32,
       }}>
-        {/* Hero card: próximo cumple amigo */}
-        {hasUpcomingFriend && (
+        {/* Hero card: próximo cumple amigo O Organizar cumple */}
+        {hasUpcomingFriend ? (
           <HeroCard friend={upcomingFriends[0]} isMobile={isMobile} />
+        ) : (
+          <OrganizarCard isMobile={isMobile} onClick={() => handleTabChange('wizard')} />
         )}
 
         {/* Mi cumple - SIEMPRE se muestra, mobile y desktop */}
@@ -384,6 +386,53 @@ function EmptyState({ message, cta, onClick }) {
         padding: '10px 20px', borderRadius: 12, border: 'none',
         background: C.primary, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer',
       }}>{cta}</button>
+    </div>
+  );
+}
+
+function OrganizarCard({ isMobile, onClick }) {
+  const bg = `linear-gradient(135deg, ${C.primary} 0%, ${C.primaryDark} 100%)`;
+  return (
+    <div onClick={onClick} style={{
+      background: bg,
+      borderRadius: isMobile ? 20 : 24,
+      padding: isMobile ? 20 : 32,
+      color: 'white', marginBottom: isMobile ? 20 : 0,
+      position: 'relative', overflow: 'hidden',
+      minHeight: isMobile ? 'auto' : 260,
+      cursor: 'pointer',
+      display: 'flex', flexDirection: 'column', justifyContent: 'center',
+    }}>
+      <div style={{
+        position: 'absolute', right: -20, top: -20,
+        fontSize: isMobile ? 140 : 220, opacity: 0.15,
+      }}>🎁</div>
+      <div style={{
+        fontSize: isMobile ? 11 : 12, fontWeight: 700,
+        opacity: 0.85, letterSpacing: 0.5, textTransform: 'uppercase',
+        position: 'relative', zIndex: 1,
+      }}>
+        Sin cumples próximos
+      </div>
+      <div style={{
+        fontSize: isMobile ? 24 : 34, fontWeight: 800,
+        marginTop: 6, letterSpacing: isMobile ? -0.4 : -0.8,
+        position: 'relative', zIndex: 1,
+      }}>
+        ¿Querés organizar el cumple de alguien?
+      </div>
+      <div style={{ fontSize: isMobile ? 13 : 14, opacity: 0.9, marginTop: 6, position: 'relative', zIndex: 1 }}>
+        Sumáte a una colecta entre amigos
+      </div>
+
+      <div style={{ display: 'flex', gap: isMobile ? 8 : 10, marginTop: isMobile ? 14 : 22, position: 'relative', zIndex: 1 }}>
+        <button style={{
+          flex: 1, padding: isMobile ? '10px 14px' : '12px 22px',
+          borderRadius: 12, border: 'none',
+          background: 'white', color: C.primary,
+          fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: 'pointer',
+        }}>Organizar regalo</button>
+      </div>
     </div>
   );
 }
