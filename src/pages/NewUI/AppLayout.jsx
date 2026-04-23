@@ -6,6 +6,7 @@ import BottomNav from './components/BottomNav';
 import InicioSection from './sections/InicioSection';
 import AmigosSection from './sections/AmigosSection';
 import MiCumpleSection from './sections/MiCumpleSection';
+import MisRegalosRecibidosSection from './sections/MisRegalosRecibidosSection';
 import CalendarioSection from './sections/CalendarioSection';
 import OrganizadorSection from './sections/OrganizadorSection';
 import ProfileDrawer from './components/ProfileDrawer';
@@ -66,7 +67,7 @@ export default function AppLayout() {
     window.history.pushState({ tab }, '', `/new-ui?tab=${tab}`);
   };
 
-  const commonProps = { session, profile, loading, isMobile };
+  const commonProps = { session, profile, loading, isMobile, handleTabChange };
 
   return (
     <div style={{
@@ -100,6 +101,7 @@ export default function AppLayout() {
         {activeTab === 'inicio' && <InicioSection {...commonProps} />}
         {activeTab === 'amigos' && <AmigosSection {...commonProps} />}
         {activeTab === 'micumple' && <MiCumpleSection {...commonProps} />}
+        {activeTab === 'misregalos' && <MisRegalosRecibidosSection {...commonProps} />}
         {activeTab === 'calendario' && <CalendarioSection {...commonProps} />}
         {activeTab === 'organizador' && <OrganizadorSection {...commonProps} />}
       </div>

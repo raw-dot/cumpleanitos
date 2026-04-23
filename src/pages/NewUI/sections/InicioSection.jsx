@@ -3,7 +3,7 @@ import { Plus, UserPlus, Gift, Gamepad2, ChevronRight, Sparkles, Cake } from 'lu
 import { C, getInitial, calcDaysUntil, formatCurrency } from '../theme';
 import { supabase } from '../../../supabaseClient';
 
-export default function InicioSection({ profile, isMobile, session }) {
+export default function InicioSection({ profile, isMobile, session, handleTabChange }) {
   const [upcomingFriends, setUpcomingFriends] = useState([]);
   const [activeCampaign, setActiveCampaign] = useState(null);
 
@@ -102,7 +102,7 @@ export default function InicioSection({ profile, isMobile, session }) {
       }}>
         <QuickAction icon={Plus} label="Organizar cumple" desc="Para un amigo" color={C.primary} isMobile={isMobile} />
         <QuickAction icon={UserPlus} label="Invitar amigos" desc="Al link personal" color={C.accent} isMobile={isMobile} />
-        <QuickAction icon={Gift} label="Regalar" desc="A tu agenda" color="#EC4899" isMobile={isMobile} />
+        <QuickAction icon={Gift} label="Mis regalos" desc="Aportes recibidos" color="#EC4899" isMobile={isMobile} onClick={() => handleTabChange('misregalos')} />
         <QuickAction icon={Gamepad2} label="Jugar" desc="Juegos de cumple" color="#10B981" isMobile={isMobile} />
       </div>
 
@@ -215,9 +215,9 @@ function MiCumpleMini({ days }) {
   );
 }
 
-function QuickAction({ icon: Icon, label, desc, color, isMobile }) {
+function QuickAction({ icon: Icon, label, desc, color, isMobile, onClick }) {
   return (
-    <button style={{
+    <button onClick={onClick} style={{
       background: 'white', border: `1px solid ${C.border}`,
       borderRadius: isMobile ? 16 : 18,
       padding: isMobile ? 14 : 20,
