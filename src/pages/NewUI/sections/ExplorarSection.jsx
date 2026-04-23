@@ -3,7 +3,7 @@ import { Search, Calendar } from 'lucide-react';
 import { C, calcDaysUntil, formatDay } from '../theme';
 import { supabase } from '../../../supabaseClient';
 
-export default function ExplorarSection({ profile, session, isMobile, handleTabChange }) {
+export default function ExplorarSection({ profile, session, isMobile, handleTabChange, navigateToFriendProfile }) {
   const [friends, setFriends] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -220,10 +220,7 @@ export default function ExplorarSection({ profile, session, isMobile, handleTabC
           return (
             <button
               key={friend.id}
-              onClick={() => {
-                // TODO: navegar a perfil del amigo
-                console.log('Click en', friend.username);
-              }}
+              onClick={() => navigateToFriendProfile(friend.username)}
               style={{
                 ...cardStyle,
                 flexDirection: isMobile ? 'row' : 'row',

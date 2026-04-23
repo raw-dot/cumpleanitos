@@ -38,6 +38,7 @@ export default function AppLayout() {
   const [loading, setLoading] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [selectedFriendUsername, setSelectedFriendUsername] = useState(null);
   const isMobile = useIsMobile();
 
   useEffect(() => {
@@ -74,6 +75,11 @@ export default function AppLayout() {
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     window.history.pushState({ tab }, '', `/new-ui?tab=${tab}`);
+  };
+
+  const navigateToFriendProfile = (username) => {
+    setSelectedFriendUsername(username);
+    handleTabChange('perfil-amigo');
   };
 
   const commonProps = { session, profile, loading, isMobile, handleTabChange };
@@ -114,8 +120,8 @@ export default function AppLayout() {
         {activeTab === 'misregalos' && <MisRegalosRecibidosSection {...commonProps} />}
         {activeTab === 'gestionar' && <GestionarRegalosSection {...commonProps} />}
         {activeTab === 'compartir' && <CompartirLinkSection {...commonProps} />}
-        {activeTab === 'explorar' && <ExplorarSection {...commonProps} />}
-        {activeTab === 'perfil-amigo' && <PerfilAmigoSection {...commonProps} />}
+        {activeTab === 'explorar' && <ExplorarSection {...commonProps} navigateToFriendProfile={navigateToFriendProfile} />}
+        {activeTab === 'perfil-amigo' && <PerfilAmigoSection {...commonProps} friendUsername={selectedFriendUsername} />}
         {activeTab === 'regalos-hechos' && <RegalosHechosSection {...commonProps} />}
         {activeTab === 'configuracion' && <ConfiguracionSection {...commonProps} />}
         {activeTab === 'wizard' && <WizardOrganizarSection {...commonProps} />}
