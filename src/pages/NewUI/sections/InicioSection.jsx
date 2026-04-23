@@ -6,57 +6,105 @@ import { supabase } from '../../../supabaseClient';
 export default function InicioSection({ profile, isMobile, session, handleTabChange }) {
   const [upcomingFriends, setUpcomingFriends] = useState([]);
   const [activeCampaign, setActiveCampaign] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (session?.user?.id) {
       loadData();
+    } else {
+      setLoading(false);
     }
   }, [session]);
 
   const loadData = async () => {
-    // Cargar amigos con cumpleaños próximos
-    const { data: friendsData } = await supabase
-      .from('friends')
-      .select('friend_id, profiles!friends_friend_id_fkey(id, name, username, avatar_url, birthday)')
-      .eq('user_id', session.user.id)
-      .limit(4);
+    try {
+      // Intentar cargar amigos desde la tabla friends
+      // Fallback: usar todos los perfiles con cumpleaños próximos
+      let friends = [];
 
-    if (friendsData) {
-      const withDays = friendsData
+      // Opción 1: Friends table con join
+      try {
+        const { data: friendsData, error: friendsError } = await supabase
+          .from('friends')
+          .select('friend_id')
+          .eq('user_id', session.user.id);
+
+        if (!friendsError && friendsData && friendsData.length > 0) {
+          // Cargar perfiles de esos amigos
+          const friendIds = friendsData.map(f => f.friend_id);
+          const { data: profilesData } = await supabase
+            .from('profiles')
+            .select('id, name, full_name, username, avatar_url, birthday')
+            .in('id', friendIds)
+            .not('birthday', 'is', null);
+
+          if (profilesData) {
+            friends = profilesData;
+          }
+        }
+      } catch (err) {
+        console.log('Friends table not available, using all profiles');
+      }
+
+      // Fallback: si no hay amigos, mostrar perfiles random con cumples próximos
+      if (friends.length === 0) {
+        const { data: allProfiles } = await supabase
+          .from('profiles')
+          .select('id, name, full_name, username, avatar_url, birthday')
+          .neq('id', session.user.id)
+          .not('birthday', 'is', null)
+          .limit(20);
+
+        if (allProfiles) {
+          friends = allProfiles;
+        }
+      }
+
+      // Calcular días y filtrar
+      const withDays = friends
         .map(f => ({
-          id: f.profiles?.id,
-          name: f.profiles?.name,
-          username: f.profiles?.username,
-          avatar_url: f.profiles?.avatar_url,
-          birthday: f.profiles?.birthday,
-          days: calcDaysUntil(f.profiles?.birthday),
+          id: f.id,
+          name: f.name || f.full_name || f.username,
+          username: f.username,
+          avatar_url: f.avatar_url,
+          birthday: f.birthday,
+          days: calcDaysUntil(f.birthday),
         }))
-        .filter(f => f.days !== null)
-        .sort((a, b) => a.days - b.days);
+        .filter(f => f.days !== null && f.days >= 0)
+        .sort((a, b) => a.days - b.days)
+        .slice(0, 8);
+
       setUpcomingFriends(withDays);
+
+      // Cargar campaña activa propia
+      const { data: campData } = await supabase
+        .from('gift_campaigns')
+        .select('*')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (campData) setActiveCampaign(campData);
+    } catch (err) {
+      console.error('Error loading data:', err);
+    } finally {
+      setLoading(false);
     }
-
-    // Cargar campaña activa propia
-    const { data: campData } = await supabase
-      .from('gift_campaigns')
-      .select('*')
-      .eq('user_id', session.user.id)
-      .eq('is_active', true)
-      .limit(1)
-      .maybeSingle();
-
-    if (campData) setActiveCampaign(campData);
   };
 
   const daysToMyBday = calcDaysUntil(profile?.birthday);
-  const firstName = profile?.name?.split(' ')[0] || 'Cumpleañero';
+  const firstName = profile?.full_name?.split(' ')[0] || profile?.name?.split(' ')[0] || profile?.username || 'amigo';
+  const capitalizedName = firstName.charAt(0).toUpperCase() + firstName.slice(1);
+
+  const hasUpcomingFriend = upcomingFriends.length > 0;
 
   return (
     <div style={{ padding: isMobile ? '16px 20px 20px' : 0 }}>
       {/* Saludo */}
       <div style={{ marginBottom: isMobile ? 20 : 32 }}>
         <div style={{ fontSize: isMobile ? 13 : 14, color: C.inkMuted, fontWeight: 500 }}>
-          Hola, {firstName} 👋
+          Hola, {capitalizedName} 👋
         </div>
         <h1 style={{
           fontSize: isMobile ? 28 : 42,
@@ -66,29 +114,32 @@ export default function InicioSection({ profile, isMobile, session, handleTabCha
           letterSpacing: isMobile ? -0.8 : -1.2,
           lineHeight: 1.15,
         }}>
-          {daysToMyBday !== null && daysToMyBday < 60
-            ? `Tu cumple es en ${daysToMyBday} días`
-            : upcomingFriends.length > 0
-            ? isMobile ? <>Próximo cumple<br/>está cerca</> : 'Tu próximo cumple está cerca'
-            : '¡Bienvenido!'}
+          {hasUpcomingFriend
+            ? (isMobile 
+                ? <>Tu próximo cumple<br/>está cerca</> 
+                : 'Tu próximo cumple está cerca')
+            : (daysToMyBday !== null && daysToMyBday < 60
+                ? `Tu cumple es en ${daysToMyBday} días`
+                : '¡Bienvenido!')}
         </h1>
       </div>
 
-      {/* Layout: en desktop dos columnas (hero + mi cumple mini) */}
+      {/* Layout: dos columnas en desktop (hero + mi cumple), 
+          Solo mi cumple si no hay amigos próximos */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1.4fr 1fr',
+        gridTemplateColumns: isMobile ? '1fr' : (hasUpcomingFriend ? '1.4fr 1fr' : '1fr'),
         gap: isMobile ? 0 : 20,
         marginBottom: isMobile ? 20 : 32,
       }}>
         {/* Hero card: próximo cumple amigo */}
-        {upcomingFriends[0] && (
+        {hasUpcomingFriend && (
           <HeroCard friend={upcomingFriends[0]} isMobile={isMobile} />
         )}
 
-        {/* Mi cumple (solo desktop) */}
-        {!isMobile && daysToMyBday !== null && (
-          <MiCumpleMini days={daysToMyBday} />
+        {/* Mi cumple - SIEMPRE se muestra, mobile y desktop */}
+        {daysToMyBday !== null && (
+          <MiCumpleMini days={daysToMyBday} isMobile={isMobile} onClick={() => handleTabChange('micumple')} />
         )}
       </div>
 
@@ -100,8 +151,8 @@ export default function InicioSection({ profile, isMobile, session, handleTabCha
         gap: isMobile ? 10 : 14,
         marginBottom: isMobile ? 24 : 40,
       }}>
-        <QuickAction icon={Plus} label="Organizar cumple" desc="Para un amigo" color={C.primary} isMobile={isMobile} />
-        <QuickAction icon={UserPlus} label="Invitar amigos" desc="Al link personal" color={C.accent} isMobile={isMobile} />
+        <QuickAction icon={Plus} label="Organizar cumple" desc="Para un amigo" color={C.primary} isMobile={isMobile} onClick={() => handleTabChange('wizard')} />
+        <QuickAction icon={UserPlus} label="Invitar amigos" desc="Al link personal" color={C.accent} isMobile={isMobile} onClick={() => handleTabChange('compartir')} />
         <QuickAction icon={Gift} label="Mis regalos" desc="Aportes recibidos" color="#EC4899" isMobile={isMobile} onClick={() => handleTabChange('misregalos')} />
         <QuickAction icon={Gamepad2} label="Jugar" desc="Juegos de cumple" color="#10B981" isMobile={isMobile} />
       </div>
@@ -109,10 +160,12 @@ export default function InicioSection({ profile, isMobile, session, handleTabCha
       {/* Próximos cumples */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: isMobile ? 12 : 16 }}>
         <SectionTitle isMobile={isMobile} noMargin>Próximos cumples</SectionTitle>
-        <button style={{
-          background: 'none', border: 'none', color: C.primary,
-          fontSize: isMobile ? 13 : 14, fontWeight: 600, cursor: 'pointer',
-        }}>
+        <button 
+          onClick={() => handleTabChange('explorar')}
+          style={{
+            background: 'none', border: 'none', color: C.primary,
+            fontSize: isMobile ? 13 : 14, fontWeight: 600, cursor: 'pointer',
+          }}>
           Ver agenda {!isMobile && '→'}
         </button>
       </div>
@@ -125,13 +178,14 @@ export default function InicioSection({ profile, isMobile, session, handleTabCha
           display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14,
         }}>
           {upcomingFriends.slice(0, 4).map(f => (
-            <FriendCard key={f.id} friend={f} isMobile={isMobile} />
+            <FriendCard key={f.id} friend={f} isMobile={isMobile} onClick={() => handleTabChange('explorar')} />
           ))}
         </div>
       ) : (
         <EmptyState
-          message="Aún no agregaste amigos"
+          message={loading ? "Cargando amigos..." : "Aún no agregaste amigos"}
           cta="Agregar amigos"
+          onClick={() => handleTabChange('explorar')}
         />
       )}
     </div>
@@ -156,60 +210,85 @@ function HeroCard({ friend, isMobile }) {
       <div style={{
         fontSize: isMobile ? 11 : 12, fontWeight: 700,
         opacity: 0.85, letterSpacing: 0.5, textTransform: 'uppercase',
+        position: 'relative', zIndex: 1,
       }}>
-        En {friend.days} día{friend.days !== 1 ? 's' : ''}
+        En {friend.days} día{friend.days !== 1 ? 's' : ''} · Organizás vos
       </div>
       <div style={{
         fontSize: isMobile ? 24 : 34, fontWeight: 800,
         marginTop: 6, letterSpacing: isMobile ? -0.4 : -0.8,
+        position: 'relative', zIndex: 1,
       }}>
         Cumple de {friend.name?.split(' ')[0]}
       </div>
-      <div style={{ fontSize: isMobile ? 13 : 14, opacity: 0.9, marginTop: 6 }}>
+      <div style={{ fontSize: isMobile ? 13 : 14, opacity: 0.9, marginTop: 6, position: 'relative', zIndex: 1 }}>
         @{friend.username}
       </div>
-      <div style={{ display: 'flex', gap: isMobile ? 8 : 10, marginTop: isMobile ? 14 : 22 }}>
+
+      {/* Progress bar */}
+      <div style={{
+        background: 'rgba(255,255,255,0.25)', height: 6, borderRadius: 4,
+        marginTop: 14, overflow: 'hidden', position: 'relative', zIndex: 1,
+      }}>
+        <div style={{ width: '56%', height: '100%', background: C.accent, borderRadius: 4 }} />
+      </div>
+
+      <div style={{ display: 'flex', gap: isMobile ? 8 : 10, marginTop: isMobile ? 14 : 22, position: 'relative', zIndex: 1 }}>
         <button style={{
           flex: 1, padding: isMobile ? '10px 14px' : '12px 22px',
           borderRadius: 12, border: 'none',
           background: 'white', color: C.primary,
           fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: 'pointer',
-        }}>Regalar</button>
+        }}>Compartir link</button>
         <button style={{
           padding: isMobile ? '10px 14px' : '12px 22px',
           borderRadius: 12, border: '1px solid rgba(255,255,255,0.4)',
           background: 'transparent', color: 'white',
           fontWeight: 600, fontSize: isMobile ? 13 : 14, cursor: 'pointer',
-        }}>Ver perfil</button>
+        }}>Ver detalle</button>
       </div>
     </div>
   );
 }
 
-function MiCumpleMini({ days }) {
+function MiCumpleMini({ days, isMobile, onClick }) {
   return (
     <div style={{
       background: `linear-gradient(135deg, ${C.accent} 0%, #EC4899 100%)`,
-      borderRadius: 24, padding: 28, color: 'white',
-      position: 'relative', overflow: 'hidden',
-    }}>
-      <div style={{ position: 'absolute', right: -20, bottom: -30, fontSize: 130, opacity: 0.2 }}>🎁</div>
+      borderRadius: isMobile ? 20 : 24,
+      padding: isMobile ? 22 : 28,
+      color: 'white',
+      position: 'relative',
+      overflow: 'hidden',
+      marginBottom: isMobile ? 20 : 0,
+      cursor: 'pointer',
+    }} onClick={onClick}>
+      <div style={{ 
+        position: 'absolute', right: -20, bottom: -30, 
+        fontSize: isMobile ? 100 : 130, opacity: 0.2 
+      }}>🎁</div>
       <div style={{
-        fontSize: 12, fontWeight: 700, opacity: 0.9,
+        fontSize: isMobile ? 11 : 12, fontWeight: 700, opacity: 0.9,
         textTransform: 'uppercase', letterSpacing: 0.6,
+        position: 'relative', zIndex: 1,
       }}>
         Mi cumpleaños
       </div>
       <div style={{
-        fontSize: 64, fontWeight: 900, letterSpacing: -2, lineHeight: 1, marginTop: 10,
+        fontSize: isMobile ? 56 : 64, fontWeight: 900, 
+        letterSpacing: -2, lineHeight: 1, marginTop: 10,
+        position: 'relative', zIndex: 1,
       }}>{days}</div>
-      <div style={{ fontSize: 16, fontWeight: 600 }}>
+      <div style={{ fontSize: isMobile ? 14 : 16, fontWeight: 600, position: 'relative', zIndex: 1 }}>
         día{days !== 1 ? 's' : ''} para la fiesta
       </div>
       <button style={{
-        marginTop: 20, padding: '10px 18px', borderRadius: 12, border: 'none',
+        marginTop: isMobile ? 16 : 20,
+        padding: isMobile ? '8px 14px' : '10px 18px', 
+        borderRadius: 12, border: 'none',
         background: 'white', color: '#EC4899',
-        fontWeight: 700, fontSize: 13, cursor: 'pointer',
+        fontWeight: 700, fontSize: isMobile ? 12 : 13, cursor: 'pointer',
+        position: 'relative', zIndex: 1,
       }}>Ver mi campaña →</button>
     </div>
   );
@@ -243,13 +322,14 @@ function QuickAction({ icon: Icon, label, desc, color, isMobile, onClick }) {
   );
 }
 
-function FriendCard({ friend, isMobile }) {
+function FriendCard({ friend, isMobile, onClick }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       minWidth: isMobile ? 140 : 'auto',
       background: 'white', borderRadius: isMobile ? 16 : 18,
       padding: isMobile ? 14 : 18,
       border: `1px solid ${C.border}`,
+      cursor: 'pointer',
     }}>
       {friend.avatar_url ? (
         <img src={friend.avatar_url} alt={friend.name} style={{
@@ -293,14 +373,14 @@ function SectionTitle({ children, isMobile, noMargin }) {
   );
 }
 
-function EmptyState({ message, cta }) {
+function EmptyState({ message, cta, onClick }) {
   return (
     <div style={{
       background: 'white', borderRadius: 16, padding: 24,
       border: `1px dashed ${C.border}`, textAlign: 'center',
     }}>
       <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 12 }}>{message}</div>
-      <button style={{
+      <button onClick={onClick} style={{
         padding: '10px 20px', borderRadius: 12, border: 'none',
         background: C.primary, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer',
       }}>{cta}</button>
