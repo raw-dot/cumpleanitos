@@ -9,6 +9,9 @@ import MiCumpleSection from './sections/MiCumpleSection';
 import MisRegalosRecibidosSection from './sections/MisRegalosRecibidosSection';
 import GestionarRegalosSection from './sections/GestionarRegalosSection';
 import CompartirLinkSection from './sections/CompartirLinkSection';
+import ExplorarSection from './sections/ExplorarSection';
+import PerfilAmigoSection from './sections/PerfilAmigoSection';
+import RegalosHechosSection from './sections/RegalosHechosSection';
 import CalendarioSection from './sections/CalendarioSection';
 import OrganizadorSection from './sections/OrganizadorSection';
 import ProfileDrawer from './components/ProfileDrawer';
@@ -106,6 +109,9 @@ export default function AppLayout() {
         {activeTab === 'misregalos' && <MisRegalosRecibidosSection {...commonProps} />}
         {activeTab === 'gestionar' && <GestionarRegalosSection {...commonProps} />}
         {activeTab === 'compartir' && <CompartirLinkSection {...commonProps} />}
+        {activeTab === 'explorar' && <ExplorarSection {...commonProps} />}
+        {activeTab === 'perfil-amigo' && <PerfilAmigoSection {...commonProps} />}
+        {activeTab === 'regalos-hechos' && <RegalosHechosSection {...commonProps} />}
         {activeTab === 'calendario' && <CalendarioSection {...commonProps} />}
         {activeTab === 'organizador' && <OrganizadorSection {...commonProps} />}
       </div>
