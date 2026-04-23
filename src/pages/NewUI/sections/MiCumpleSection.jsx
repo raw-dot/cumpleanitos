@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Briefcase, GraduationCap, Heart, UserPlus, Plus, Gamepad2, ChevronRight } from 'lucide-react';
+import { Users, Briefcase, GraduationCap, Heart, UserPlus, Plus, Gamepad2, ChevronRight, UserCheck } from 'lucide-react';
 import { C, calcDaysUntil, formatCurrency, formatDay } from '../theme';
 import { supabase } from '../../../supabaseClient';
 
@@ -141,15 +141,15 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
 
         <div style={{
           display: 'grid',
-          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(6, 1fr)',
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)',
           gap: isMobile ? 10 : 16,
         }}>
-          <GrupoCard icon="❤️" nombre="Familia" isMobile={isMobile} />
-          <GrupoCard icon="💼" nombre="Trabajo" isMobile={isMobile} />
-          <GrupoCard icon="👥" nombre="Amigos" isMobile={isMobile} />
-          <GrupoCard icon="🎓" nombre="Facultad" isMobile={isMobile} />
-          <GrupoCard icon="🤝" nombre="Conocidos" isMobile={isMobile} />
-          <GrupoCard icon="➕" nombre="Nuevo grupo" isAdd={true} isMobile={isMobile} />
+          <GrupoCard Icon={Heart}    nombre="Familia"      iconBg="#FCE7F3" iconColor="#EC4899" isMobile={isMobile} />
+          <GrupoCard Icon={Briefcase} nombre="Trabajo"     iconBg="#EDE9FE" iconColor="#7C3AED" isMobile={isMobile} />
+          <GrupoCard Icon={Users}    nombre="Amigos"       iconBg="#FEF3C7" iconColor="#F59E0B" isMobile={isMobile} />
+          <GrupoCard Icon={GraduationCap} nombre="Facultad" iconBg="#D1FAE5" iconColor="#10B981" isMobile={isMobile} />
+          <GrupoCard Icon={UserPlus} nombre="Conocidos"    iconBg="#DBEAFE" iconColor="#3B82F6" isMobile={isMobile} />
+          <GrupoCard Icon={Plus}     nombre="Nuevo grupo"  iconBg="#F3F4F6" iconColor="#6B7280" isAdd={true} isMobile={isMobile} />
         </div>
       </div>
 
@@ -343,59 +343,49 @@ function RegaloCard({ item, contributions, isMobile }) {
   );
 }
 
-function GrupoCard({ icon, nombre, isAdd, isMobile }) {
-  const colores = {
-    'Familia': { bg: '#FCE7F3', icon: '#EC4899' },
-    'Trabajo': { bg: '#EDE9FE', icon: '#7C3AED' },
-    'Amigos': { bg: '#FEF3C7', icon: '#F59E0B' },
-    'Facultad': { bg: '#D1FAE5', icon: '#10B981' },
-    'Conocidos': { bg: '#DBEAFE', icon: '#3B82F6' },
-    'Nuevo grupo': { bg: '#F3F4F6', icon: '#6B7280' },
-  };
-
-  const estilo = colores[nombre] || colores['Familia'];
-  const borderStyle = !isAdd ? `1px solid #E5E7EB` : `2px dashed #E5E7EB`;
-  
+function GrupoCard({ Icon, nombre, isAdd, iconBg, iconColor, isMobile }) {
   return (
     <div style={{
       background: 'white',
-      border: borderStyle,
-      borderRadius: isMobile ? 14 : 16,
-      padding: isMobile ? 16 : 20,
-      textAlign: 'center',
+      border: isAdd ? `2px dashed #E5E7EB` : `1px solid #E5E7EB`,
+      borderRadius: isMobile ? 16 : 20,
+      padding: isMobile ? 16 : 24,
       cursor: 'pointer',
-      transition: 'all 0.2s',
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: isMobile ? 110 : 130,
+      alignItems: 'flex-start',
+      justifyContent: 'flex-start',
+      minHeight: isMobile ? 110 : 160,
+      transition: 'box-shadow 0.2s',
     }}>
+      {/* Icon box */}
       <div style={{
-        width: isMobile ? 50 : 60,
-        height: isMobile ? 50 : 60,
+        width: isMobile ? 44 : 56,
+        height: isMobile ? 44 : 56,
         borderRadius: isMobile ? 12 : 14,
-        background: estilo.bg,
+        background: iconBg,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        fontSize: isMobile ? 24 : 28,
-        marginBottom: 10,
+        marginBottom: isMobile ? 16 : 24,
       }}>
-        {icon}
+        <Icon size={isMobile ? 22 : 28} color={iconColor} strokeWidth={1.8} />
       </div>
+
+      {/* Texto */}
       <div style={{
-        fontSize: isMobile ? 14 : 15,
+        fontSize: isMobile ? 14 : 16,
         fontWeight: 700,
         color: '#111827',
+        marginBottom: 4,
       }}>
         {nombre}
       </div>
       {!isAdd && (
         <div style={{
-          fontSize: isMobile ? 11 : 12,
+          fontSize: isMobile ? 11 : 13,
           color: '#9CA3AF',
-          marginTop: 4,
+          fontWeight: 400,
         }}>
           Sin contactos
         </div>
