@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Briefcase, GraduationCap, Heart, UserPlus, Plus } from 'lucide-react';
+import { Users, Briefcase, GraduationCap, Heart, UserPlus, Plus, Eye } from 'lucide-react';
 import { C, calcDaysUntil, formatCurrency, formatDay } from '../theme';
 import { supabase } from '../../../supabaseClient';
 
@@ -16,7 +16,6 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
   const loadData = async () => {
     try {
       setLoading(true);
-      // 1. Buscar la campaña del usuario
       const { data: camp } = await supabase
         .from('gift_campaigns')
         .select('*')
@@ -28,7 +27,6 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
       if (camp) {
         setCampaign(camp);
 
-        // 2. Cargar regalos (gift_items) y contributions de esa campaña
         const [{ data: itemsData }, { data: contribData }] = await Promise.all([
           supabase.from('gift_items').select('*').eq('campaign_id', camp.id).order('created_at'),
           supabase.from('contributions').select('*').eq('campaign_id', camp.id).order('created_at', { ascending: false }),
@@ -44,7 +42,6 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
     }
   };
 
-  // Calcular stats reales
   const totalRaised = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
   const goalAmount = campaign?.goal_amount || items.reduce((sum, i) => sum + (parseFloat(i.price) || 0), 0) || 0;
   const progressPct = goalAmount > 0 ? Math.min(100, (totalRaised / goalAmount) * 100) : 0;
@@ -62,7 +59,7 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
         {days !== null ? `Faltan ${days} días · ${formatDay(profile?.birthday)}` : 'Configurá tu fecha de cumpleaños'}
       </p>
 
-      {/* Hero + Stats grid */}
+      {/* Hero + Mi regalo grid */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr',
@@ -96,8 +93,8 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
           <div style={{ fontSize: isMobile ? 15 : 20, fontWeight: 700, position: 'relative', zIndex: 1 }}>
             {days !== null ? `día${days !== 1 ? 's' : ''} para tu fiesta` : 'tu fecha de cumpleaños'}
           </div>
-          <button 
-            onClick={() => handleTabChange && (campaign ? handleTabChange('miregalo') : handleTabChange('compartir'))}
+          <button
+            onClick={() => handleTabChange && handleTabChange('compartir')}
             style={{
               marginTop: isMobile ? 16 : 22,
               padding: isMobile ? '10px 16px' : '12px 22px',
@@ -106,23 +103,21 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
               fontWeight: 700, fontSize: isMobile ? 13 : 14, cursor: 'pointer',
               position: 'relative', zIndex: 1,
             }}>
-            {campaign ? 'Ver mi regalo →' : 'Crear regalo →'}
+            Compartir mi regalo →
           </button>
         </div>
 
-        {/* TU COLECTA - card derecha (mobile y desktop) */}
+        {/* MI REGALO card derecha */}
         {campaign && (
           <div style={{
-            background: 'white',
-            borderRadius: isMobile ? 20 : 24,
-            padding: isMobile ? 22 : 28,
+            background: 'white', borderRadius: isMobile ? 20 : 24, padding: isMobile ? 22 : 28,
             border: `1px solid ${C.border}`,
           }}>
             <div style={{ 
               fontSize: 12, color: C.inkMuted, fontWeight: 700, 
               textTransform: 'uppercase', letterSpacing: 0.6,
             }}>
-              Tu regalo
+              Mi regalo
             </div>
             <div style={{ 
               fontSize: isMobile ? 32 : 40, fontWeight: 800, 
@@ -130,12 +125,12 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
             }}>
               {formatCurrency(totalRaised)}
             </div>
-            <div style={{ fontSize: 13, color: C.inkMuted }}>
+            <div style={{ fontSize: 13, color: C.inkMuted, marginBottom: 14 }}>
               de {formatCurrency(goalAmount)} · {Math.round(progressPct)}% juntado
             </div>
             <div style={{
               height: 10, background: C.borderSoft, borderRadius: 5,
-              marginTop: 14, overflow: 'hidden',
+              marginBottom: 6, overflow: 'hidden',
             }}>
               <div style={{
                 width: `${progressPct}%`,
@@ -147,19 +142,19 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
 
             {/* Stats inferior */}
             <div style={{ 
-              display: 'flex', gap: 24, marginTop: 20,
-              paddingTop: 18, borderTop: `1px solid ${C.borderSoft}`,
+              display: 'flex', gap: 16, marginTop: 16,
+              paddingTop: 14, borderTop: `1px solid ${C.borderSoft}`,
             }}>
-              <div>
-                <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: C.ink, letterSpacing: -0.6 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, letterSpacing: -0.5 }}>
                   {uniqueContributors}
                 </div>
                 <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, marginTop: 2 }}>
                   amigos regalaron
                 </div>
               </div>
-              <div>
-                <div style={{ fontSize: isMobile ? 22 : 28, fontWeight: 800, color: C.ink, letterSpacing: -0.6 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, letterSpacing: -0.5 }}>
                   {contributions.length}
                 </div>
                 <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, marginTop: 2 }}>
@@ -167,59 +162,24 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
                 </div>
               </div>
             </div>
+
+            {/* Botón Ver */}
+            <button
+              onClick={() => handleTabChange('miregalo')}
+              style={{
+                width: '100%', marginTop: 16, padding: '10px 16px',
+                borderRadius: 10, border: `1px solid ${C.border}`,
+                background: 'white', color: C.ink,
+                fontWeight: 700, fontSize: 13, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}>
+              <Eye size={16} /> Ver
+            </button>
           </div>
         )}
       </div>
 
-      {/* Mis regalos */}
-      <h2 style={{ 
-        fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, 
-        margin: '0 0 16px', letterSpacing: -0.4,
-      }}>
-        Mis regalos
-      </h2>
-
-      {loading ? (
-        <div style={{ 
-          background: 'white', borderRadius: 16, padding: 24, 
-          textAlign: 'center', border: `1px solid ${C.border}`,
-          marginBottom: isMobile ? 24 : 32,
-        }}>
-          <p style={{ color: C.inkMuted, fontSize: 13, margin: 0 }}>Cargando regalos...</p>
-        </div>
-      ) : items.length > 0 ? (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
-          gap: isMobile ? 8 : 14,
-          marginBottom: isMobile ? 24 : 32,
-        }}>
-          {items.map(item => (
-            <RegaloCard 
-              key={item.id} 
-              item={item} 
-              contributions={contributions.filter(c => c.gift_item_id === item.id)}
-              isMobile={isMobile} 
-            />
-          ))}
-        </div>
-      ) : (
-        <div style={{
-          background: 'white', borderRadius: 16, padding: 24, textAlign: 'center',
-          border: `1px dashed ${C.border}`, marginBottom: isMobile ? 24 : 32,
-        }}>
-          <div style={{ fontSize: 32, marginBottom: 10 }}>🎁</div>
-          <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 12 }}>
-            Aún no tenés regalos cargados
-          </div>
-          <button style={{
-            padding: '10px 20px', borderRadius: 12, border: 'none',
-            background: C.primary, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer',
-          }}>Agregar regalo</button>
-        </div>
-      )}
-
-      {/* Lista de amigos para compartir */}
+      {/* Compartir con grupos */}
       <div style={{ 
         display: 'flex', justifyContent: 'space-between', 
         alignItems: 'baseline', marginBottom: 16,
@@ -249,62 +209,6 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
         <GrupoCard icon={GraduationCap} label="Facultad" count={0} color="#10B981" isMobile={isMobile} />
         <GrupoCard icon={UserPlus} label="Conocidos" count={0} color="#3B82F6" isMobile={isMobile} />
         <GrupoCard icon={Plus} label="Nuevo grupo" count={null} color={C.inkMuted} isMobile={isMobile} isNew />
-      </div>
-    </div>
-  );
-}
-
-function RegaloCard({ item, contributions, isMobile }) {
-  const raised = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
-  const price = parseFloat(item.price) || 0;
-  const pct = price > 0 ? Math.min(100, (raised / price) * 100) : 0;
-
-  return (
-    <div style={{
-      background: 'white', borderRadius: isMobile ? 16 : 18,
-      padding: isMobile ? 14 : 16,
-      border: `1px solid ${C.border}`,
-      display: isMobile ? 'flex' : 'block',
-      alignItems: 'center', gap: 12,
-    }}>
-      <div style={{
-        width: isMobile ? 64 : '100%',
-        height: isMobile ? 64 : 130,
-        borderRadius: 12, background: C.borderSoft,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: isMobile ? 30 : 50,
-        marginBottom: isMobile ? 0 : 14,
-        flexShrink: 0,
-        overflow: 'hidden',
-      }}>
-        {item.image_url ? (
-          <img src={item.image_url} alt={item.name || item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-        ) : '🎁'}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ 
-          fontSize: isMobile ? 14 : 15, fontWeight: 700, color: C.ink,
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {item.name || item.title || 'Regalo'}
-        </div>
-        {price > 0 && (
-          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
-            {formatCurrency(price)}
-          </div>
-        )}
-        <div style={{
-          height: 4, background: C.borderSoft, borderRadius: 2,
-          marginTop: 8, overflow: 'hidden',
-        }}>
-          <div style={{
-            width: `${pct}%`, height: '100%',
-            background: C.primary, borderRadius: 2,
-          }} />
-        </div>
-        <div style={{ fontSize: 10, color: C.inkMuted, marginTop: 4, fontWeight: 600 }}>
-          {Math.round(pct)}% juntado
-        </div>
       </div>
     </div>
   );
