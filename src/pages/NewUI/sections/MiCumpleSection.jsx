@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Users, Briefcase, GraduationCap, Heart, UserPlus, Plus, Eye } from 'lucide-react';
+import { Users, Briefcase, GraduationCap, Heart, UserPlus, Plus, Gamepad2, ChevronRight } from 'lucide-react';
 import { C, calcDaysUntil, formatCurrency, formatDay } from '../theme';
 import { supabase } from '../../../supabaseClient';
 
@@ -48,6 +48,7 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
   const uniqueContributors = new Set(contributions.map(c => c.user_id).filter(Boolean)).size;
 
   const days = calcDaysUntil(profile?.birthday);
+  const hasRegalos = items.length > 0;
 
   return (
     <div style={{ padding: isMobile ? '16px 20px 20px' : 0 }}>
@@ -59,7 +60,7 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
         {days !== null ? `Faltan ${days} días · ${formatDay(profile?.birthday)}` : 'Configurá tu fecha de cumpleaños'}
       </p>
 
-      {/* Hero + Mi regalo grid */}
+      {/* HERO + MI REGALO - siempre aparece */}
       <div style={{
         display: 'grid',
         gridTemplateColumns: isMobile ? '1fr' : '1.3fr 1fr',
@@ -107,153 +108,237 @@ export default function MiCumpleSection({ profile, session, isMobile, handleTabC
           </button>
         </div>
 
-        {/* MI REGALO card derecha */}
-        {campaign && (
-          <div style={{
-            background: 'white', borderRadius: isMobile ? 20 : 24, padding: isMobile ? 22 : 28,
-            border: `1px solid ${C.border}`,
-          }}>
-            <div style={{ 
-              fontSize: 12, color: C.inkMuted, fontWeight: 700, 
-              textTransform: 'uppercase', letterSpacing: 0.6,
-            }}>
-              Mi regalo
-            </div>
-            <div style={{ 
-              fontSize: isMobile ? 32 : 40, fontWeight: 800, 
-              color: C.ink, margin: '8px 0 4px', letterSpacing: -1.2,
-            }}>
-              {formatCurrency(totalRaised)}
-            </div>
-            <div style={{ fontSize: 13, color: C.inkMuted, marginBottom: 14 }}>
-              de {formatCurrency(goalAmount)} · {Math.round(progressPct)}% juntado
-            </div>
-            <div style={{
-              height: 10, background: C.borderSoft, borderRadius: 5,
-              marginBottom: 6, overflow: 'hidden',
-            }}>
-              <div style={{
-                width: `${progressPct}%`,
-                height: '100%',
-                background: `linear-gradient(90deg, ${C.primary}, ${C.accent})`,
-                transition: 'width 0.5s',
-              }} />
-            </div>
+        {/* MI REGALO DE CUMPLEAÑOS - siempre aparece */}
+        <MiRegaloCard
+          hasRegalos={hasRegalos}
+          items={items}
+          contributions={contributions}
+          totalRaised={totalRaised}
+          goalAmount={goalAmount}
+          progressPct={progressPct}
+          uniqueContributors={uniqueContributors}
+          isMobile={isMobile}
+          handleTabChange={handleTabChange}
+        />
+      </div>
 
-            {/* Stats inferior + Ver button */}
-            <div style={{ 
-              display: 'flex', gap: 16, marginTop: 16, alignItems: 'center',
-              paddingTop: 14, borderTop: `1px solid ${C.borderSoft}`,
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, letterSpacing: -0.5 }}>
-                  {uniqueContributors}
-                </div>
-                <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, marginTop: 2 }}>
-                  amigos regalaron
-                </div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, letterSpacing: -0.5 }}>
-                  {contributions.length}
-                </div>
-                <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, marginTop: 2 }}>
-                  regalos recibidos
-                </div>
-              </div>
-              <button
-                onClick={() => items.length > 0 && handleTabChange('miregalo')}
-                style={{
-                  padding: '8px 12px', borderRadius: 8, border: 'none',
-                  background: C.primary, color: 'white',
-                  fontWeight: 700, fontSize: 12, cursor: items.length > 0 ? 'pointer' : 'not-allowed',
-                  opacity: items.length > 0 ? 1 : 0.5,
-                }}
-              >
-                Ver
-              </button>
-            </div>
-
-            {/* Botón Ver */}
-            <button
-              onClick={() => handleTabChange('miregalo')}
-              style={{
-                width: '100%', marginTop: 16, padding: '10px 16px',
-                borderRadius: 10, border: `1px solid ${C.border}`,
-                background: 'white', color: C.ink,
-                fontWeight: 700, fontSize: 13, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}>
-              <Eye size={16} /> Ver
-            </button>
+      {/* MIS REGALOS (lista de gift_items con progress individual) */}
+      <h2 style={{ fontSize: isMobile ? 16 : 22, fontWeight: 800, color: C.ink, margin: '0 0 16px' }}>
+        Mis regalos
+      </h2>
+      {hasRegalos ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)',
+          gap: isMobile ? 8 : 14,
+          marginBottom: isMobile ? 24 : 32,
+        }}>
+          {items.map(item => (
+            <RegaloCard key={item.id} item={item} contributions={contributions.filter(c => c.gift_item_id === item.id)} isMobile={isMobile} />
+          ))}
+        </div>
+      ) : (
+        <div style={{
+          background: 'white', borderRadius: 16, padding: 24, textAlign: 'center',
+          border: `1px dashed ${C.border}`, marginBottom: isMobile ? 24 : 32,
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 10 }}>🎁</div>
+          <div style={{ fontSize: 14, color: C.inkMuted, marginBottom: 12 }}>
+            Aún no tenés regalos cargados
           </div>
-        )}
-      </div>
+          <button style={{
+            padding: '10px 20px', borderRadius: 12, border: 'none',
+            background: C.primary, color: 'white', fontWeight: 600, fontSize: 13, cursor: 'pointer',
+          }}>Agregar regalo</button>
+        </div>
+      )}
 
-      {/* Compartir con grupos */}
-      <div style={{ 
-        display: 'flex', justifyContent: 'space-between', 
-        alignItems: 'baseline', marginBottom: 16,
-      }}>
-        <h2 style={{ 
-          fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, 
-          margin: 0, letterSpacing: -0.4,
-        }}>
-          Compartí con tus grupos
-        </h2>
-        <button style={{
-          background: 'none', border: 'none', color: C.primary,
-          fontSize: 13, fontWeight: 600, cursor: 'pointer',
-        }}>
-          + Nuevo grupo
-        </button>
-      </div>
-
+      {/* JUEGOS DE CUMPLEAÑOS - siempre aparece al final */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(3, 1fr)',
-        gap: isMobile ? 10 : 14,
+        background: `linear-gradient(135deg, #10B981 0%, #059669 100%)`,
+        borderRadius: isMobile ? 20 : 24,
+        padding: isMobile ? 20 : 28, color: 'white',
+        display: 'flex', alignItems: 'center', gap: isMobile ? 12 : 20,
       }}>
-        <GrupoCard icon={Heart} label="Familia" count={0} color="#EC4899" isMobile={isMobile} />
-        <GrupoCard icon={Briefcase} label="Trabajo" count={0} color={C.primary} isMobile={isMobile} />
-        <GrupoCard icon={Users} label="Amigos" count={0} color={C.accent} isMobile={isMobile} />
-        <GrupoCard icon={GraduationCap} label="Facultad" count={0} color="#10B981" isMobile={isMobile} />
-        <GrupoCard icon={UserPlus} label="Conocidos" count={0} color="#3B82F6" isMobile={isMobile} />
-        <GrupoCard icon={Plus} label="Nuevo grupo" count={null} color={C.inkMuted} isMobile={isMobile} isNew />
+        <div style={{
+          width: isMobile ? 52 : 72, height: isMobile ? 52 : 72,
+          borderRadius: isMobile ? 16 : 20,
+          background: 'rgba(255,255,255,0.25)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+        }}>
+          <Gamepad2 size={isMobile ? 26 : 34} color="white" />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: isMobile ? 16 : 22, fontWeight: 800, letterSpacing: -0.4 }}>
+            Juegos de cumpleaños
+          </div>
+          <div style={{ fontSize: isMobile ? 12 : 14, opacity: 0.9, marginTop: 2 }}>
+            Sumale diversión a tu fiesta
+          </div>
+        </div>
+        {!isMobile && (
+          <button style={{
+            padding: '12px 22px', borderRadius: 12, border: 'none',
+            background: 'white', color: '#059669',
+            fontWeight: 700, fontSize: 14, cursor: 'pointer',
+          }}>Explorar →</button>
+        )}
+        {isMobile && <ChevronRight size={20} color="white" />}
       </div>
     </div>
   );
 }
 
-function GrupoCard({ icon: Icon, label, count, color, isMobile, isNew }) {
+function MiRegaloCard({ hasRegalos, items, contributions, totalRaised, goalAmount, progressPct, uniqueContributors, isMobile, handleTabChange }) {
+  if (!hasRegalos) {
+    // Sin regalo cargado
+    return (
+      <div style={{
+        background: 'white', borderRadius: isMobile ? 20 : 24, padding: isMobile ? 22 : 28,
+        border: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        minHeight: isMobile ? 'auto' : 260, textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 48, marginBottom: 14 }}>📦</div>
+        <div style={{ fontSize: isMobile ? 15 : 18, fontWeight: 700, color: C.ink, marginBottom: 6 }}>
+          Aún no cargaste tu regalo
+        </div>
+        <div style={{ fontSize: 13, color: C.inkMuted, marginBottom: 16 }}>
+          ¿Querés cargarlo y empezar a juntar?
+        </div>
+        <button
+          onClick={() => handleTabChange('miregalo')}
+          style={{
+            padding: '10px 20px', borderRadius: 12, border: 'none',
+            background: C.primary, color: 'white',
+            fontWeight: 700, fontSize: 13, cursor: 'pointer',
+          }}>
+          Cargalo acá →
+        </button>
+      </div>
+    );
+  }
+
+  // Con regalo cargado
   return (
-    <button style={{
-      background: 'white', border: isNew ? `2px dashed ${C.border}` : `1px solid ${C.border}`,
-      borderRadius: isMobile ? 16 : 18,
-      padding: isMobile ? 14 : 18,
-      display: 'flex', flexDirection: 'column',
-      alignItems: 'flex-start', gap: isMobile ? 10 : 12,
-      cursor: 'pointer', textAlign: 'left',
-      width: '100%',
+    <div style={{
+      background: 'white', borderRadius: isMobile ? 20 : 24, padding: isMobile ? 22 : 28,
+      border: `1px solid ${C.border}`,
     }}>
       <div style={{
-        width: isMobile ? 36 : 44, height: isMobile ? 36 : 44,
-        borderRadius: isMobile ? 10 : 12,
-        background: `${color}15`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, color: C.inkMuted, fontWeight: 700,
+        textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 12,
       }}>
-        <Icon size={isMobile ? 18 : 22} color={color} />
+        Mi regalo de cumpleaños
       </div>
-      <div style={{ width: '100%' }}>
-        <div style={{ fontSize: isMobile ? 13 : 15, fontWeight: 700, color: C.ink }}>
-          {label}
+      <div style={{
+        fontSize: isMobile ? 32 : 40, fontWeight: 800,
+        color: C.ink, margin: '0 0 4px', letterSpacing: -1.2,
+      }}>
+        {formatCurrency(totalRaised)}
+      </div>
+      <div style={{ fontSize: 13, color: C.inkMuted, marginBottom: 14 }}>
+        de {formatCurrency(goalAmount)} · {Math.round(progressPct)}% juntado
+      </div>
+      <div style={{
+        height: 10, background: C.borderSoft, borderRadius: 5,
+        marginBottom: 6, overflow: 'hidden',
+      }}>
+        <div style={{
+          width: `${progressPct}%`,
+          height: '100%',
+          background: `linear-gradient(90deg, ${C.primary}, ${C.accent})`,
+          transition: 'width 0.5s',
+        }} />
+      </div>
+
+      {/* Stats + Ver button */}
+      <div style={{
+        display: 'flex', gap: 12, marginTop: 16, alignItems: 'center',
+        paddingTop: 14, borderTop: `1px solid ${C.borderSoft}`,
+      }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, letterSpacing: -0.5 }}>
+            {uniqueContributors}
+          </div>
+          <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, marginTop: 2 }}>
+            amigos regalaron
+          </div>
         </div>
-        {count !== null && (
-          <div style={{ fontSize: 11, color: C.inkMuted, marginTop: 2 }}>
-            {count === 0 ? 'Sin contactos' : `${count} contacto${count !== 1 ? 's' : ''}`}
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: isMobile ? 18 : 24, fontWeight: 800, color: C.ink, letterSpacing: -0.5 }}>
+            {items.length}
+          </div>
+          <div style={{ fontSize: 11, color: C.inkMuted, fontWeight: 600, marginTop: 2 }}>
+            regalos cargados
+          </div>
+        </div>
+        <button
+          onClick={() => handleTabChange('miregalo')}
+          style={{
+            padding: '8px 12px', borderRadius: 8, border: 'none',
+            background: C.primary, color: 'white',
+            fontWeight: 700, fontSize: 12, cursor: 'pointer',
+          }}
+        >
+          Ver
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function RegaloCard({ item, contributions, isMobile }) {
+  const raised = contributions.reduce((sum, c) => sum + (c.amount || 0), 0);
+  const price = parseFloat(item.price) || 0;
+  const pct = price > 0 ? Math.min(100, (raised / price) * 100) : 0;
+
+  return (
+    <div style={{
+      background: 'white', borderRadius: isMobile ? 16 : 18,
+      padding: isMobile ? 14 : 16,
+      border: `1px solid ${C.border}`,
+      display: isMobile ? 'flex' : 'block',
+      alignItems: 'center', gap: 12,
+    }}>
+      <div style={{
+        width: isMobile ? 64 : '100%',
+        height: isMobile ? 64 : 130,
+        borderRadius: 12, background: C.borderSoft,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: isMobile ? 30 : 50,
+        marginBottom: isMobile ? 0 : 14,
+        flexShrink: 0,
+        overflow: 'hidden',
+      }}>
+        {item.image_url ? (
+          <img src={item.image_url} alt={item.name || item.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        ) : '🎁'}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{
+          fontSize: isMobile ? 14 : 15, fontWeight: 700, color: C.ink,
+          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+        }}>
+          {item.name || item.title || 'Regalo'}
+        </div>
+        {price > 0 && (
+          <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>
+            {formatCurrency(price)}
           </div>
         )}
+        <div style={{
+          height: 4, background: C.borderSoft, borderRadius: 2,
+          marginTop: 8, overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${pct}%`, height: '100%',
+            background: C.primary, borderRadius: 2,
+          }} />
+        </div>
+        <div style={{ fontSize: 10, color: C.inkMuted, marginTop: 4, fontWeight: 600 }}>
+          {Math.round(pct)}% juntado
+        </div>
       </div>
-    </button>
+    </div>
   );
 }
