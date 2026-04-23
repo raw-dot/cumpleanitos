@@ -12,6 +12,7 @@ import CompartirLinkSection from './sections/CompartirLinkSection';
 import ExplorarSection from './sections/ExplorarSection';
 import PerfilAmigoSection from './sections/PerfilAmigoSection';
 import RegalosHechosSection from './sections/RegalosHechosSection';
+import ConfiguracionSection from './sections/ConfiguracionSection';
 import CalendarioSection from './sections/CalendarioSection';
 import OrganizadorSection from './sections/OrganizadorSection';
 import ProfileDrawer from './components/ProfileDrawer';
@@ -112,6 +113,7 @@ export default function AppLayout() {
         {activeTab === 'explorar' && <ExplorarSection {...commonProps} />}
         {activeTab === 'perfil-amigo' && <PerfilAmigoSection {...commonProps} />}
         {activeTab === 'regalos-hechos' && <RegalosHechosSection {...commonProps} />}
+        {activeTab === 'configuracion' && <ConfiguracionSection {...commonProps} />}
         {activeTab === 'calendario' && <CalendarioSection {...commonProps} />}
         {activeTab === 'organizador' && <OrganizadorSection {...commonProps} />}
       </div>
