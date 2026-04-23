@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Test OAuth - Cumpleanitos</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body style="font-family: system-ui; padding: 40px; max-width: 600px; margin: 0 auto;">
+  <h1>🧪 Test Google OAuth</h1>
+  <p>Test minimalista para diagnosticar el error de Google OAuth</p>
+  
+  <button onclick="testGoogleOAuth()" style="padding: 12px 24px; font-size: 16px; cursor: pointer;">
+    🔐 Test Google Login
+  </button>
+  
+  <div id="log" style="margin-top: 20px; padding: 20px; background: #f5f5f5; border-radius: 8px; font-family: monospace; font-size: 12px; white-space: pre-wrap;"></div>
+
+  <script>
+    const { createClient } = supabase;
+    
+    const supabaseClient = createClient(
+      'https://bbhmbnhbzhbyktztdrhu.supabase.co',
+      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJiaG1ibmhiemhieWt0enRkcmh1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI4Mjg3OTgsImV4cCI6MjA4ODQwNDc5OH0.zUOa-wXC-8cZPn01PBDRTOkdgTGcvk3rPDRLVpMbLNk'
+    );
+    
+    function log(msg) {
+      const logDiv = document.getElementById('log');
+      logDiv.textContent += new Date().toISOString() + ' - ' + msg + '\n';
+      console.log(msg);
+    }
+    
+    async function testGoogleOAuth() {
+      log('🚀 Iniciando test Google OAuth...');
+      
+      try {
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
+          provider: 'google',
+          options: {
+            redirectTo: window.location.origin + '/test-oauth.html'
+          }
+        });
+        
+        if (error) {
+          log('❌ Error en signInWithOAuth: ' + error.message);
+          return;
+        }
+        
+        log('✅ OAuth iniciado, redirigiendo...');
+      } catch (err) {
+        log('❌ Exception: ' + err.message);
+      }
+    }
+    
+    // Al cargar, verificar si venimos del redirect
+    window.addEventListener('load', async () => {
+      const params = new URLSearchParams(window.location.hash.substring(1));
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      
+      if (error) {
+        log('❌ ERROR EN REDIRECT: ' + error);
+        log('   Descripción: ' + errorDescription);
+        log('   URL completa: ' + window.location.href);
+      } else if (window.location.hash.includes('access_token')) {
+        log('✅ Redirect exitoso!');
+        
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+        
+        if (sessionError) {
+          log('❌ Error obteniendo session: ' + sessionError.message);
+        } else if (session) {
+          log('✅ Session obtenida!');
+          log('   User ID: ' + session.user.id);
+          log('   Email: ' + session.user.email);
+          log('   Provider: ' + JSON.stringify(session.user.app_metadata.provider));
+          
+          // Verificar si existe profile
+          log('\n🔍 Verificando profile...');
+          const { data: profile, error: profileError } = await supabaseClient
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+          
+          if (profileError) {
+            log('⚠️  Error consultando profile: ' + profileError.message);
+          } else if (profile) {
+            log('✅ Profile existe!');
+            log('   Username: ' + profile.username);
+            log('   Name: ' + profile.name);
+          } else {
+            log('❌ Profile NO existe');
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>
