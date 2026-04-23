@@ -344,15 +344,24 @@ function RegaloCard({ item, contributions, isMobile }) {
 }
 
 function GrupoCard({ icon, nombre, isAdd, isMobile }) {
-  const bgColor = !isAdd ? 'white' : C.bg;
-  const borderStyle = !isAdd ? `1px solid ${C.border}` : `2px dashed ${C.border}`;
+  const colores = {
+    'Familia': { bg: '#FCE7F3', icon: '#EC4899' },
+    'Trabajo': { bg: '#EDE9FE', icon: '#7C3AED' },
+    'Amigos': { bg: '#FEF3C7', icon: '#F59E0B' },
+    'Facultad': { bg: '#D1FAE5', icon: '#10B981' },
+    'Conocidos': { bg: '#DBEAFE', icon: '#3B82F6' },
+    'Nuevo grupo': { bg: '#F3F4F6', icon: '#6B7280' },
+  };
+
+  const estilo = colores[nombre] || colores['Familia'];
+  const borderStyle = !isAdd ? `1px solid #E5E7EB` : `2px dashed #E5E7EB`;
   
   return (
     <div style={{
-      background: bgColor,
+      background: 'white',
       border: borderStyle,
       borderRadius: isMobile ? 14 : 16,
-      padding: isMobile ? 12 : 16,
+      padding: isMobile ? 16 : 20,
       textAlign: 'center',
       cursor: 'pointer',
       transition: 'all 0.2s',
@@ -360,25 +369,32 @@ function GrupoCard({ icon, nombre, isAdd, isMobile }) {
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
-      minHeight: isMobile ? 100 : 120,
+      minHeight: isMobile ? 110 : 130,
     }}>
       <div style={{
-        fontSize: isMobile ? 28 : 32,
-        marginBottom: 8,
+        width: isMobile ? 50 : 60,
+        height: isMobile ? 50 : 60,
+        borderRadius: isMobile ? 12 : 14,
+        background: estilo.bg,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: isMobile ? 24 : 28,
+        marginBottom: 10,
       }}>
         {icon}
       </div>
       <div style={{
-        fontSize: isMobile ? 13 : 14,
+        fontSize: isMobile ? 14 : 15,
         fontWeight: 700,
-        color: C.ink,
+        color: '#111827',
       }}>
         {nombre}
       </div>
       {!isAdd && (
         <div style={{
-          fontSize: isMobile ? 10 : 11,
-          color: C.inkMuted,
+          fontSize: isMobile ? 11 : 12,
+          color: '#9CA3AF',
           marginTop: 4,
         }}>
           Sin contactos
